@@ -40,11 +40,12 @@ RUN for f in src/dap/sgnl.h; do \
       ) > "${f}.tmp" && mv "${f}.tmp" "$f"; \
     done
 
-RUN CFLAGS="-D_GNU_SOURCE -DHAVE_SIGACTION=1" \
-    CXXFLAGS="-std=gnu++98" \
+# 5. Force sigaction over sigvec in the signal handling code
+RUN sed -i '1i#define HAVE_SIGACTION 1' src/dap/sgnl.h
+
+RUN CFLAGS="-D_GNU_SOURCE" CXXFLAGS="-std=gnu++98" \
     LIBS="-lX11 -lXext" \
     ./configure --prefix=/opt/aplus \
-    && sed -i 's/#undef HAVE_SIGACTION/#define HAVE_SIGACTION 1/' config.h \
     && make -j"$(nproc)" \
     && make install
 
