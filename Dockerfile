@@ -13,7 +13,7 @@ WORKDIR /build
 ADD https://github.com/louyx/aplus/archive/refs/heads/master.tar.gz /tmp/aplus.tar.gz
 RUN tar xzf /tmp/aplus.tar.gz --strip-components=1 && rm /tmp/aplus.tar.gz
 
-RUN CXXFLAGS="-std=gnu++98 -Wno-error" \
+RUN CXXFLAGS="-std=gnu++98 -fpermissive -Wno-error" \
     ./configure --prefix=/opt/aplus \
     && make -j"$(nproc)" \
     && make install
