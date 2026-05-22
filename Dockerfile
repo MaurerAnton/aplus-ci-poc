@@ -1,8 +1,8 @@
 # syntax=docker/dockerfile:1
 # A+ Programming Language — Docker image
-# Builds on ubuntu:20.04 to avoid glibc/GCC compatibility issues
+# Builds on ubuntu:18.04 to avoid glibc/GCC compatibility issues
 
-FROM ubuntu:20.04 AS builder
+FROM ubuntu:18.04 AS builder
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     g++ make xorg-dev ca-certificates wget \
@@ -37,7 +37,7 @@ RUN CFLAGS="-I/build -include /build/compat.h" \
     && make -j"$(nproc)" \
     && make install
 
-FROM ubuntu:20.04
+FROM ubuntu:18.04
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     libx11-6 ca-certificates \
