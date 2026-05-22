@@ -36,14 +36,15 @@ jobs:
       - name: Patch for modern glibc
         run: |
           # sys_nerr/sys_errlist removed in glibc >= 2.32
-          sed -i '/extern int sys_nerr;/d' aplus-src/src/dap/error.c
-          sed -i 's#if (errnum < 1 || errnum > sys_nerr)#if (0)#g' aplus-src/src/dap/error.c
-          sed -i 's#sys_errlist\[errnum\]#strerror(errnum)#g' aplus-src/src/dap/error.c
+          # Universal replacement: sys_errlist[X] -> strerror(X)
           find aplus-src -type f \( -name '*.c' -o -name '*.C' -o -name '*.h' -o -name '*.H' \) \
-            -exec sed -i 's#(errno<sys_nerr)?sys_errlist\[errno\]:"unknown error"#strerror(errno)#g' {} \;
-          # Also replace bare sys_errlist[errno] (used in AipcConnection.C etc.)
+            -exec sed -i 's/sys_errlist\[\([^]]*\)\]/strerror(\1)/g' {} \;
+          # Remove extern sys_nerr declarations
+          find aplus-src -type f \( -name '*.c' -o -name '*.C' -o -name '*.h' -o -name '*.H' \) \
+            -exec sed -i '/extern int sys_nerr;/d' {} \;
+          # Remove sys_nerr usage (replace with 9999)
           find aplus-src -type f \( -name '*.c' -o -name '*.C' \) \
-            -exec sed -i 's#sys_errlist\[errno\]#strerror(errno)#g' {} \;
+            -exec sed -i 's/sys_nerr/9999/g' {} \;
           # struct sigvec / SV_INTERRUPT removed in glibc >= 2.32
           cat > aplus-src/compat.h << 'EOF'
           #include <string.h>
@@ -54,7 +55,6 @@ jobs:
               int sv_flags;
           };
           #define SV_INTERRUPT SA_INTERRUPT
-          #define sv_handler sv_handler
           EOF
 
       - name: Configure and build
