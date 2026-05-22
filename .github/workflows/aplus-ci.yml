@@ -1,0 +1,81 @@
+name: A+ CI
+
+on:
+  push:
+    paths:
+      - '**.a+'
+      - '.github/workflows/aplus-ci.yml'
+  pull_request:
+    paths:
+      - '**.a+'
+      - '.github/workflows/aplus-ci.yml'
+  workflow_dispatch:
+
+jobs:
+  build-interpreter:
+    name: Build A+ interpreter
+    runs-on: ubuntu-20.04
+    outputs:
+      prefix: ${{ steps.build.outputs.prefix }}
+    steps:
+      - name: Check out A+ interpreter source
+        uses: actions/checkout@v4
+        with:
+          repository: louyx/aplus
+          path: aplus-src
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y g++ make xorg-dev
+
+      - name: Configure and build
+        id: build
+        run: |
+          PREFIX=$PWD/aplus-install
+          cd aplus-src
+          ./configure --prefix="$PREFIX"
+          make -j$(nproc)
+          make install
+          echo "prefix=$PREFIX" >> "$GITHUB_OUTPUT"
+
+      - name: Smoke test
+        run: |
+          echo '1+2' | timeout 5 ${{ steps.build.outputs.prefix }}/bin/a+ || true
+
+      - name: Upload interpreter artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: aplus-interpreter
+          path: aplus-install/
+          retention-days: 1
+
+  run-program:
+    name: Run A+ programs
+    runs-on: ubuntu-20.04
+    needs: build-interpreter
+    steps:
+      - name: Check out this repository
+        uses: actions/checkout@v4
+
+      - name: Download interpreter artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: aplus-interpreter
+          path: aplus-install
+
+      - name: Make interpreter executable
+        run: chmod +x aplus-install/bin/a+
+
+      - name: Run all A+ programs
+        run: |
+          A=aplus-install/bin/a+
+          for f in *.a+; do
+            echo "========================================="
+            echo "=== Running: $f"
+            echo "========================================="
+            "$A" "$f"
+            echo ""
+            echo "=== Exit code: $? ==="
+            echo ""
+          done

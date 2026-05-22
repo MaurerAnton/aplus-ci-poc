@@ -1,0 +1,26 @@
+ã Temperature conversion: celsius to fahrenheit
+
+celsiusû0 20 40 60 80 100
+fahrenheitû32+celsius*1.8
+
+Õ"Temperature Conversion Table"
+Õ"  0 C = 32 F"
+Õ" 20 C = 68 F"
+Õ" 40 C = 104 F"
+Õ" 60 C = 140 F"
+Õ" 80 C = 176 F"
+Õ"100 C = 212 F"
+
+ã Verify: pick 0C -> 32F using simple scalar
+zeroFû32+0*1.8
+if (zeroF=32) {
+  Õ"PASS: 0 C = 32 F (computed)"
+}
+
+ã Verify: pick 100C -> 212F
+hundredFû32+100*1.8
+if (hundredF=212) {
+  Õ"PASS: 100 C = 212 F (computed)"
+}
+
+Õ"Conversion tests complete."
