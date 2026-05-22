@@ -39,7 +39,7 @@ RUN for f in src/dap/sgnlcatch.c src/dap/sgnldefault.c \
     done
 
 # Build
-RUN ./configure --prefix=/opt/aplus \
+RUN CXXFLAGS="-std=gnu++98" ./configure --prefix=/opt/aplus \
     && make -j"$(nproc)" \
     && make install
 
