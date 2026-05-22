@@ -2,7 +2,7 @@
 # A+ Programming Language — Docker image
 # Builds the Morgan Stanley A+ interpreter from source.
 
-FROM ubuntu:22.04 AS builder
+FROM ubuntu:20.04 AS builder
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     g++ make xorg-dev ca-certificates wget \
@@ -10,26 +10,15 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 WORKDIR /build
 
-# Download A+ 4.22-1 source tarball
 ADD https://github.com/louyx/aplus/archive/refs/heads/master.tar.gz /tmp/aplus.tar.gz
 RUN tar xzf /tmp/aplus.tar.gz --strip-components=1 && rm /tmp/aplus.tar.gz
 
-# Patch for modern glibc: sys_errlist, sys_nerr, sigvec removed
-RUN find . -type f \( -name '*.c' -o -name '*.C' \) \
-      -exec sed -i 's/sys_errlist\[\([^]]*\)\]/strerror(\1)/g' {} \; \
-    && find . -type f \( -name '*.c' -o -name '*.C' -o -name '*.h' -o -name '*.H' \) \
-      -exec sed -i '/extern int sys_nerr;/d' {} \; \
-    && find . -type f \( -name '*.c' -o -name '*.C' \) \
-      -exec sed -i 's/sys_nerr/9999/g' {} \; \
-    && printf '#include <string.h>\n#include <signal.h>\nstruct sigvec { void (*sv_handler)(int); int sv_mask; int sv_flags; };\n#define SV_INTERRUPT SA_INTERRUPT\n' > compat.h
-
-RUN CFLAGS="-Wno-error -include /build/compat.h" \
-    CXXFLAGS="-std=gnu++98 -Wno-error -fpermissive" \
+RUN CXXFLAGS="-std=gnu++98 -Wno-error" \
     ./configure --prefix=/opt/aplus \
     && make -j"$(nproc)" \
     && make install
 
-FROM ubuntu:22.04 AS runtime
+FROM ubuntu:20.04
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     libx11-6 ca-certificates \
