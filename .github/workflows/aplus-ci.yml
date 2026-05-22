@@ -45,7 +45,8 @@ jobs:
         run: |
           PREFIX=$PWD/aplus-install
           cd aplus-src
-          CFLAGS="-Wno-error -fpermissive" CXXFLAGS="-Wno-error -fpermissive" \
+          CFLAGS="-Wno-error -fpermissive" \
+            CXXFLAGS="-std=gnu++98 -Wno-error -fpermissive" \
             ./configure --prefix="$PREFIX"
           make -j$(nproc)
           make install
