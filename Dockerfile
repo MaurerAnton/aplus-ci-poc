@@ -14,9 +14,11 @@ WORKDIR /build
 ADD https://github.com/louyx/aplus/archive/refs/heads/master.tar.gz /tmp/aplus.tar.gz
 RUN tar xzf /tmp/aplus.tar.gz --strip-components=1 && rm /tmp/aplus.tar.gz
 
-# Patch for modern glibc (sys_errlist removed)
-RUN sed -i 's/(errno<sys_nerr)?sys_errlist\[errno\]:"unknown error"/strerror(errno)/g' \
-      src/MSIPC/MSProtocolConnection.C
+# Patch for modern glibc (sys_errlist removed in glibc >= 2.32)
+RUN find . -type f \( -name '*.c' -o -name '*.C' -o -name '*.h' -o -name '*.H' \) \
+      -exec sed -i 's/(errno<sys_nerr)?sys_errlist\[errno\]:"unknown error"/strerror(errno)/g' {} \; \
+    && find . -type f \( -name '*.c' -o -name '*.C' \) \
+      -exec sed -i 's/sys_errlist\[errno\]/strerror(errno)/g' {} \;
 
 RUN CFLAGS="-Wno-error -fpermissive" \
     CXXFLAGS="-std=gnu++98 -Wno-error -fpermissive" \

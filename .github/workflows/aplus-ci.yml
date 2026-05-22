@@ -36,9 +36,11 @@ jobs:
       - name: Patch for modern glibc
         run: |
           # sys_nerr/sys_errlist removed in glibc >= 2.32
-          # Replace ternary expression with strerror()
-          sed -i 's/(errno<sys_nerr)?sys_errlist\[errno\]:"unknown error"/strerror(errno)/g' \
-            aplus-src/src/MSIPC/MSProtocolConnection.C
+          # Replace all occurrences across the source tree
+          find aplus-src -type f \( -name '*.c' -o -name '*.C' -o -name '*.h' -o -name '*.H' \) \
+            -exec sed -i 's/(errno<sys_nerr)?sys_errlist\[errno\]:"unknown error"/strerror(errno)/g' {} \;
+          find aplus-src -type f \( -name '*.c' -o -name '*.C' -o -name '*.h' -o -name '*.H' \) \
+            -exec sed -i 's/sys_errlist\[errno\]/strerror(errno)/g' {} \;
 
       - name: Configure and build
         id: build
