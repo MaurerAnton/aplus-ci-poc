@@ -36,11 +36,13 @@ jobs:
       - name: Patch for modern glibc
         run: |
           # sys_nerr/sys_errlist removed in glibc >= 2.32
-          # Replace all occurrences across the source tree
+          # Fix error.c: remove extern declaration, replace with strerror()
+          sed -i '/extern int sys_nerr;/d' aplus-src/src/dap/error.c
+          sed -i 's|if (errnum < 1 || errnum > sys_nerr)|if (0)|g' aplus-src/src/dap/error.c
+          sed -i 's|sys_errlist\[errnum\]|strerror(errnum)|g' aplus-src/src/dap/error.c
+          # Fix MSProtocolConnection.C and any other files
           find aplus-src -type f \( -name '*.c' -o -name '*.C' -o -name '*.h' -o -name '*.H' \) \
             -exec sed -i 's/(errno<sys_nerr)?sys_errlist\[errno\]:"unknown error"/strerror(errno)/g' {} \;
-          find aplus-src -type f \( -name '*.c' -o -name '*.C' -o -name '*.h' -o -name '*.H' \) \
-            -exec sed -i 's/sys_errlist\[errno\]/strerror(errno)/g' {} \;
 
       - name: Configure and build
         id: build
