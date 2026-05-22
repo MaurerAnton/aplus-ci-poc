@@ -1,0 +1,32 @@
+ã test.a+ - unit testing framework for A+
+ã Usage: $load test   then: test.ok{} test.fail{} test.summary{}
+
+passesû0
+failsû0
+
+ã Assert: mark a test as passed
+ok{}: {
+  passesûpasses+1
+  Õ"  [PASS]"
+}
+
+ã Assert: mark a test as failed
+fail{}: {
+  failsûfails+1
+  Õ"  [FAIL]"
+}
+
+ã Run an assertion (1 = pass, 0 = fail)
+check{cond}: {
+  if (cond) { ok{} } else { fail{} }
+}
+
+ã Print test summary
+summary{}: {
+  Õ"===== Test Summary ====="
+  Õ"Passes:"
+  passes
+  Õ"Fails:"
+  fails
+  Õ"========================"
+}

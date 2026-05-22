@@ -1,0 +1,40 @@
+ã 2-Layer Neural Network in A+
+ã XOR forward pass with pretrained weights
+
+ã Sigmoid: s(x) = 1 / (1 + e^(-x))
+sigmoid{x}: {
+  ß 1+*-x
+}
+
+ã Test sigmoid
+s0ûsigmoid{0}
+s1ûsigmoid{10}
+s2ûsigmoid{0.0-10}
+if (s0=0.5) { Õ"[PASS] sigmoid(0)=0.5" }
+if (s1>0.999) { Õ"[PASS] sigmoid(10)~1" }
+if (s2<0.001) { Õ"[PASS] sigmoid(-10)~0" }
+
+ã XOR inputs: 4 samples x 2 features
+Xû4 2 Î 0 0 0 1 1 0 1 1
+
+ã Weights (hidden 2->3, output 3->1)
+W1û2 3 Î 0.1 0.2 0.3 0.4 0.5 0.6
+W2û3 1 Î 0.7 0.8 0.9
+
+ã Forward pass: hidden + output
+Hûsigmoid X +.Á W1
+Yûsigmoid H +.Á W2
+
+ã Check output in [0,1]
+okû1
+if (Y[0]<0) { okû0 }
+if (Y[3]<0) { okû0 }
+if (ok=1) { Õ"[PASS] NN output valid" } else { Õ"[FAIL]" }
+
+ã Check shapes: H=4x3, Y=4x1
+shûÎ H
+if (sh[0]=4) { Õ"[PASS] Hidden layer 4x3" }
+syûÎ Y
+if (sy[0]=4) { Õ"[PASS] Output layer 4x1" }
+
+Õ"NN forward pass done."

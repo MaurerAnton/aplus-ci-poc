@@ -5,10 +5,14 @@ on:
     paths:
       - '**.a+'
       - '.github/workflows/aplus-ci.yml'
+      - 'fuzz_aplus.py'
+      - 'Dockerfile'
   pull_request:
     paths:
       - '**.a+'
       - '.github/workflows/aplus-ci.yml'
+      - 'fuzz_aplus.py'
+      - 'Dockerfile'
   workflow_dispatch:
 
 jobs:
@@ -50,7 +54,22 @@ jobs:
           path: aplus-install/
           retention-days: 1
 
-  run-program:
+  docker:
+    name: Build Docker image
+    runs-on: ubuntu-20.04
+    steps:
+      - name: Check out this repository
+        uses: actions/checkout@v4
+
+      - name: Build Docker image
+        run: docker build -t aplus:ci .
+
+      - name: Test Docker image
+        run: |
+          echo "=== Docker: inline expression ==="
+          echo '2+3' | docker run --rm -i aplus:ci || true
+
+  run-programs:
     name: Run A+ programs
     runs-on: ubuntu-20.04
     needs: build-interpreter
@@ -67,7 +86,7 @@ jobs:
       - name: Make interpreter executable
         run: chmod +x aplus-install/bin/a+
 
-      - name: Run all A+ programs
+      - name: Run A+ programs
         run: |
           A=aplus-install/bin/a+
           for f in *.a+; do
@@ -79,3 +98,58 @@ jobs:
             echo "=== Exit code: $? ==="
             echo ""
           done
+
+  neural-network:
+    name: Neural network demo
+    runs-on: ubuntu-20.04
+    needs: build-interpreter
+    steps:
+      - name: Check out this repository
+        uses: actions/checkout@v4
+
+      - name: Download interpreter artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: aplus-interpreter
+          path: aplus-install
+
+      - name: Make interpreter executable
+        run: chmod +x aplus-install/bin/a+
+
+      - name: Run neural network
+        run: |
+          echo "========================================="
+          echo "=== 2-Layer Neural Net in A+ ==="
+          echo "========================================="
+          aplus-install/bin/a+ nn.a+
+          echo ""
+          echo "=== Exit code: $? ==="
+
+  fuzz:
+    name: Fuzz test interpreter
+    runs-on: ubuntu-20.04
+    needs: build-interpreter
+    steps:
+      - name: Check out this repository
+        uses: actions/checkout@v4
+
+      - name: Download interpreter artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: aplus-interpreter
+          path: aplus-install
+
+      - name: Make interpreter executable
+        run: chmod +x aplus-install/bin/a+
+
+      - name: Run fuzzer (smoke + 100 iterations)
+        run: |
+          python3 fuzz_aplus.py aplus-install/bin/a+ \
+            --seed 12345 -n 100 --timeout 5 --report fuzz-report.txt
+
+      - name: Upload fuzz report
+        uses: actions/upload-artifact@v4
+        with:
+          name: fuzz-report
+          path: fuzz-report.txt
+          retention-days: 7
