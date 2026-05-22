@@ -18,7 +18,8 @@ RUN tar xzf /tmp/aplus.tar.gz --strip-components=1 && rm /tmp/aplus.tar.gz
 RUN sed -i 's/(errno<sys_nerr)?sys_errlist\[errno\]:"unknown error"/strerror(errno)/g' \
       src/MSIPC/MSProtocolConnection.C
 
-RUN ./configure --prefix=/opt/aplus \
+RUN CFLAGS="-Wno-error -fpermissive" CXXFLAGS="-Wno-error -fpermissive" \
+    ./configure --prefix=/opt/aplus \
     && make -j"$(nproc)" \
     && make install
 

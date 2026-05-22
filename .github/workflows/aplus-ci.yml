@@ -45,7 +45,8 @@ jobs:
         run: |
           PREFIX=$PWD/aplus-install
           cd aplus-src
-          CFLAGS="-Wno-error" CXXFLAGS="-Wno-error" ./configure --prefix="$PREFIX"
+          CFLAGS="-Wno-error -fpermissive" CXXFLAGS="-Wno-error -fpermissive" \
+            ./configure --prefix="$PREFIX"
           make -j$(nproc)
           make install
           echo "prefix=$PREFIX" >> "$GITHUB_OUTPUT"
