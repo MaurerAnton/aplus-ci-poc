@@ -62,7 +62,7 @@ jobs:
         run: |
           PREFIX=$PWD/aplus-install
           cd aplus-src
-          CFLAGS="-Wno-error -include $PWD/aplus-src/compat.h" \
+          CFLAGS="-Wno-error -include compat.h" \
             CXXFLAGS="-std=gnu++98 -Wno-error -fpermissive" \
             ./configure --prefix="$PREFIX"
           make -j$(nproc)
