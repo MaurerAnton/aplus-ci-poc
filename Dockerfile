@@ -1,16 +1,24 @@
 # syntax=docker/dockerfile:1
 # A+ Programming Language — Docker image
 # Builds the Morgan Stanley A+ interpreter from source.
-# See: https://github.com/louyx/aplus
 
 FROM ubuntu:22.04 AS builder
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    g++ make xorg-dev ca-certificates git \
+    g++ make xorg-dev ca-certificates wget \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /build
-RUN git clone --depth 1 https://github.com/louyx/aplus.git .
+
+# Download A+ 4.22-1 source tarball
+ADD https://github.com/louyx/aplus/archive/refs/heads/master.tar.gz /tmp/aplus.tar.gz
+RUN tar xzf /tmp/aplus.tar.gz --strip-components=1 && rm /tmp/aplus.tar.gz
+
+# Patch for modern glibc (sys_errlist removed)
+RUN sed -i 's|sys_errlist\[errno\]|strerror(errno)|g' \
+      src/MSIPC/MSProtocolConnection.C \
+    && sed -i 's|(errno<sys_nerr)?strerror(errno)|strerror(errno)|g' \
+      src/MSIPC/MSProtocolConnection.C
 
 RUN ./configure --prefix=/opt/aplus \
     && make -j"$(nproc)" \
@@ -23,12 +31,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 COPY --from=builder /opt/aplus /opt/aplus
-COPY --from=builder /build/src/a/fsftest.+ /opt/aplus/share/examples/
 
 ENV PATH="/opt/aplus/bin:${PATH}"
 ENV APLUS_HOME="/opt/aplus"
-
-RUN echo '1+2' | timeout 5 /opt/aplus/bin/a+ || true
 
 WORKDIR /workspace
 

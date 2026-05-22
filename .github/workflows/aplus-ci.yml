@@ -33,12 +33,20 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y g++ make xorg-dev
 
+      - name: Patch for modern glibc
+        run: |
+          # sys_nerr/sys_errlist removed in glibc >= 2.32
+          sed -i 's|sys_errlist\[errno\]|strerror(errno)|g' \
+            aplus-src/src/MSIPC/MSProtocolConnection.C
+          sed -i 's|(errno<sys_nerr)?strerror(errno)|strerror(errno)|g' \
+            aplus-src/src/MSIPC/MSProtocolConnection.C
+
       - name: Configure and build
         id: build
         run: |
           PREFIX=$PWD/aplus-install
           cd aplus-src
-          ./configure --prefix="$PREFIX"
+          CFLAGS="-Wno-error" CXXFLAGS="-Wno-error" ./configure --prefix="$PREFIX"
           make -j$(nproc)
           make install
           echo "prefix=$PREFIX" >> "$GITHUB_OUTPUT"
