@@ -36,9 +36,8 @@ jobs:
       - name: Patch for modern glibc
         run: |
           # sys_nerr/sys_errlist removed in glibc >= 2.32
-          sed -i 's|sys_errlist\[errno\]|strerror(errno)|g' \
-            aplus-src/src/MSIPC/MSProtocolConnection.C
-          sed -i 's|(errno<sys_nerr)?strerror(errno)|strerror(errno)|g' \
+          # Replace ternary expression with strerror()
+          sed -i 's/(errno<sys_nerr)?sys_errlist\[errno\]:"unknown error"/strerror(errno)/g' \
             aplus-src/src/MSIPC/MSProtocolConnection.C
 
       - name: Configure and build

@@ -15,9 +15,7 @@ ADD https://github.com/louyx/aplus/archive/refs/heads/master.tar.gz /tmp/aplus.t
 RUN tar xzf /tmp/aplus.tar.gz --strip-components=1 && rm /tmp/aplus.tar.gz
 
 # Patch for modern glibc (sys_errlist removed)
-RUN sed -i 's|sys_errlist\[errno\]|strerror(errno)|g' \
-      src/MSIPC/MSProtocolConnection.C \
-    && sed -i 's|(errno<sys_nerr)?strerror(errno)|strerror(errno)|g' \
+RUN sed -i 's/(errno<sys_nerr)?sys_errlist\[errno\]:"unknown error"/strerror(errno)/g' \
       src/MSIPC/MSProtocolConnection.C
 
 RUN ./configure --prefix=/opt/aplus \
