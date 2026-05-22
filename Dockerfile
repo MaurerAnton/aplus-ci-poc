@@ -40,8 +40,10 @@ RUN for f in src/dap/sgnl.h; do \
       ) > "${f}.tmp" && mv "${f}.tmp" "$f"; \
     done
 
-# 5. Force sigaction over sigvec in the signal handling code
-RUN sed -i '1i#define HAVE_SIGACTION 1' src/dap/sgnl.h
+# 5. Force sigaction over sigvec
+RUN for f in src/dap/sgnl.h; do \
+      (echo '#define HAVE_SIGACTION 1'; cat "$f") > "${f}.tmp" && mv "${f}.tmp" "$f"; \
+    done
 
 RUN CFLAGS="-D_GNU_SOURCE" CXXFLAGS="-std=gnu++98" \
     LIBS="-lX11 -lXext" \
