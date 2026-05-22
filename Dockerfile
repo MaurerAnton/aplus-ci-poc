@@ -20,9 +20,11 @@ RUN sed -i '/extern int sys_nerr;/d' src/dap/error.c \
     && sed -i 's#sys_errlist\[errnum\]#strerror(errnum)#g' src/dap/error.c \
     && find . -type f \( -name '*.c' -o -name '*.C' \) \
       -exec sed -i 's#(errno<sys_nerr)?sys_errlist\[errno\]:"unknown error"#strerror(errno)#g' {} \; \
+    && find . -type f \( -name '*.c' -o -name '*.C' \) \
+      -exec sed -i 's#sys_errlist\[errno\]#strerror(errno)#g' {} \; \ \
     && printf '#include <string.h>\n#include <signal.h>\nstruct sigvec { void (*sv_handler)(int); int sv_mask; int sv_flags; };\n#define SV_INTERRUPT SA_INTERRUPT\n' > /build/compat.h
 
-RUN CFLAGS="-std=gnu89 -Wno-error -include /build/compat.h" \
+RUN CFLAGS="-Wno-error -include /build/compat.h" \
     CXXFLAGS="-std=gnu++98 -Wno-error -fpermissive" \
     ./configure --prefix=/opt/aplus \
     && make -j"$(nproc)" \

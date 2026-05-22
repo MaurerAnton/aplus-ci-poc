@@ -41,6 +41,9 @@ jobs:
           sed -i 's#sys_errlist\[errnum\]#strerror(errnum)#g' aplus-src/src/dap/error.c
           find aplus-src -type f \( -name '*.c' -o -name '*.C' -o -name '*.h' -o -name '*.H' \) \
             -exec sed -i 's#(errno<sys_nerr)?sys_errlist\[errno\]:"unknown error"#strerror(errno)#g' {} \;
+          # Also replace bare sys_errlist[errno] (used in AipcConnection.C etc.)
+          find aplus-src -type f \( -name '*.c' -o -name '*.C' \) \
+            -exec sed -i 's#sys_errlist\[errno\]#strerror(errno)#g' {} \;
           # struct sigvec / SV_INTERRUPT removed in glibc >= 2.32
           cat > aplus-src/compat.h << 'EOF'
           #include <string.h>
@@ -59,7 +62,7 @@ jobs:
         run: |
           PREFIX=$PWD/aplus-install
           cd aplus-src
-          CFLAGS="-std=gnu89 -Wno-error -include $PWD/aplus-src/compat.h" \
+          CFLAGS="-Wno-error -include $PWD/aplus-src/compat.h" \
             CXXFLAGS="-std=gnu++98 -Wno-error -fpermissive" \
             ./configure --prefix="$PREFIX"
           make -j$(nproc)
