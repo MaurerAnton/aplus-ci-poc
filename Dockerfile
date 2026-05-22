@@ -27,6 +27,7 @@ RUN find . -type f \( -name '*.c' -o -name '*.C' \) \
       -exec sed -i 's/sys_nerr/9999/g' {} \;
 
 RUN CFLAGS="-D_GNU_SOURCE" CXXFLAGS="-std=gnu++98" \
+    ./configure --prefix=/opt/aplus \
     && make -j"$(nproc)" \
     && make install
 
