@@ -12,9 +12,9 @@ WORKDIR /build
 ADD https://github.com/louyx/aplus/archive/refs/heads/master.tar.gz /tmp/aplus.tar.gz
 RUN tar xzf /tmp/aplus.tar.gz --strip-components=1 && rm /tmp/aplus.tar.gz
 
-# ── Pre-configure source patches for modern systems ──
+# ── Pre-configure source patches ──
 
-# 1. Replace sys_errlist[] with strerror() everywhere
+# 1. sys_errlist[X] -> strerror(X)
 RUN find . -type f \( -name '*.c' -o -name '*.C' -o -name '*.h' -o -name '*.H' \) \
       -exec sed -i 's/sys_errlist\[\([^]]*\)\]/strerror(\1)/g' {} \;
 
@@ -26,20 +26,7 @@ RUN find . -type f \( -name '*.c' -o -name '*.C' -o -name '*.h' -o -name '*.H' \
 RUN find . -type f \( -name '*.c' -o -name '*.C' \) \
       -exec sed -i 's/sys_nerr/9999/g' {} \;
 
-# 4. Forward-declare struct sigvec in files that need it
-RUN for f in src/dap/sgnl.h src/dap/sgnlcatch.c src/dap/sgnldefault.c \
-             src/dap/sgnlignore.c src/dap/sgnloriginal.c; do \
-      [ -f "$f" ] && sed -i '1i struct sigvec { void (*sv_handler)(int); int sv_mask; int sv_flags; };' "$f"; \
-    done
-
-# 5. Define SV_INTERRUPT in files that use it
-RUN for f in src/dap/sgnlcatch.c src/dap/sgnldefault.c \
-             src/dap/sgnlignore.c src/dap/sgnloriginal.c; do \
-      [ -f "$f" ] && sed -i '2i #define SV_INTERRUPT 0' "$f"; \
-    done
-
-# Build
-RUN CXXFLAGS="-std=gnu++98" ./configure --prefix=/opt/aplus \
+RUN CFLAGS="-D_GNU_SOURCE" CXXFLAGS="-std=gnu++98" \
     && make -j"$(nproc)" \
     && make install
 
