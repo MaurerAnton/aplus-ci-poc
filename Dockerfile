@@ -17,7 +17,7 @@ RUN tar xzf /tmp/aplus.tar.gz --strip-components=1 && rm /tmp/aplus.tar.gz
 RUN printf 'struct sigvec { void (*sv_handler)(int); int sv_mask; int sv_flags; };\n' \
          '#define SV_INTERRUPT 0\n' > /compat.h
 
-RUN CFLAGS="-include /compat.h" \
+RUN CFLAGS="-include /compat.h -DSV_INTERRUPT=0" \
     CXXFLAGS="-std=gnu++98" \
     ./configure --prefix=/opt/aplus \
     && make -j"$(nproc)" \
