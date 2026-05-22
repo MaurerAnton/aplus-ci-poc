@@ -16,10 +16,10 @@ RUN tar xzf /tmp/aplus.tar.gz --strip-components=1 && rm /tmp/aplus.tar.gz
 
 # Patch for modern glibc (sys_errlist removed in glibc >= 2.32)
 RUN sed -i '/extern int sys_nerr;/d' src/dap/error.c \
-    && sed -i 's|if (errnum < 1 || errnum > sys_nerr)|if (0)|g' src/dap/error.c \
-    && sed -i 's|sys_errlist\[errnum\]|strerror(errnum)|g' src/dap/error.c \
+    && sed -i 's#if (errnum < 1 || errnum > sys_nerr)#if (0)#g' src/dap/error.c \
+    && sed -i 's#sys_errlist\[errnum\]#strerror(errnum)#g' src/dap/error.c \
     && find . -type f \( -name '*.c' -o -name '*.C' \) \
-      -exec sed -i 's/(errno<sys_nerr)?sys_errlist\[errno\]:"unknown error"/strerror(errno)/g' {} \;
+      -exec sed -i 's#(errno<sys_nerr)?sys_errlist\[errno\]:"unknown error"#strerror(errno)#g' {} \;
 
 RUN CFLAGS="-Wno-error -fpermissive" \
     CXXFLAGS="-std=gnu++98 -Wno-error -fpermissive" \
