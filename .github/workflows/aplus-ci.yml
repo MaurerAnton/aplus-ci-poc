@@ -18,7 +18,7 @@ on:
 jobs:
   build-interpreter:
     name: Build A+ interpreter
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     outputs:
       prefix: ${{ steps.build.outputs.prefix }}
     steps:
@@ -33,12 +33,35 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y g++ make xorg-dev
 
+      - name: Patch for modern glibc
+        run: |
+          # sys_nerr/sys_errlist removed in glibc >= 2.32
+          find aplus-src -type f \( -name '*.c' -o -name '*.C' -o -name '*.h' -o -name '*.H' \) \
+            -exec sed -i 's/sys_errlist\[\([^]]*\)\]/strerror(\1)/g' {} \;
+          find aplus-src -type f \( -name '*.c' -o -name '*.C' -o -name '*.h' -o -name '*.H' \) \
+            -exec sed -i '/extern int sys_nerr;/d' {} \;
+          find aplus-src -type f \( -name '*.c' -o -name '*.C' \) \
+            -exec sed -i 's/sys_nerr/9999/g' {} \;
+          # struct sigvec / SV_INTERRUPT removed in glibc >= 2.32
+          cat > aplus-src/compat.h << 'HEADER_EOF'
+          #include <string.h>
+          #include <signal.h>
+          struct sigvec {
+              void (*sv_handler)(int);
+              int sv_mask;
+              int sv_flags;
+          };
+          #define SV_INTERRUPT SA_INTERRUPT
+          HEADER_EOF
+
       - name: Configure and build
         id: build
         run: |
           PREFIX=$PWD/aplus-install
+          COMPAT=$PWD/aplus-src/compat.h
           cd aplus-src
-          CXXFLAGS="-std=gnu++98 -Wno-error" \
+          CFLAGS="-w -include $COMPAT" \
+            CXXFLAGS="-std=gnu++98 -fpermissive -w" \
             ./configure --prefix="$PREFIX"
           make -j$(nproc)
           make install
@@ -57,7 +80,7 @@ jobs:
 
   docker:
     name: Build Docker image
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     steps:
       - name: Check out this repository
         uses: actions/checkout@v4
@@ -72,7 +95,7 @@ jobs:
 
   run-programs:
     name: Run A+ programs
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     needs: build-interpreter
     steps:
       - name: Check out this repository
@@ -102,7 +125,7 @@ jobs:
 
   neural-network:
     name: Neural network demo
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     needs: build-interpreter
     steps:
       - name: Check out this repository
@@ -128,7 +151,7 @@ jobs:
 
   fuzz:
     name: Fuzz test interpreter
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     needs: build-interpreter
     steps:
       - name: Check out this repository
