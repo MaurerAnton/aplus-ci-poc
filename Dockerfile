@@ -44,6 +44,7 @@ RUN CFLAGS="-D_GNU_SOURCE -DHAVE_SIGACTION=1" \
     CXXFLAGS="-std=gnu++98" \
     LIBS="-lX11 -lXext" \
     ./configure --prefix=/opt/aplus \
+    && sed -i 's/#undef HAVE_SIGACTION/#define HAVE_SIGACTION 1/' config.h \
     && make -j"$(nproc)" \
     && make install
 
