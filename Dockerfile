@@ -12,14 +12,13 @@ WORKDIR /build
 ADD https://github.com/louyx/aplus/archive/refs/heads/master.tar.gz /tmp/aplus.tar.gz
 RUN tar xzf /tmp/aplus.tar.gz --strip-components=1 && rm /tmp/aplus.tar.gz
 
-# Compat header: struct sigvec removed from modern glibc
-# Define standalone (no #include <signal.h> to avoid conflicts)
+# Compat header for struct sigvec
 RUN printf 'struct sigvec { void (*sv_handler)(int); int sv_mask; int sv_flags; };\n' \
          '#define SV_INTERRUPT 0\n' > /compat.h
 
-RUN CFLAGS="-include /compat.h -DSV_INTERRUPT=0 -D_GNU_SOURCE" \
-    CXXFLAGS="-std=gnu++98" \
-    LDFLAGS="-lX11" \
+RUN CPPFLAGS="-include /compat.h -DSV_INTERRUPT=0 -D_GNU_SOURCE" \
+    CFLAGS="-O2" \
+    CXXFLAGS="-std=gnu++98 -O2" \
     ./configure --prefix=/opt/aplus \
     && make -j"$(nproc)" \
     && make install
