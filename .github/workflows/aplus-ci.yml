@@ -42,6 +42,8 @@ jobs:
             -exec sed -i '/extern int sys_nerr;/d' {} \;
           find aplus-src -type f \( -name '*.c' -o -name '*.C' \) \
             -exec sed -i 's/sys_nerr/9999/g' {} \;
+          # Post-patch fixups for C++14 strictness
+          sed -i 's/trace->legend()>0/trace->legend()!=0/g' aplus-src/src/MSGUI/MSGraphUI.C
           # struct sigvec / SV_INTERRUPT removed in glibc >= 2.32
           cat > aplus-src/compat.h << 'HEADER_EOF'
           #include <string.h>
