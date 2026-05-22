@@ -12,7 +12,9 @@ WORKDIR /build
 ADD https://github.com/louyx/aplus/archive/refs/heads/master.tar.gz /tmp/aplus.tar.gz
 RUN tar xzf /tmp/aplus.tar.gz --strip-components=1 && rm /tmp/aplus.tar.gz
 
-RUN CXXFLAGS="-std=gnu++98" ./configure --prefix=/opt/aplus \
+RUN CFLAGS="-D_GNU_SOURCE -D_BSD_SOURCE" \
+    CXXFLAGS="-std=gnu++98" \
+    ./configure --prefix=/opt/aplus \
     && make -j"$(nproc)" \
     && make install
 
