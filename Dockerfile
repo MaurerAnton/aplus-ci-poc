@@ -41,6 +41,7 @@ RUN for f in src/dap/sgnl.h; do \
     done
 
 RUN CFLAGS="-D_GNU_SOURCE" CXXFLAGS="-std=gnu++98" \
+    LIBS="-lX11 -lXext" \
     ./configure --prefix=/opt/aplus \
     && make -j"$(nproc)" \
     && make install
