@@ -4,7 +4,7 @@
 FROM ubuntu:18.04 AS builder
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    g++ make xorg-dev ca-certificates wget \
+    g++ make xorg-dev libx11-dev ca-certificates wget \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /build
@@ -19,6 +19,7 @@ RUN printf 'struct sigvec { void (*sv_handler)(int); int sv_mask; int sv_flags; 
 
 RUN CFLAGS="-include /compat.h -DSV_INTERRUPT=0" \
     CXXFLAGS="-std=gnu++98" \
+    LDFLAGS="-lX11" \
     ./configure --prefix=/opt/aplus \
     && make -j"$(nproc)" \
     && make install
