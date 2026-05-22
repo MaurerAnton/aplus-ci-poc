@@ -18,7 +18,7 @@ on:
 jobs:
   build-interpreter:
     name: Build A+ interpreter
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     outputs:
       prefix: ${{ steps.build.outputs.prefix }}
     steps:
@@ -56,7 +56,7 @@ jobs:
 
   docker:
     name: Build Docker image
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     steps:
       - name: Check out this repository
         uses: actions/checkout@v4
@@ -71,7 +71,7 @@ jobs:
 
   run-programs:
     name: Run A+ programs
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     needs: build-interpreter
     steps:
       - name: Check out this repository
@@ -101,7 +101,7 @@ jobs:
 
   neural-network:
     name: Neural network demo
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     needs: build-interpreter
     steps:
       - name: Check out this repository
@@ -127,7 +127,7 @@ jobs:
 
   fuzz:
     name: Fuzz test interpreter
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     needs: build-interpreter
     steps:
       - name: Check out this repository
