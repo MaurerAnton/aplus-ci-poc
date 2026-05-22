@@ -40,8 +40,8 @@ RUN for f in src/dap/sgnl.h; do \
       ) > "${f}.tmp" && mv "${f}.tmp" "$f"; \
     done
 
-RUN CFLAGS="-D_GNU_SOURCE" CXXFLAGS="-std=gnu++98" \
-    CFLAGS="-D_GNU_SOURCE -DHAVE_SIGACTION=1" CXXFLAGS="-std=gnu++98"
+RUN CFLAGS="-D_GNU_SOURCE -DHAVE_SIGACTION=1" \
+    CXXFLAGS="-std=gnu++98" \
     LIBS="-lX11 -lXext" \
     ./configure --prefix=/opt/aplus \
     && make -j"$(nproc)" \
