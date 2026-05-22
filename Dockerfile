@@ -26,6 +26,20 @@ RUN find . -type f \( -name '*.c' -o -name '*.C' -o -name '*.h' -o -name '*.H' \
 RUN find . -type f \( -name '*.c' -o -name '*.C' \) \
       -exec sed -i 's/sys_nerr/9999/g' {} \;
 
+# 4. Add struct sigvec + SV_INTERRUPT fallback for sgnl.h
+RUN for f in src/dap/sgnl.h; do \
+      [ -f "$f" ] && ( \
+        echo '#ifndef _STRUCT_SIGVEC_DEFINED'; \
+        echo '#define _STRUCT_SIGVEC_DEFINED'; \
+        echo 'struct sigvec { void (*sv_handler)(int); int sv_mask; int sv_flags; };'; \
+        echo '#endif'; \
+        echo '#ifndef SV_INTERRUPT'; \
+        echo '#define SV_INTERRUPT 0'; \
+        echo '#endif'; \
+        cat "$f" \
+      ) > "${f}.tmp" && mv "${f}.tmp" "$f"; \
+    done
+
 RUN CFLAGS="-D_GNU_SOURCE" CXXFLAGS="-std=gnu++98" \
     ./configure --prefix=/opt/aplus \
     && make -j"$(nproc)" \
