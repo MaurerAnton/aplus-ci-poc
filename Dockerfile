@@ -44,12 +44,12 @@ RUN for f in src/dap/sgnl.h; do \
 RUN for f in src/dap/sgnl.h; do \
       (echo '#define HAVE_SIGACTION 1'; cat "$f") > "${f}.tmp" && mv "${f}.tmp" "$f"; \
     done
-# Append weak sigvec() fallback to error.c (always linked into libdap)
+# Append sigvec() fallback to error.c (always linked into libdap)
 RUN cat >> src/dap/error.c << 'SIGVECEOF'
 
-/* Provide sigvec() for linking if libc lacks it */
+/* Provide sigvec() for linking on systems where libc lacks it */
 #include <signal.h>
-int __attribute__((weak)) sigvec(int sig, struct sigvec *v, struct sigvec *ov) {
+int sigvec(int sig, struct sigvec *v, struct sigvec *ov) {
     struct sigaction n = {0}, o = {0};
     if (v) { n.sa_handler = v->sv_handler; n.sa_flags = v->sv_flags; }
     int r = sigaction(sig, v ? &n : 0, ov ? &o : 0);
