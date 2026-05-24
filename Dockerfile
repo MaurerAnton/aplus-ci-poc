@@ -69,6 +69,10 @@ int sigvec(int sig, struct sigvec *v, struct sigvec *ov) {
 }
 SIGVECEOF
 
+# 7. Fix: k.h uses conditional compiles that pick wrong API on modern glibc
+#    Force POSIX (non-old) path for readdir_r/getpwuid_r/getpwnam_r
+RUN sed -i 's/defined(APLUS_OLD_POSIX_THREAD_SAFE_FUNCTIONS)/0/g' src/a/k.h
+
 RUN CFLAGS="-D_GNU_SOURCE" CXXFLAGS="-std=gnu++98" \
     LIBS="-lX11 -lXext" \
     ./configure --prefix=/opt/aplus \
