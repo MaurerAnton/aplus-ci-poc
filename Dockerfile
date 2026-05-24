@@ -40,15 +40,26 @@ RUN for f in src/dap/sgnl.h; do \
       ) > "${f}.tmp" && mv "${f}.tmp" "$f"; \
     done
 
-# 5. Force sigaction + provide weak sigvec fallback for linking
+# 5. CRITICAL: sgnl*.c check #if defined(HAVE_SVR4), sgnl.h uses HAVE_SIGACTION.
+#    Neither is defined on Linux. Force both to use sigaction.
 RUN for f in src/dap/sgnl.h; do \
-      (echo '#define HAVE_SIGACTION 1'; cat "$f") > "${f}.tmp" && mv "${f}.tmp" "$f"; \
+      (echo '#define HAVE_SIGACTION 1'; echo '#define HAVE_SVR4 1'; cat "$f") \
+        > "${f}.tmp" && mv "${f}.tmp" "$f"; \
     done
-# Append sigvec() fallback to error.c (always linked into libdap)
+RUN for f in src/dap/sgnlcatch.c src/dap/sgnldefault.c \
+             src/dap/sgnlignore.c src/dap/sgnloriginal.c; do \
+      [ -f "$f" ] && sed -i 's/defined(HAVE_SVR4)/1/g' "$f"; \
+    done
+
+# 6. Append sigvec() fallback (kept for any remaining references)
 RUN cat >> src/dap/error.c << 'SIGVECEOF'
 
 /* Provide sigvec() for linking on systems where libc lacks it */
 #include <signal.h>
+#ifndef _STRUCT_SIGVEC_DEFINED
+#define _STRUCT_SIGVEC_DEFINED
+struct sigvec { void (*sv_handler)(int); int sv_mask; int sv_flags; };
+#endif
 int sigvec(int sig, struct sigvec *v, struct sigvec *ov) {
     struct sigaction n = {0}, o = {0};
     if (v) { n.sa_handler = v->sv_handler; n.sa_flags = v->sv_flags; }
