@@ -40,10 +40,23 @@ RUN for f in src/dap/sgnl.h; do \
       ) > "${f}.tmp" && mv "${f}.tmp" "$f"; \
     done
 
-# 5. Force sigaction over sigvec
+# 5. Force sigaction + provide weak sigvec fallback for linking
 RUN for f in src/dap/sgnl.h; do \
       (echo '#define HAVE_SIGACTION 1'; cat "$f") > "${f}.tmp" && mv "${f}.tmp" "$f"; \
     done
+# Append weak sigvec() fallback to error.c (always linked into libdap)
+RUN cat >> src/dap/error.c << 'SIGVECEOF'
+
+/* Provide sigvec() for linking if libc lacks it */
+#include <signal.h>
+int __attribute__((weak)) sigvec(int sig, struct sigvec *v, struct sigvec *ov) {
+    struct sigaction n = {0}, o = {0};
+    if (v) { n.sa_handler = v->sv_handler; n.sa_flags = v->sv_flags; }
+    int r = sigaction(sig, v ? &n : 0, ov ? &o : 0);
+    if (r == 0 && ov) { ov->sv_handler = o.sa_handler; ov->sv_flags = o.sa_flags; }
+    return r;
+}
+SIGVECEOF
 
 RUN CFLAGS="-D_GNU_SOURCE" CXXFLAGS="-std=gnu++98" \
     LIBS="-lX11 -lXext" \
