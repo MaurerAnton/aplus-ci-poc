@@ -34,8 +34,10 @@ jobs:
       - name: Export interpreter binary
         run: |
           mkdir -p aplus-install/bin
-          docker run --rm --entrypoint="" -v $PWD/aplus-install:/out aplus:ci \
-            sh -c 'cp /opt/aplus/bin/a+ /out/bin/ && cp -r /opt/aplus/lib /out/ 2>/dev/null || true'
+          CID=$(docker create aplus:ci)
+          docker cp $CID:/opt/aplus/bin/a+ aplus-install/bin/
+          docker cp $CID:/opt/aplus/lib aplus-install/ 2>/dev/null || true
+          docker rm $CID
           chmod +x aplus-install/bin/a+
           ls -la aplus-install/bin/
 
