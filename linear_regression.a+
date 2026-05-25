@@ -1,0 +1,70 @@
+ã linear_regression.a+ - Linear regression via gradient descent
+ã True model: y = 2x + 1 + noise, 20 data points
+
+ã Synthetic data: x values (20 points)
+xû20 Î 0.0 0.5 1.0 1.5 2.0 2.5 3.0 3.5 4.0 4.5 5.0 5.5 6.0 6.5 7.0 7.5 8.0 8.5 9.0 9.5
+
+ã True targets: y = 2*x + 1 with small noise
+yû20 Î 1.1 1.9 3.2 3.8 4.9 6.1 7.0 7.8 9.1 10.2 10.8 11.9 13.2 14.0 15.1 16.0 17.0 18.0 19.1 20.0
+
+ã Initialize weights
+wû0.0
+bû0.0
+lrû0.01
+epochsû500
+
+ã Training loop
+epochû0
+while (epoch<epochs) {
+ã  --- Forward: y_pred = w*x + b ---
+  ypredû20 Î 0
+  iû0
+  while (i<20) {
+    ypred[i]ûwÁx[i] + b
+    iûi+1
+  }
+ã  --- MSE loss ---
+  lossû0.0
+  iû0
+  while (i<20) {
+    diffûypred[i] - y[i]
+    lossûloss + diff*diff
+    iûi+1
+  }
+  lossûlossß20
+ã  --- Gradients ---
+  dwû0.0
+  dbû0.0
+  iû0
+  while (i<20) {
+    diffûypred[i] - y[i]
+    dwûdw + 2ÁdiffÁx[i]
+    dbûdb + 2Ádiff
+    iûi+1
+  }
+  dwûdwß20
+  dbûdbß20
+ã  --- Update ---
+  wûw - lrÁdw
+  bûb - lrÁdb
+ã  --- Print progress ---
+  if (0=100|epoch) {
+    Õ"epoch=" epoch
+    Õ"  w=" w
+    Õ"  b=" b
+    Õ"  loss=" loss
+  }
+  epochûepoch+1
+}
+
+ã Final results
+Õ"Final parameters:"
+Õ"w ="
+Õ w
+Õ"b ="
+Õ b
+
+ã Self-test: w should be ~2, b should be ~1
+if ((w>1.5)Á(w<2.5)) { Õ"[PASS] linear_regression w ~ 2" } else { Õ"[FAIL] w" }
+if ((b>0.5)Á(b<1.5)) { Õ"[PASS] linear_regression b ~ 1" } else { Õ"[FAIL] b" }
+Õ"linear_regression: done"

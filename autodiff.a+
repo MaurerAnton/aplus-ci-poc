@@ -1,0 +1,183 @@
+ã autodiff.a+ - Reverse-mode automatic differentiation
+ã Value = [data, grad, op, left_idx, right_idx]
+ã ops: 0=leaf, 1=add, 2=mul, 3=relu
+
+ã Global graph storage (parallel arrays)
+max_nodesû100
+valsûmax_nodes Î 0.0
+gradsûmax_nodes Î 0.0
+opsûmax_nodes Î 0
+leftûmax_nodes Î 0-1
+rightûmax_nodes Î 0-1
+node_countû0
+
+ã Create a leaf node, return its index
+leaf{data}: {
+  idxûnode_count
+  vals[idx]ûdata
+  grads[idx]û0.0
+  ops[idx]û0
+  left[idx]û0-1
+  right[idx]û0-1
+  node_countûnode_count+1
+  idx
+}
+
+ã Add two nodes, return result index
+add{a_idx;b_idx}: {
+  idxûnode_count
+  vals[idx]ûvals[a_idx] + vals[b_idx]
+  grads[idx]û0.0
+  ops[idx]û1
+  left[idx]ûa_idx
+  right[idx]ûb_idx
+  node_countûnode_count+1
+  idx
+}
+
+ã Multiply two nodes, return result index
+mul{a_idx;b_idx}: {
+  idxûnode_count
+  vals[idx]ûvals[a_idx] Á vals[b_idx]
+  grads[idx]û0.0
+  ops[idx]û2
+  left[idx]ûa_idx
+  right[idx]ûb_idx
+  node_countûnode_count+1
+  idx
+}
+
+ã ReLU activation, return result index
+relu{a_idx}: {
+  idxûnode_count
+  if (vals[a_idx]>0) {
+    vals[idx]ûvals[a_idx]
+  }
+  if (vals[a_idx]<=0) {
+    vals[idx]û0.0
+  }
+  grads[idx]û0.0
+  ops[idx]û3
+  left[idx]ûa_idx
+  right[idx]û0-1
+  node_countûnode_count+1
+  idx
+}
+
+ã Backward pass: propagate gradients from last node
+backward{}: {
+  grads[node_count-1]û1.0
+  iûnode_count-1
+  while (i>=0) {
+    opûops[i]
+    gûgrads[i]
+    lûleft[i]
+    rûright[i]
+    if (op=0) {
+ã    Leaf: nothing to propagate
+    }
+    if (op=1) {
+ã    z = a + b:  dz/da = 1, dz/db = 1
+      if (l>=0) { grads[l]ûgrads[l] + g }
+      if (r>=0) { grads[r]ûgrads[r] + g }
+    }
+    if (op=2) {
+ã    z = a * b:  dz/da = b, dz/db = a
+      if (l>=0) { grads[l]ûgrads[l] + gÁvals[r] }
+      if (r>=0) { grads[r]ûgrads[r] + gÁvals[l] }
+    }
+    if (op=3) {
+ã    z = relu(a):  dz/da = 1 if a>0 else 0
+      if (l>=0) {
+        if (vals[l]>0) {
+          grads[l]ûgrads[l] + g
+        }
+      }
+    }
+    iûi-1
+  }
+}
+
+ã === Test: f(a,b) = a*b + relu(a+b) ===
+ã a = 3, b = -4  => f = 3*(-4) + relu(-1) = -12 + 0 = -12
+ã df/da = b + (1 if a+b>0 else 0) = -4 + 0 = -4
+ã df/db = a + (1 if a+b>0 else 0) = 3 + 0 = 3
+
+aûleaf{3.0}
+bûleaf{-4.0}
+abûmul{a;b}
+apbûadd{a;b}
+rûrelu{apb}
+fûadd{ab;r}
+
+backward{}
+
+Õ"a=3, b=-4: f = a*b + relu(a+b)"
+Õ"f ="
+Õ vals[f]
+Õ"df/da ="
+Õ grads[a]
+Õ"df/db ="
+Õ grads[b]
+
+ã Check f = -12
+if ((vals[f] < -11.9) Á (vals[f] > -12.1)) {
+  Õ"[PASS] autodiff f = -12"
+} else {
+  Õ"[FAIL] autodiff f value"
+}
+
+ã Check df/da = -4 (b + 0 since a+b<0)
+if ((grads[a] < -3.9) Á (grads[a] > -4.1)) {
+  Õ"[PASS] autodiff df/da = -4"
+} else {
+  Õ"[FAIL] autodiff df/da"
+}
+
+ã Check df/db = 3 (a + 0 since a+b<0)
+if ((grads[b] > 2.9) Á (grads[b] < 3.1)) {
+  Õ"[PASS] autodiff df/db = 3"
+} else {
+  Õ"[FAIL] autodiff df/db"
+}
+
+ã === Second test: f(a,b) = a*b + relu(a+b) with a=2, b=2 ===
+ã a=2, b=2: f = 4 + relu(4) = 8
+ã df/da = b + 1 = 3,  df/db = a + 1 = 3
+
+Õ"a=2, b=2: f = a*b + relu(a+b)"
+a2ûleaf{2.0}
+b2ûleaf{2.0}
+ab2ûmul{a2;b2}
+apb2ûadd{a2;b2}
+r2ûrelu{apb2}
+f2ûadd{ab2;r2}
+
+backward{}
+
+Õ"f ="
+Õ vals[f2]
+Õ"df/da ="
+Õ grads[a2]
+Õ"df/db ="
+Õ grads[b2]
+
+if ((vals[f2] > 7.9) Á (vals[f2] < 8.1)) {
+  Õ"[PASS] autodiff f2 = 8"
+} else {
+  Õ"[FAIL] autodiff f2 value"
+}
+
+if ((grads[a2] > 2.9) Á (grads[a2] < 3.1)) {
+  Õ"[PASS] autodiff df2/da = 3"
+} else {
+  Õ"[FAIL] autodiff df2/da"
+}
+
+if ((grads[b2] > 2.9) Á (grads[b2] < 3.1)) {
+  Õ"[PASS] autodiff df2/db = 3"
+} else {
+  Õ"[FAIL] autodiff df2/db"
+}
+
+Õ"autodiff: done"

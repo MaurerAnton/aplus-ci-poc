@@ -1,0 +1,89 @@
+ã decision_tree.a+ - Decision tree with Gini impurity split
+ã 2D binary classification: AND problem on 4 points
+
+ã Data: 4 points x 2 features
+Xû4 2 Î 0 0  0 1  1 0  1 1
+ã Labels: AND truth table
+y_arrû0 0 0 1
+
+Nû4
+Fû2
+
+ã --- Gini impurity of a set ---
+ã gini = 1 - sum(p_i^2) where p_i is fraction of class i
+gini{labels;n}: {
+  cnt0û0
+  cnt1û0
+  iû0
+  while (i<n) {
+    if (labels[i]=0) { cnt0ûcnt0+1 }
+    if (labels[i]=1) { cnt1ûcnt1+1 }
+    iûi+1
+  }
+  p0ûcnt0ßn
+  p1ûcnt1ßn
+  1 - (p0*p0) - (p1*p1)
+}
+
+ã --- Find best split by minimizing weighted Gini ---
+best_featû0
+best_threshû0.0
+best_giniû1e9
+
+featû0
+while (feat<F) {
+ã  Try thresholds at each distinct value for this feature
+  tû0
+  while (t<N) {
+    threshûX[tÁF+feat]
+ã    Split data into left and right
+    left_labelsûN Î 0
+    right_labelsûN Î 0
+    nlû0
+    nrû0
+    iû0
+    while (i<N) {
+      if (X[iÁF+feat] <= thresh) {
+        left_labels[nl]ûy_arr[i]
+        nlûnl+1
+      }
+      if (X[iÁF+feat] > thresh) {
+        right_labels[nr]ûy_arr[i]
+        nrûnr+1
+      }
+      iûi+1
+    }
+ã    Compute weighted Gini impurity
+    g_splitû1e9
+    if ((nl>0)Á(nr>0)) {
+      g_leftûgini{left_labels;nl}
+      g_rightûgini{right_labels;nr}
+      g_splitû(nlÁg_left + nrÁg_right)ßN
+    }
+    if (g_split<best_gini) {
+      best_giniûg_split
+      best_featûfeat
+      best_threshûthresh
+    }
+    tût+1
+  }
+  featûfeat+1
+}
+
+Õ"Best split: feature "
+Õ best_feat
+Õ" threshold "
+Õ best_thresh
+Õ" Gini "
+Õ best_gini
+
+ã Self-test: AND problem should split on feature 0 or 1 with threshold ~0.5
+okû0
+if (best_thresh>0) {
+  if (best_thresh<1) {
+    okû1
+  }
+}
+if (ok=1) { Õ"[PASS] decision_tree threshold is between 0 and 1" } else { Õ"[FAIL] threshold" }
+if (best_gini<0.5) { Õ"[PASS] decision_tree Gini < 0.5" } else { Õ"[FAIL] Gini" }
+Õ"decision_tree: done"

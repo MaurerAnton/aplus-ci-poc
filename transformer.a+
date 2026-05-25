@@ -1,0 +1,128 @@
+ã transformer.a+ - Single-head scaled dot-product attention
+ã Small vocab (10 tokens), 4 samples, 2-dim embeddings
+
+ã Softmax function: softmax_i = exp(x_i) / sum(exp(x_j))
+softmax{vec}: {
+  nÎ vec
+  nûn[0]
+  expsûn Î 0
+  sumû0
+  iû0
+  while (i<n) {
+    exps[i]û*vec[i]
+    sumûsum+exps[i]
+    iûi+1
+  }
+  iû0
+  while (i<n) {
+    exps[i]ûexps[i]ßsum
+    iûi+1
+  }
+  exps
+}
+
+ã Test softmax: should sum to ~1
+svûsoftmax{1 2 3}
+sû+/sv
+if ((s>0.99)Á(s<1.01)) { Õ"[PASS] softmax sums to ~1" } else { Õ"[FAIL] softmax sum" }
+
+ã Embedding table: 10 tokens x 2 dimensions
+Eû10 2 Î 0.10 0.20 0.30 0.40 0.50 0.60 0.70 0.80 0.90 1.00 1.10 1.20 1.30 1.40 1.50 1.60 1.70 1.80 1.90 2.00
+
+ã Input token indices: 3 5 2 8
+tokensû3 5 2 8
+
+ã Lookup embeddings: X = 4 x 2
+Xû4 2 Î 0
+iû0
+while (i<4) {
+  idxûtokens[i]
+  X[iÁ2]ûE[idxÁ2]
+  X[iÁ2+1]ûE[idxÁ2+1]
+  iûi+1
+}
+
+ã Weight matrices: Wq, Wk, Wv each 2x2
+Wqû2 2 Î 0.50 0.20 0.10 0.40
+Wkû2 2 Î 0.30 0.70 0.20 0.50
+Wvû2 2 Î 0.60 0.10 0.30 0.80
+
+ã Compute Q, K, V: each 4x2 via matrix multiply
+QûX +.Á Wq
+KûX +.Á Wk
+VûX +.Á Wv
+
+ã Scaled dot-product attention: scores = Q @ K^T / sqrt(d_k)
+d_kû2
+scaleûd_k*0.5
+scoresû4 4 Î 0
+iû0
+while (i<4) {
+  jû0
+  while (j<4) {
+    dotû0.0
+    kû0
+    while (k<d_k) {
+      dotûdot + Q[iÁd_k+k] Á K[jÁd_k+k]
+      kûk+1
+    }
+    scores[iÁ4+j]ûdotßscale
+    jûj+1
+  }
+  iûi+1
+}
+
+ã Softmax row-wise on scores -> attention weights
+attnû4 4 Î 0
+iû0
+while (i<4) {
+  rowû4 Î 0
+  jû0
+  while (j<4) {
+    row[j]ûscores[iÁ4+j]
+    jûj+1
+  }
+  srowûsoftmax{row}
+  jû0
+  while (j<4) {
+    attn[iÁ4+j]ûsrow[j]
+    jûj+1
+  }
+  iûi+1
+}
+
+ã Weighted sum: output = attn @ V  => 4 x 2
+outputû4 2 Î 0
+iû0
+while (i<4) {
+  jû0
+  while (j<2) {
+    sumû0.0
+    kû0
+    while (k<4) {
+      sumûsum + attn[iÁ4+k] Á V[kÁ2+j]
+      kûk+1
+    }
+    output[iÁ2+j]ûsum
+    jûj+1
+  }
+  iûi+1
+}
+
+ã Self-tests: verify output dimensions
+shûÎ output
+if (sh[0]=4) { Õ"[PASS] transformer output 4 rows" } else { Õ"[FAIL] rows" }
+if (sh[1]=2) { Õ"[PASS] transformer output 2 cols" } else { Õ"[FAIL] cols" }
+
+ã Verify output values are finite (not NaN)
+okû1
+iû0
+while (i<4) {
+  if (output[iÁ2]<0-100) { okû0 }
+  if (output[iÁ2]>100) { okû0 }
+  if (output[iÁ2+1]<0-100) { okû0 }
+  if (output[iÁ2+1]>100) { okû0 }
+  iûi+1
+}
+if (ok=1) { Õ"[PASS] transformer output in range" } else { Õ"[FAIL] range" }
+Õ"transformer: done"

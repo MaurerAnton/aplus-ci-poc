@@ -1211,18 +1211,551 @@ class JavaScriptGenerator(CodeGenBase):
         raise ValueError(f'Unknown AST node: {type(node).__name__}')
 
 
+class GoGenerator(CodeGenBase):
+    """Generate Go code from A+ AST."""
+
+    def generate(self, prog: Program) -> str:
+        self.lines = []
+        self.indent = 0
+        self._needs_divide = False
+        self._needs_multiply = False
+        self._needs_reshape = False
+        self._needs_iota = False
+        self._needs_matmul = False
+
+        self._emit('package main')
+        self._emit('')
+        self._emit('import (')
+        self.indent += 1
+        self._emit('"fmt"')
+        self._emit('"math"')
+        self.indent -= 1
+        self._emit(')')
+        self._emit('')
+
+        self._emit('func main() {')
+        self.indent += 1
+        for stmt in prog.stmts:
+            self._gen_stmt(stmt)
+        self.indent -= 1
+        self._emit('}')
+
+        self._emit_helpers(py=False)
+        return '\n'.join(self.lines) + '\n'
+
+    def _gen_stmt(self, stmt: AST) -> None:
+        if isinstance(stmt, CommentStmt):
+            self._emit(f'// {stmt.text}')
+        elif isinstance(stmt, Assignment):
+            self._emit(f'{stmt.name} := {self._gen_expr(stmt.expr)}')
+        elif isinstance(stmt, PrintStmt):
+            self._emit(f'fmt.Println({self._gen_expr(stmt.expr)})')
+        elif isinstance(stmt, IfStmt):
+            self._emit(f'if {self._gen_expr(stmt.cond)} {{')
+            self.indent += 1
+            for s in stmt.body:
+                self._gen_stmt(s)
+            self.indent -= 1
+            if stmt.else_body:
+                self._emit('} else {')
+                self.indent += 1
+                for s in stmt.else_body:
+                    self._gen_stmt(s)
+                self.indent -= 1
+            self._emit('}')
+        elif isinstance(stmt, WhileStmt):
+            self._emit(f'for {self._gen_expr(stmt.cond)} {{')
+            self.indent += 1
+            for s in stmt.body:
+                self._gen_stmt(s)
+            self.indent -= 1
+            self._emit('}')
+        elif isinstance(stmt, FuncDef):
+            params = ', '.join(f'{p} float64' for p in stmt.params)
+            self._emit(f'func {stmt.name}({params}) float64 {{')
+            self.indent += 1
+            for s in stmt.body:
+                self._gen_stmt(s)
+            self.indent -= 1
+            self._emit('}')
+            self._emit('')
+        elif isinstance(stmt, ReturnStmt):
+            self._emit(f'return {self._gen_expr(stmt.expr)}')
+        else:
+            self._emit(f'_ = {self._gen_expr(stmt)}')
+
+    def _gen_expr(self, node: AST) -> str:
+        if isinstance(node, NumberLit):
+            return node.value
+        if isinstance(node, StringLit):
+            return repr(node.value)
+        if isinstance(node, Ident):
+            return node.name
+        if isinstance(node, BinaryOp):
+            left = self._gen_expr(node.left)
+            right = self._gen_expr(node.right)
+            op = node.op
+            if op == '\u00D7':
+                op = '*'
+            elif op == '\u00F7':
+                op = '/'
+            return f'({left} {op} {right})'
+        if isinstance(node, UnaryOp):
+            return f'(-{self._gen_expr(node.operand)})'
+        if isinstance(node, FuncCall):
+            return self._gen_builtin_call(node.name, node.args, self._gen_expr)
+        if isinstance(node, IndexAccess):
+            arr = self._gen_expr(node.array)
+            result = arr
+            for idx in node.indices:
+                result = f'{result}[int({self._gen_expr(idx)})]'
+            return result
+        if isinstance(node, InnerProduct):
+            self._needs_matmul = True
+            return f'_matmul({self._gen_expr(node.left)}, {self._gen_expr(node.right)})'
+        if isinstance(node, ArrayLiteral):
+            elems = ', '.join(self._gen_expr(e) for e in node.elements)
+            return f'[]{elems}'
+        raise ValueError(f'Unknown AST node: {type(node).__name__}')
+
+    def _emit_helpers(self, py: bool) -> None:
+        if self._needs_divide:
+            self._gen_divide_go()
+        if self._needs_multiply:
+            self._gen_multiply_go()
+        if self._needs_reshape:
+            self._gen_reshape_go()
+        if self._needs_iota:
+            self._gen_iota_go()
+        if self._needs_matmul:
+            self._gen_matmul_go()
+
+    def _gen_divide_go(self) -> None:
+        self.lines.append('')
+        self._emit('func _divide(a, b float64) float64 {')
+        self.indent += 1
+        self._emit('if b == 0 { return 1.0 / a }')
+        self._emit('return a / b')
+        self.indent -= 1
+        self._emit('}')
+
+    def _gen_multiply_go(self) -> None:
+        self.lines.append('')
+        self._emit('func _multiply(a, b float64) float64 {')
+        self.indent += 1
+        self._emit('if b == 0 { if a > 0 { return 1 }; return -1 }')
+        self._emit('return a * b')
+        self.indent -= 1
+        self._emit('}')
+
+    def _gen_reshape_go(self) -> None:
+        pass  # Skipped for Go — rely on runtime
+
+    def _gen_iota_go(self) -> None:
+        self.lines.append('')
+        self._emit('func _iota(n int) []float64 {')
+        self.indent += 1
+        self._emit('r := make([]float64, n)')
+        self._emit('for i := 0; i < n; i++ { r[i] = float64(i) }')
+        self._emit('return r')
+        self.indent -= 1
+        self._emit('}')
+
+    def _gen_matmul_go(self) -> None:
+        pass  # Skipped
+
+
+class RustGenerator(CodeGenBase):
+    """Generate Rust code from A+ AST."""
+
+    def generate(self, prog: Program) -> str:
+        self.lines = []
+        self.indent = 0
+        self._needs_divide = False
+        self._needs_multiply = False
+        self._needs_reshape = False
+        self._needs_iota = False
+        self._needs_matmul = False
+
+        self._emit('fn main() {')
+        self.indent += 1
+        for stmt in prog.stmts:
+            self._gen_stmt(stmt)
+        self.indent -= 1
+        self._emit('}')
+
+        self._emit_helpers(py=False)
+        return '\n'.join(self.lines) + '\n'
+
+    def _gen_stmt(self, stmt: AST) -> None:
+        if isinstance(stmt, CommentStmt):
+            self._emit(f'// {stmt.text}')
+        elif isinstance(stmt, Assignment):
+            if stmt.name == stmt.name.lower() and '_' not in stmt.name:
+                self._emit(f'let mut {stmt.name} = {self._gen_expr(stmt.expr)};')
+            else:
+                self._emit(f'let {stmt.name} = {self._gen_expr(stmt.expr)};')
+        elif isinstance(stmt, PrintStmt):
+            self._emit(f'println!(\"{{}}\", {self._gen_expr(stmt.expr)});')
+        elif isinstance(stmt, IfStmt):
+            self._emit(f'if {self._gen_expr(stmt.cond)} {{')
+            self.indent += 1
+            for s in stmt.body:
+                self._gen_stmt(s)
+            self.indent -= 1
+            if stmt.else_body:
+                self._emit('} else {')
+                self.indent += 1
+                for s in stmt.else_body:
+                    self._gen_stmt(s)
+                self.indent -= 1
+            self._emit('}')
+        elif isinstance(stmt, WhileStmt):
+            self._emit(f'while {self._gen_expr(stmt.cond)} {{')
+            self.indent += 1
+            for s in stmt.body:
+                self._gen_stmt(s)
+            self.indent -= 1
+            self._emit('}')
+        elif isinstance(stmt, FuncDef):
+            params = ', '.join(f'{p}: f64' for p in stmt.params)
+            self._emit(f'fn {stmt.name}({params}) -> f64 {{')
+            self.indent += 1
+            for s in stmt.body:
+                self._gen_stmt(s)
+            self.indent -= 1
+            self._emit('}')
+            self._emit('')
+        elif isinstance(stmt, ReturnStmt):
+            self._emit(f'return {self._gen_expr(stmt.expr)};')
+        else:
+            self._emit(f'let _ = {self._gen_expr(stmt)};')
+
+    def _gen_expr(self, node: AST) -> str:
+        if isinstance(node, NumberLit):
+            return node.value if '.' in node.value else f'{node.value}.0'
+        if isinstance(node, StringLit):
+            return f'\"{node.value}\"'
+        if isinstance(node, Ident):
+            return node.name
+        if isinstance(node, BinaryOp):
+            left = self._gen_expr(node.left)
+            right = self._gen_expr(node.right)
+            op = node.op
+            if op == '\u00D7':
+                op = '*'
+            elif op == '\u00F7':
+                op = '/'
+            return f'({left} {op} {right})'
+        if isinstance(node, UnaryOp):
+            return f'(-{self._gen_expr(node.operand)})'
+        if isinstance(node, FuncCall):
+            return self._gen_builtin_call(node.name, node.args, self._gen_expr)
+        if isinstance(node, IndexAccess):
+            arr = self._gen_expr(node.array)
+            result = arr
+            for idx in node.indices:
+                result = f'{result}[{self._gen_expr(idx)} as usize]'
+            return result
+        if isinstance(node, InnerProduct):
+            self._needs_matmul = True
+            return f'_matmul({self._gen_expr(node.left)}, {self._gen_expr(node.right)})'
+        if isinstance(node, ArrayLiteral):
+            elems = ', '.join(self._gen_expr(e) for e in node.elements)
+            return f'vec![{elems}]'
+        raise ValueError(f'Unknown AST node: {type(node).__name__}')
+
+    def _emit_helpers(self, py: bool) -> None:
+        if self._needs_divide:
+            self._gen_divide_rust()
+        if self._needs_multiply:
+            self._gen_multiply_rust()
+        if self._needs_iota:
+            self._gen_iota_rust()
+
+    def _gen_divide_rust(self) -> None:
+        self.lines.append('')
+        self._emit('fn _divide(a: f64, b: f64) -> f64 {')
+        self.indent += 1
+        self._emit('if b == 0.0 { 1.0 / a } else { a / b }')
+        self.indent -= 1
+        self._emit('}')
+
+    def _gen_multiply_rust(self) -> None:
+        self.lines.append('')
+        self._emit('fn _multiply(a: f64, b: f64) -> f64 {')
+        self.indent += 1
+        self._emit('if b == 0.0 { if a > 0.0 { 1.0 } else { -1.0 } } else { a * b }')
+        self.indent -= 1
+        self._emit('}')
+
+    def _gen_iota_rust(self) -> None:
+        self.lines.append('')
+        self._emit('fn _iota(n: usize) -> Vec<f64> {')
+        self.indent += 1
+        self._emit('(0..n).map(|i| i as f64).collect()')
+        self.indent -= 1
+        self._emit('}')
+
+
+class CGenerator(CodeGenBase):
+    """Generate C code from A+ AST."""
+
+    def generate(self, prog: Program) -> str:
+        self.lines = []
+        self.indent = 0
+        self._needs_divide = False
+        self._needs_multiply = False
+        self._needs_reshape = False
+        self._needs_iota = False
+        self._needs_matmul = False
+
+        self._emit('#include <stdio.h>')
+        self._emit('#include <math.h>')
+        self._emit('')
+        self._emit('int main(void) {')
+        self.indent += 1
+        for stmt in prog.stmts:
+            self._gen_stmt(stmt)
+        self._emit('return 0;')
+        self.indent -= 1
+        self._emit('}')
+
+        self._emit_helpers(py=False)
+        return '\n'.join(self.lines) + '\n'
+
+    def _gen_stmt(self, stmt: AST) -> None:
+        if isinstance(stmt, CommentStmt):
+            self._emit(f'/* {stmt.text} */')
+        elif isinstance(stmt, Assignment):
+            self._emit(f'double {stmt.name} = {self._gen_expr(stmt.expr)};')
+        elif isinstance(stmt, PrintStmt):
+            self._emit(f'printf(\"%g\\n\", {self._gen_expr(stmt.expr)});')
+        elif isinstance(stmt, IfStmt):
+            self._emit(f'if ({self._gen_expr(stmt.cond)}) {{')
+            self.indent += 1
+            for s in stmt.body:
+                self._gen_stmt(s)
+            self.indent -= 1
+            if stmt.else_body:
+                self._emit('} else {')
+                self.indent += 1
+                for s in stmt.else_body:
+                    self._gen_stmt(s)
+                self.indent -= 1
+            self._emit('}')
+        elif isinstance(stmt, WhileStmt):
+            self._emit(f'while ({self._gen_expr(stmt.cond)}) {{')
+            self.indent += 1
+            for s in stmt.body:
+                self._gen_stmt(s)
+            self.indent -= 1
+            self._emit('}')
+        elif isinstance(stmt, FuncDef):
+            params = ', '.join(f'double {p}' for p in stmt.params)
+            self._emit(f'double {stmt.name}({params}) {{')
+            self.indent += 1
+            for s in stmt.body:
+                self._gen_stmt(s)
+            self.indent -= 1
+            self._emit('}')
+            self._emit('')
+        elif isinstance(stmt, ReturnStmt):
+            self._emit(f'return {self._gen_expr(stmt.expr)};')
+        else:
+            self._emit(f'(void)({self._gen_expr(stmt)});')
+
+    def _gen_expr(self, node: AST) -> str:
+        if isinstance(node, NumberLit):
+            return node.value if '.' in node.value else f'{node.value}.0'
+        if isinstance(node, StringLit):
+            return f'\"{node.value}\"'
+        if isinstance(node, Ident):
+            return node.name
+        if isinstance(node, BinaryOp):
+            left = self._gen_expr(node.left)
+            right = self._gen_expr(node.right)
+            op = node.op
+            if op == '\u00D7':
+                op = '*'
+            elif op == '\u00F7':
+                op = '/'
+            return f'({left} {op} {right})'
+        if isinstance(node, UnaryOp):
+            return f'(-{self._gen_expr(node.operand)})'
+        if isinstance(node, FuncCall):
+            return self._gen_builtin_call(node.name, node.args, self._gen_expr)
+        if isinstance(node, IndexAccess):
+            arr = self._gen_expr(node.array)
+            result = arr
+            for idx in node.indices:
+                result = f'{result}[(int)({self._gen_expr(idx)})]'
+            return result
+        if isinstance(node, InnerProduct):
+            self._needs_matmul = True
+            return f'_matmul({self._gen_expr(node.left)}, {self._gen_expr(node.right)})'
+        if isinstance(node, ArrayLiteral):
+            elems = ', '.join(self._gen_expr(e) for e in node.elements)
+            return f'(double[]){{{elems}}}'
+        raise ValueError(f'Unknown AST node: {type(node).__name__}')
+
+    def _emit_helpers(self, py: bool) -> None:
+        if self._needs_divide:
+            self._gen_divide_c()
+        if self._needs_multiply:
+            self._gen_multiply_c()
+        if self._needs_iota:
+            self._gen_iota_c()
+
+    def _gen_divide_c(self) -> None:
+        self.lines.append('')
+        self._emit('double _divide(double a, double b) {')
+        self.indent += 1
+        self._emit('return b == 0.0 ? 1.0 / a : a / b;')
+        self.indent -= 1
+        self._emit('}')
+
+    def _gen_multiply_c(self) -> None:
+        self.lines.append('')
+        self._emit('double _multiply(double a, double b) {')
+        self.indent += 1
+        self._emit('return b == 0.0 ? (a > 0.0 ? 1.0 : -1.0) : a * b;')
+        self.indent -= 1
+        self._emit('}')
+
+    def _gen_iota_c(self) -> None:
+        pass  # Requires custom array handling in C
+
+
 # ═══════════════════════════════════════════════════════════════════════
-# CLI
+# Constant folding optimization
 # ═══════════════════════════════════════════════════════════════════════
 
+def optimize_constant_folding(prog: Program) -> Program:
+    """Fold constant binary expressions: 2+3 → 5, 4*5 → 20, etc."""
+
+    def fold(node: AST) -> AST:
+        if isinstance(node, BinaryOp):
+            node.left = fold(node.left)
+            node.right = fold(node.right)
+            if isinstance(node.left, NumberLit) and isinstance(node.right, NumberLit):
+                try:
+                    a = float(node.left.value)
+                    b = float(node.right.value)
+                    op = node.op
+                    if op in ('\u00D7', '*'):
+                        result = a * b
+                    elif op in ('\u00F7', '/'):
+                        result = a / b if b != 0 else float('inf')
+                    elif op == '+':
+                        result = a + b
+                    elif op == '-':
+                        result = a - b
+                    else:
+                        return node
+                    return NumberLit(str(int(result) if result == int(result) else result))
+                except (ValueError, ZeroDivisionError):
+                    return node
+        elif isinstance(node, UnaryOp):
+            node.operand = fold(node.operand)
+            if isinstance(node.operand, NumberLit) and node.op == '-':
+                val = -float(node.operand.value)
+                return NumberLit(str(int(val) if val == int(val) else val))
+        elif isinstance(node, FuncCall):
+            node.args = [fold(a) for a in node.args]
+        elif isinstance(node, IndexAccess):
+            node.array = fold(node.array)
+            node.indices = [fold(i) for i in node.indices]
+        elif isinstance(node, InnerProduct):
+            node.left = fold(node.left)
+            node.right = fold(node.right)
+        elif isinstance(node, ArrayLiteral):
+            node.elements = [fold(e) for e in node.elements]
+        elif isinstance(node, Assignment):
+            node.expr = fold(node.expr)
+        elif isinstance(node, PrintStmt):
+            node.expr = fold(node.expr)
+        elif isinstance(node, IfStmt):
+            node.cond = fold(node.cond)
+            node.body = [optimize_constant_folding(Program(node.body)).stmts[0]
+                         if len(node.body) == 1 and isinstance(node.body[0], type(node.body[0]))
+                         else s for s in node.body]
+            node.body = [fold(s) if isinstance(s, (BinaryOp, UnaryOp, FuncCall))
+                         else s for s in node.body]
+            if node.else_body:
+                node.else_body = [fold(s) if isinstance(s, (BinaryOp, UnaryOp, FuncCall))
+                                  else s for s in node.else_body]
+        elif isinstance(node, WhileStmt):
+            node.cond = fold(node.cond)
+        elif isinstance(node, ReturnStmt):
+            node.expr = fold(node.expr)
+        return node
+
+    prog.stmts = [fold(s) if isinstance(s, (BinaryOp, UnaryOp, FuncCall, Assignment,
+                                             PrintStmt, IfStmt, WhileStmt, ReturnStmt))
+                   else s for s in prog.stmts]
+    return prog
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# Source map generation
+# ═══════════════════════════════════════════════════════════════════════
+
+class SourceMapGenerator:
+    """Generate source maps mapping A+ source lines to generated code lines."""
+
+    def __init__(self):
+        self.mappings: list[dict] = []
+
+    def add(self, aplus_line: int, target_line: int, target_col: int = 0) -> None:
+        self.mappings.append({
+            'aplus_line': aplus_line,
+            'target_line': target_line,
+            'target_col': target_col,
+        })
+
+    def to_json(self) -> str:
+        import json as _json
+        return _json.dumps({
+            'version': 3,
+            'sources': ['input.a+'],
+            'mappings': self._encode_mappings(),
+        })
+
+    def _encode_mappings(self) -> str:
+        """Encode mappings in VLQ format (simplified)."""
+        if not self.mappings:
+            return ''
+        parts = []
+        prev_tgt = 0
+        prev_src = 0
+        for m in self.mappings:
+            tgt_delta = m['target_line'] - prev_tgt
+            src_delta = m['aplus_line'] - prev_src
+            parts.append(f'{tgt_delta}A{src_delta}A')
+            prev_tgt = m['target_line']
+            prev_src = m['aplus_line']
+        return ';'.join(parts)
+
+
 def main() -> None:
-    ap = argparse.ArgumentParser(description='A+ to Python / JavaScript transpiler')
+    ap = argparse.ArgumentParser(description='A+ to Python / JavaScript / Go / Rust / C transpiler')
     ap.add_argument('--input', '-i', required=True,
                     help='Path to the .a+ source file (KAPL-encoded or plaintext)')
     ap.add_argument('--output-py', default=None,
                     help='Path to write Python output')
     ap.add_argument('--output-js', default=None,
                     help='Path to write JavaScript output')
+    ap.add_argument('--output-go', default=None,
+                    help='Path to write Go output')
+    ap.add_argument('--output-rs', default=None,
+                    help='Path to write Rust output')
+    ap.add_argument('--output-c', default=None,
+                    help='Path to write C output')
+    ap.add_argument('--optimize', action='store_true',
+                    help='Apply constant folding optimization')
+    ap.add_argument('--source-map', default=None,
+                    help='Path to write source map JSON')
     args = ap.parse_args()
 
     # Read and decode KAPL
@@ -1240,21 +1773,57 @@ def main() -> None:
         print(f'Parse error: {exc}', file=sys.stderr)
         sys.exit(1)
 
+    # Optimize
+    if args.optimize:
+        ast = optimize_constant_folding(ast)
+
     # Generate
+    any_output = False
+
     if args.output_py:
         code = PythonGenerator().generate(ast)
         with open(args.output_py, 'w', encoding='utf-8') as fh:
             fh.write(code)
-        print(f'Python     → {args.output_py}')
+        print(f'Python     -> {args.output_py}')
+        any_output = True
 
     if args.output_js:
         code = JavaScriptGenerator().generate(ast)
         with open(args.output_js, 'w', encoding='utf-8') as fh:
             fh.write(code)
-        print(f'JavaScript → {args.output_js}')
+        print(f'JavaScript -> {args.output_js}')
+        any_output = True
 
-    # If neither output specified, print both to stdout
-    if not args.output_py and not args.output_js:
+    if args.output_go:
+        code = GoGenerator().generate(ast)
+        with open(args.output_go, 'w', encoding='utf-8') as fh:
+            fh.write(code)
+        print(f'Go         -> {args.output_go}')
+        any_output = True
+
+    if args.output_rs:
+        code = RustGenerator().generate(ast)
+        with open(args.output_rs, 'w', encoding='utf-8') as fh:
+            fh.write(code)
+        print(f'Rust       -> {args.output_rs}')
+        any_output = True
+
+    if args.output_c:
+        code = CGenerator().generate(ast)
+        with open(args.output_c, 'w', encoding='utf-8') as fh:
+            fh.write(code)
+        print(f'C          -> {args.output_c}')
+        any_output = True
+
+    if args.source_map:
+        smap = SourceMapGenerator()
+        smap.to_json()
+        with open(args.source_map, 'w', encoding='utf-8') as fh:
+            fh.write(smap.to_json())
+        print(f'Source map -> {args.source_map}')
+
+    # If no output specified, print all to stdout
+    if not any_output:
         print('=== Python ===')
         print(PythonGenerator().generate(ast))
         print('=== JavaScript ===')

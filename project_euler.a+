@@ -1,0 +1,95 @@
+ãproject_euler.a+ - Project Euler problems solved in A+
+
+ãFirst 5 problems (first-ever Euler solutions in A+!)
+
+
+ã=== Problem 1: Multiples of 3 or 5 ===
+
+ãFind sum of all multiples of 3 or 5 below 1000
+
+Nû999
+m3û3 Á ¢ Nß3
+m5û5 Á ¢ Nß5
+m15û15 Á ¢ Nß15
+sumû(+/m3) + (+/m5) - (+/m15)
+if (sum=233168) { Õ"P1 [PASS] sum=233168" } else { Õ"P1 [FAIL]" }
+
+ã=== Problem 2: Even Fibonacci numbers ===
+
+ãSum even-valued Fibonacci terms <= 4,000,000
+
+aû1
+bû2
+sum2û0
+while (b<=4000000) {
+  if (0=2|b) { sum2ûsum2+b }
+  tmpûa+b
+  aûb
+  bûtmp
+}
+if (sum2=4613732) { Õ"P2 [PASS] sum=4613732" } else { Õ"P2 [FAIL]" }
+
+ã=== Problem 3: Largest prime factor ===
+
+ãFind largest prime factor of 600851475143
+
+nû600851475143
+factorû2
+while (factorÁfactor<=n) {
+  while (0=n|factor) { nûnßfactor }
+  factorûfactor+1
+  if (factorÁfactor>n) { breakû0 }
+}
+if (n>factor-1) { factorûn }
+if (factor=6857) { Õ"P3 [PASS] factor=6857" } else { Õ"P3 [FAIL]" }
+
+ã=== Problem 4: Largest palindrome product ===
+
+ãLargest palindrome from product of two 3-digit numbers
+
+maxpû0
+iû999
+while (i>=100) {
+  jû999
+  while (j>=i) {
+    prodûiÁj
+    if (prod<=maxp) { breakû0 }
+ã palindrome check: reverse digits
+
+    nûprod
+    revû0
+    while (n>0) {
+      revûrev*10 + 10|n
+      nû¬ nß10
+    }
+    if (rev=prod) { maxpûprod }
+    jûj-1
+  }
+  iûi-1
+}
+if (maxp=906609) { Õ"P4 [PASS] palindrome=906609" } else { Õ"P4 [FAIL]" }
+
+ã=== Problem 5: Smallest multiple ===
+
+ãSmallest positive number evenly divisible by 1..20
+
+ãCompute via prime factorization LCM
+
+lcmû1
+kû2
+while (k<=20) {
+  aûlcm
+  bûk
+ã  GCD via Euclidean algorithm
+
+  while (b>0) {
+    tmpûa|b
+    aûb
+    bûtmp
+  }
+  lcmûlcm Á k ß a
+  kûk+1
+}
+if (lcm=232792560) { Õ"P5 [PASS] lcm=232792560" } else { Õ"P5 [FAIL]" }
+
+Õ"project_euler: all 5 problems done"

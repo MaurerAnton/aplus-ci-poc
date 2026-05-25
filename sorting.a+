@@ -1,0 +1,146 @@
+ã sorting.a+ - Advanced sorting algorithms: mergesort, heapsort, countingsort
+
+ã --- Mergesort (stable, O(n log n)) ---
+
+ã Helper: merge two sorted arrays
+merge{L;R}: {
+  nlûÎL
+  nrûÎR
+  resultû(nl+nr)Î0
+  iû0
+  jû0
+  kû0
+  while ((i<nl) & (j<nr)) {
+    if (L[i]<=R[j]) { result[k]ûL[i]; iûi+1 }
+    else { result[k]ûR[j]; jûj+1 }
+    kûk+1
+  }
+  while (i<nl) { result[k]ûL[i]; iûi+1; kûk+1 }
+  while (j<nr) { result[k]ûR[j]; jûj+1; kûk+1 }
+  result
+}
+
+ã Helper: subarray slice [start..start+len-1]
+slice{A;start;len}: {
+  resultûlenÎ0
+  iû0
+  while (i<len) {
+    result[i]ûA[start+i]
+    iûi+1
+  }
+  result
+}
+
+ã Recursive mergesort
+mergesort{A}: {
+  nûÎA
+  if (n<=1) { A } else {
+    midû¬nß2
+    Larrûslice{A;0;mid}
+    Rarrûslice{A;mid;n-mid}
+    merge{mergesort{Larr};mergesort{Rarr}}
+  }
+}
+
+ã --- Heapsort (in-place via binary heap) ---
+
+ã Heapify subtree rooted at i in array A of size n
+heapify{A;n;i}: {
+  largestûi
+  lû2Ái+1
+  rû2Ái+2
+  if ((l<n) & (A[l]>A[largest])) { largestûl }
+  if ((r<n) & (A[r]>A[largest])) { largestûr }
+  if (largest!=i) {
+    tmpûA[i]
+    A[i]ûA[largest]
+    A[largest]ûtmp
+    heapify{A;n;largest}
+  }
+}
+
+heapsort{A}: {
+  nûÎA
+  resultûnÎ0
+  iû0
+  while (i<n) { result[i]ûA[i]; iûi+1 }
+  iû¬(n-1)ß2
+  while (i>=0) {
+    heapify{result;n;i}
+    iûi-1
+  }
+  iûn-1
+  while (i>0) {
+    tmpûresult[0]
+    result[0]ûresult[i]
+    result[i]ûtmp
+    heapify{result;i;0}
+    iûi-1
+  }
+  result
+}
+
+ã --- Counting sort (for bounded integer ranges) ---
+countingsort{A}: {
+  nûÎA
+  mnûA[0]
+  mxûA[0]
+  iû1
+  while (i<n) {
+    if (A[i]<mn) { mnûA[i] }
+    if (A[i]>mx) { mxûA[i] }
+    iûi+1
+  }
+  rngûmx-mn+1
+  countûrngÎ0
+  iû0
+  while (i<n) {
+    count[A[i]-mn]ûcount[A[i]-mn]+1
+    iûi+1
+  }
+  resultûnÎ0
+  idxû0
+  iû0
+  while (i<rng) {
+    jû0
+    while (j<count[i]) {
+      result[idx]ûi+mn
+      idxûidx+1
+      jûj+1
+    }
+    iûi+1
+  }
+  result
+}
+
+ã === Self-tests ===
+
+ã Mergesort tests
+m1ûmergesort{10 7 8 9 1 5}
+if ((m1[0]=1) & (m1[5]=10)) { Õ"sorting: [PASS] mergesort basic" }
+m2ûmergesort{1 2 3 4 5}
+if ((m2[0]=1) & (m2[4]=5)) { Õ"sorting: [PASS] mergesort already sorted" }
+m3ûmergesort{5 4 3 2 1}
+if ((m3[0]=1) & (m3[4]=5)) { Õ"sorting: [PASS] mergesort reversed" }
+m4ûmergesort{42}
+if (m4[0]=42) { Õ"sorting: [PASS] mergesort single" }
+m5ûmergesort{3 3 1 2 2}
+if ((m5[0]=1) & (m5[4]=3)) { Õ"sorting: [PASS] mergesort duplicates" }
+
+ã Heapsort tests
+h1ûheapsort{10 7 8 9 1 5}
+if ((h1[0]=1) & (h1[5]=10)) { Õ"sorting: [PASS] heapsort basic" }
+h2ûheapsort{5 4 3 2 1}
+if ((h2[0]=1) & (h2[4]=5)) { Õ"sorting: [PASS] heapsort reversed" }
+h3ûheapsort{1}
+if (h3[0]=1) { Õ"sorting: [PASS] heapsort single" }
+
+ã Countingsort tests
+c1ûcountingsort{3 1 4 1 5 9 2 6}
+if ((c1[0]=1) & (c1[7]=9)) { Õ"sorting: [PASS] countingsort basic" }
+c2ûcountingsort{5 5 5 5}
+if ((Îc2=4) & (c2[0]=5) & (c2[3]=5)) { Õ"sorting: [PASS] countingsort constant" }
+c3ûcountingsort{0 2 1 0 3 1}
+if ((c3[0]=0) & (c3[5]=3)) { Õ"sorting: [PASS] countingsort with zeros" }
+
+Õ"sorting: all tests done"

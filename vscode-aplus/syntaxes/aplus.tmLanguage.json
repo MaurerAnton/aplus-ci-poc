@@ -1,0 +1,110 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "A+",
+  "scopeName": "source.aplus",
+  "patterns": [
+    {
+      "comment": "KAPL-encoded comment (0xE3 = ⍝)",
+      "name": "comment.line.kapl.aplus",
+      "match": "⍝.*$"
+    },
+    {
+      "comment": "Hash-style comment (alternative)",
+      "name": "comment.line.hash.aplus",
+      "match": "#.*$"
+    },
+    {
+      "comment": "Numeric literals: integers, floats, negative numbers",
+      "name": "constant.numeric.aplus",
+      "match": "(?<![\\w.])¯?\\d+\\.?\\d*(?:[eE][+-]?\\d+)?(?![\\w.])"
+    },
+    {
+      "comment": "Character literals: 'a' or 'ABC' style",
+      "name": "string.quoted.single.aplus",
+      "match": "'[^']*'"
+    },
+    {
+      "comment": "Double-quoted strings",
+      "name": "string.quoted.double.aplus",
+      "begin": "\"",
+      "end": "\"",
+      "patterns": [
+        {
+          "name": "constant.character.escape.aplus",
+          "match": "\\\\."
+        }
+      ]
+    },
+    {
+      "comment": "Keywords: control flow",
+      "name": "keyword.control.aplus",
+      "match": "\\b(if|while|else|do|for|goto)\\b"
+    },
+    {
+      "comment": "Assignment operator ← (KAPL 0xFB) and ASCII := fallback",
+      "name": "keyword.operator.assignment.aplus",
+      "match": "←|:="
+    },
+    {
+      "comment": "Arithmetic operators",
+      "name": "keyword.operator.arithmetic.aplus",
+      "match": "[+\\-×÷*]"
+    },
+    {
+      "comment": "Comparison operators",
+      "name": "keyword.operator.comparison.aplus",
+      "match": "[=<>]|≤|≥|≠"
+    },
+    {
+      "comment": "Built-in functions and monadic/dyadic primitives",
+      "name": "support.function.builtin.aplus",
+      "match": "\\b(rho|iota|divide|multiply|sigmoid|reshape|quad|ceil|floor|member|reciprocal|negate|signum|exponential|logarithm|absolute|ceiling|factorial|pi_times|roll|deal|transpose|reverse|rotate|compress|expand|take|drop|grade_up|grade_down|encode|decode|format|execute|matrix_inverse|matrix_divide|catenate|laminate|ravel|not|and|or|nand|nor|index|index_of|membership|find|match|format_array|execute_expression|value|shape|ravel_items)\\b"
+    },
+    {
+      "comment": "Built-in system functions (quad-prefixed)",
+      "name": "support.function.system.aplus",
+      "match": "\\b(quad|⎕)\\w*\\b"
+    },
+    {
+      "comment": "System variables",
+      "name": "variable.language.system.aplus",
+      "match": "\\b(⎕IO|⎕CT|⎕RL|⎕PP|⎕PW|⎕FC)\\b"
+    },
+    {
+      "comment": "Lambda/function definition: name{...} or {expr}",
+      "name": "meta.function.definition.aplus",
+      "begin": "(?:(\\w+)\\s*)?\\{",
+      "end": "\\}",
+      "beginCaptures": {
+        "1": { "name": "entity.name.function.aplus" }
+      },
+      "patterns": [
+        { "include": "$self" }
+      ]
+    },
+    {
+      "comment": "Bracket indexing",
+      "name": "meta.bracket.square.aplus",
+      "begin": "\\[",
+      "end": "\\]",
+      "patterns": [
+        { "include": "$self" }
+      ]
+    },
+    {
+      "comment": "Parenthesized expressions",
+      "name": "meta.bracket.round.aplus",
+      "begin": "\\(",
+      "end": "\\)",
+      "patterns": [
+        { "include": "$self" }
+      ]
+    },
+    {
+      "comment": "Variables / identifiers",
+      "name": "variable.other.aplus",
+      "match": "\\b[a-zA-Z][a-zA-Z0-9_]*\\b"
+    }
+  ],
+  "repository": {}
+}

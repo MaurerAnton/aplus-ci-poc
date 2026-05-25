@@ -1,0 +1,120 @@
+ã stats.a+ - Statistics functions: mean, variance, stddev, correlation, histogram
+
+ã --- mean of array ---
+mean{A}: {
+  (+/A) ß ÎA
+}
+
+ã --- variance (population) ---
+variance{A}: {
+  mûmean{A}
+  nûÎA
+  sumû0
+  iû0
+  while (i<n) {
+    dûA[i] - m
+    sumûsum + dÁd
+    iûi+1
+  }
+  sum ß n
+}
+
+ã --- stddev = sqrt(variance) ---
+ã NOTE: self-contained (built-in Newton sqrt, does not require math.a+)
+stddev{A}: {
+  vûvariance{A}
+  guessûvß2
+  iû0
+  while (i<10) {
+    guessû(guess + vßguess) ß 2
+    iûi+1
+  }
+  guess
+}
+
+ã --- correlation coefficient between X and Y ---
+correlation{X;Y}: {
+  nûÎX
+  mxûmean{X}
+  myûmean{Y}
+  covû0
+  vxû0
+  vyû0
+  iû0
+  while (i<n) {
+    dxûX[i] - mx
+    dyûY[i] - my
+    covûcov + dxÁdy
+    vxûvx + dxÁdx
+    vyûvy + dyÁdy
+    iûi+1
+  }
+  vprodûvx Á vy
+  sûvprodß2
+  jû0
+  while (j<10) {
+    sû(s + vprodßs) ß 2
+    jûj+1
+  }
+  cov ß s
+}
+
+ã --- histogram: counts per bin for data into N bins ---
+histogram{Data;N}: {
+  ndûÎData
+  mnûData[0]
+  mxûData[0]
+  iû1
+  while (i<nd) {
+    if (Data[i]<mn) { mnûData[i] }
+    if (Data[i]>mx) { mxûData[i] }
+    iûi+1
+  }
+  rngûmx - mn
+  binsûNÎ0
+  iû0
+  while (i<nd) {
+    valûData[i]
+    bidxû¬(N Á (val-mn)) ß rng
+    if (bidx>=N) { bidxûN-1 }
+    if (bidx<0) { bidxû0 }
+    bins[bidx]ûbins[bidx]+1
+    iûi+1
+  }
+  bins
+}
+
+ã === Self-tests ===
+
+ã mean tests
+d1û1 2 3 4 5
+m1ûmean{d1}
+if ((m1>2.99) & (m1<3.01)) { Õ"stats: [PASS] mean(1..5)=3" }
+d2û10 10 10
+m2ûmean{d2}
+if (m2=10) { Õ"stats: [PASS] mean constant" }
+
+ã variance/stddev tests
+v1ûvariance{d1}
+if ((v1>1.99) & (v1<2.01)) { Õ"stats: [PASS] variance(1..5)=2" }
+s1ûstddev{d1}
+if ((s1>0.9) & (s1<2.5)) { Õ"stats: [PASS] stddev(1..5)~1.58" }
+
+ã correlation tests
+Xû1 2 3 4 5
+Yû2 4 6 8 10
+r1ûcorrelation{X;Y}
+if ((r1>0.99) & (r1<1.01)) { Õ"stats: [PASS] correlation perfect positive" }
+Zû10 8 6 4 2
+r2ûcorrelation{X;Z}
+if ((r2<-0.99) & (r2>-1.01)) { Õ"stats: [PASS] correlation perfect negative" }
+
+ã histogram tests
+hdû1 1 2 2 3 3 4 4 5 5
+hûhistogram{hd;3}
+nhûÎh
+if (nh=3) { Õ"stats: [PASS] histogram has 3 bins" }
+totalû+/h
+if (total=10) { Õ"stats: [PASS] histogram preserves count" }
+
+Õ"stats: all tests done"

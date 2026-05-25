@@ -1,0 +1,61 @@
+{
+  "name": "aplus-language",
+  "displayName": "A+ Programming Language",
+  "description": "Syntax highlighting and commands for the A+ programming language (APL descendant, 1988)",
+  "version": "0.1.0",
+  "publisher": "aplus",
+  "license": "MIT",
+  "engines": {
+    "vscode": "^1.60.0"
+  },
+  "categories": [
+    "Programming Languages"
+  ],
+  "activationEvents": [
+    "onLanguage:aplus"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "languages": [
+      {
+        "id": "aplus",
+        "aliases": [
+          "A+",
+          "aplus"
+        ],
+        "extensions": [
+          ".a+",
+          ".a",
+          ".aplus"
+        ],
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "aplus",
+        "scopeName": "source.aplus",
+        "path": "./syntaxes/aplus.tmLanguage.json"
+      }
+    ],
+    "commands": [
+      {
+        "command": "aplus.run",
+        "title": "A+: Run current file"
+      },
+      {
+        "command": "aplus.transpile",
+        "title": "A+: Transpile current file to Python/JS"
+      }
+    ]
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./"
+  },
+  "devDependencies": {
+    "@types/vscode": "^1.60.0",
+    "typescript": "^4.5.0"
+  }
+}

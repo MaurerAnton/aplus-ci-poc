@@ -1,0 +1,114 @@
+ã math.a+ - Mathematical functions via Taylor series / Newton's method
+ã sqrt/exp/log/sin/cos/pow
+
+ã --- sqrt via Newton's method (10 iterations) ---
+sqrt{S}: {
+  guessûSß2
+  iû0
+  while (i<10) {
+    guessû(guess + Sßguess) ß 2
+    iûi+1
+  }
+  guess
+}
+
+ã --- exp via Taylor series sum(x^n/n!, n=0..15) ---
+exp{X}: {
+  resultû1
+  termû1
+  nû1
+  while (n<=15) {
+    termûterm Á X ß n
+    resultûresult + term
+    nûn+1
+  }
+  result
+}
+
+ã --- ln via Newton on f(y)=exp(y)-x=0  (15 iterations) ---
+ln{X}: {
+  yûXß2
+  iû0
+  while (i<15) {
+    yûy - 1 + X ß exp{y}
+    iûi+1
+  }
+  y
+}
+
+ã --- sin via Taylor series, 8 terms: x - x^3/3! + x^5/5! - ... ---
+sin{X}: {
+  resultûX
+  termûX
+  nû1
+  while (n<8) {
+    termû(0 - term) Á X Á X ß ((2Án) Á (2Án+1))
+    resultûresult + term
+    nûn+1
+  }
+  result
+}
+
+ã --- cos via Taylor series, 8 terms: 1 - x^2/2! + x^4/4! - ... ---
+cos{X}: {
+  resultû1
+  termû1
+  nû1
+  while (n<8) {
+    termû(0 - term) Á X Á X ß ((2Án-1) Á (2Án))
+    resultûresult + term
+    nûn+1
+  }
+  result
+}
+
+ã --- pow(base, exp) for integer exponents ---
+pow{B;E}: {
+  resultû1
+  iû0
+  while (i<E) {
+    resultûresult Á B
+    iûi+1
+  }
+  result
+}
+
+ã === Self-tests ===
+
+ã sqrt tests
+s4ûsqrt{4}
+if ((s4>1.99) & (s4<2.01)) { Õ"math: [PASS] sqrt(4)~2" }
+s9ûsqrt{9}
+if ((s9>2.99) & (s9<3.01)) { Õ"math: [PASS] sqrt(9)~3" }
+s2ûsqrt{2}
+if ((s2>1.41) & (s2<1.42)) { Õ"math: [PASS] sqrt(2)~1.414" }
+
+ã exp tests
+e1ûexp{1}
+if ((e1>2.71) & (e1<2.72)) { Õ"math: [PASS] exp(1)~2.718" }
+e0ûexp{0}
+if ((e0>0.99) & (e0<1.01)) { Õ"math: [PASS] exp(0)=1" }
+
+ã ln tests
+l1ûln{2.718281828}
+if ((l1>0.99) & (l1<1.01)) { Õ"math: [PASS] ln(e)~1" }
+l2ûln{1}
+if ((l2>-0.01) & (l2<0.01)) { Õ"math: [PASS] ln(1)~0" }
+
+ã sin/cos tests
+s0ûsin{0}
+if ((s0>-0.01) & (s0<0.01)) { Õ"math: [PASS] sin(0)=0" }
+c0ûcos{0}
+if ((c0>0.99) & (c0<1.01)) { Õ"math: [PASS] cos(0)=1" }
+spi2ûsin{1.5707963}
+if ((spi2>0.99) & (spi2<1.01)) { Õ"math: [PASS] sin(pi/2)~1" }
+
+ã pow tests
+p2ûpow{2;3}
+if (p2=8) { Õ"math: [PASS] pow(2,3)=8" }
+p3ûpow{5;0}
+if (p3=1) { Õ"math: [PASS] pow(5,0)=1" }
+p4ûpow{3;4}
+if (p4=81) { Õ"math: [PASS] pow(3,4)=81" }
+
+Õ"math: all tests done"

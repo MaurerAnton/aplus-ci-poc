@@ -1,0 +1,11 @@
+{
+  "argv": [
+    "python3",
+    "-m",
+    "jupyter_aplus.kernel",
+    "-f",
+    "{connection_file}"
+  ],
+  "display_name": "A+",
+  "language": "aplus"
+}
