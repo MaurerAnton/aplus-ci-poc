@@ -7,6 +7,8 @@ on:
       - '.github/workflows/aplus-ci.yml'
       - 'fuzz_aplus.py'
       - 'transpile_aplus.py'
+      - 'benchmark.py'
+      - 'plot_bench.py'
       - 'Dockerfile'
       - 'Dockerfile.wasm'
       - 'index.html'
@@ -18,6 +20,8 @@ on:
       - '.github/workflows/aplus-ci.yml'
       - 'fuzz_aplus.py'
       - 'transpile_aplus.py'
+      - 'benchmark.py'
+      - 'plot_bench.py'
       - 'Dockerfile'
       - 'Dockerfile.wasm'
       - 'index.html'
@@ -346,6 +350,100 @@ jobs:
         with:
           name: coverage-report
           path: /tmp/aplus-cov/coverage_filtered.info
+
+  # ═══════════════════════════════════════════════════════════════
+  # Benchmark report (timed runs + JSON/Markdown + plots)
+  # ═══════════════════════════════════════════════════════════════
+  benchmark-report:
+    name: Benchmark report
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: aplus-interpreter
+          path: aplus-install
+      - run: chmod +x aplus-install/bin/a+
+
+      - name: Install matplotlib (for plots)
+        run: pip3 install matplotlib || true
+
+      - name: Run benchmark suite
+        run: |
+          python3 benchmark.py \
+            --interpreter aplus-install/bin/a+ \
+            --corpus-dir . \
+            --output-dir reports \
+            --seed "${{ github.run_id }}" \
+            --warmup 1 \
+            --timeout 60
+
+      - name: Generate plots (SVG)
+        run: |
+          python3 plot_bench.py reports/benchmark_report.json \
+            --output-dir reports
+
+      - name: Upload benchmark reports
+        uses: actions/upload-artifact@v4
+        with:
+          name: benchmark-reports
+          path: reports/
+          retention-days: 7
+
+      - name: Display Markdown summary
+        run: |
+          echo "## Benchmark Summary" >> "$GITHUB_STEP_SUMMARY"
+          cat reports/benchmark_report.md >> "$GITHUB_STEP_SUMMARY" || true
+
+  # ═══════════════════════════════════════════════════════════════
+  # Benchmark report with comparison (A+ vs Python vs JS)
+  # ═══════════════════════════════════════════════════════════════
+  benchmark-report-compare:
+    name: Benchmark report (compare transpiled)
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: aplus-interpreter
+          path: aplus-install
+      - run: chmod +x aplus-install/bin/a+
+
+      - name: Install dependencies
+        run: |
+          pip3 install matplotlib || true
+          # Node.js is preinstalled on ubuntu-latest
+
+      - name: Run benchmark suite (with comparison)
+        run: |
+          python3 benchmark.py \
+            --interpreter aplus-install/bin/a+ \
+            --corpus-dir . \
+            --output-dir reports-compare \
+            --seed "${{ github.run_id }}" \
+            --warmup 1 \
+            --timeout 60 \
+            --compare \
+            --transpiler transpile_aplus.py
+
+      - name: Generate plots (comparison)
+        run: |
+          python3 plot_bench.py reports-compare/benchmark_report.json \
+            --output-dir reports-compare
+
+      - name: Upload comparison reports
+        uses: actions/upload-artifact@v4
+        with:
+          name: benchmark-reports-compare
+          path: reports-compare/
+          retention-days: 7
+
+      - name: Display Markdown summary
+        run: |
+          echo "## Benchmark Comparison Summary" >> "$GITHUB_STEP_SUMMARY"
+          cat reports-compare/benchmark_report.md >> "$GITHUB_STEP_SUMMARY" || true
 
   # ═══════════════════════════════════════════════════════════════
   # Comparison with J, K, BQN (array language benchmarks)

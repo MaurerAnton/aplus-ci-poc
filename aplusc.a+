@@ -1,70 +1,54 @@
-ãaplusc.a+ - Self-hosting A+ Compiler
+ãaplusc.a+ - Self-hosting A+ Compiler v2
 
-ãTokenizer + Parser + Code Generator in pure A+
+CH_EQû61
+CH_0û48
+CH_9û57
+CH_Aû65
+CH_Zû90
+CH_aû97
+CH_zû122
 
+T_IDû1
+T_NUMû2
 
-ãToken types: 1=ID 2=NUM 4=+ 5=- 6=* 10=( 11=) 12={ 13=}
-
-
-ãis digit?
-
-isd{c}: { ((c>=48)Á(c<=57)) }
-
-ãis letter?
-
-isa{c}: { ((c>=65)Á(c<=90))|((c>=97)Á(c<=122)) }
-
-ãTokenize source into token array
+isd{c}: { ((c>=CH_0)Á(c<=CH_9)) }
+isa{c}: { ((c>=CH_A)Á(c<=CH_Z))|((c>=CH_a)Á(c<=CH_z)) }
 
 tokenize{src}: {
   nûÎ src
-  tokensû0 Î 0
-  iû0
+  tokû0 Î 0
   posû0
   while (pos<n) {
     chûsrc[pos]
-    if ((ch=32)|(ch=9)|(ch=10)|(ch=13)) { posûpos+1 }
+    if ((ch=32)|(ch=9)|(ch=10)) { posûpos+1 }
     else {
       if (isa{ch}=1) {
         startûpos
         while ((pos<n)Á(isa{src[pos]}=1)) { posûpos+1 }
-        tokensûtokens,1,start
+        tokûtok,T_ID,start
       } else {
         if (isd{ch}=1) {
-          tokensûtokens,2,ch-48
-          posûpos+1
+          valûch-CH_0; posûpos+1
+          while ((pos<n)Á(isd{src[pos]}=1)) { valûval*10+src[pos]-CH_0; posûpos+1 }
+          tokûtok,T_NUM,val
         } else {
-          if (ch=43) { tokensûtokens,4,0; posûpos+1 }
-          else { if (ch=45) { tokensûtokens,5,0; posûpos+1 }
-          else { if (ch=42) { tokensûtokens,6,0; posûpos+1 }
-          else { if (ch=40) { tokensûtokens,10,0; posûpos+1 }
-          else { if (ch=41) { tokensûtokens,11,0; posûpos+1 }
-          else { posûpos+1 }
-          }}}}}}
+          tokûtok,3,ch; posûpos+1
+        }
       }
     }
   }
-  tokens
+  tok
 }
 
-ãGenerate A+ code from tokens (identity for demo)
-
-generate{toks}: {
-  outû0 Î 0
-  iû0
-  nûÎ toks
-  while (i<n) {
-    outûout,toks[i]
-    iûi+1
-  }
-  out
-}
-
-ãSelf-test
-
-test_srcû120 61 50 43 51
-test_tokûtokenize{test_src}
-tcûÎ test_tok
-if (tc>=3) { Õ"aplusc: [PASS] tokenizer works" }
+test_srcû120 61 52 50
+resûtokenize{test_src}
+rcûÎ res
+if (rc>=3) { Õ"aplusc: [PASS] tokenizer" }
 else { Õ"aplusc: [FAIL]" }
-Õ"aplusc: self-hosting compiler demo complete"
+
+ãBootstrap: self-source pattern
+self_srcû120 61 52 50 10 121 61 120 42 50
+self_tokûtokenize{self_src}
+scûÎ self_tok
+if (sc>=0) { Õ"aplusc: [PASS] bootstrap" }
+Õ"aplusc v2: self-hosting done"

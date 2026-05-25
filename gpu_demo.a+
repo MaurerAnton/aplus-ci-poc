@@ -1,0 +1,77 @@
+⍝ gpu_demo.a+ — A+ demo: calling libaplus_gpu.so from A+
+⍝
+⍝ A+ supports calling external C functions linked into the interpreter.
+⍝ Two common approaches:
+⍝
+⍝   1. DYNAMIC LOADING (if A+ is built with dlopen support):
+⍝      $load "libaplus_gpu.so"
+⍝
+⍝   2. STATIC LINKING (rebuild A+ interpreter with the library):
+⍝      Rebuild A+ linking in -laplus_gpu, then call directly.
+⍝
+⍝   3. PIPE / PROCESS (portable, no FFI needed):
+⍝      Write a small C driver (gpu_driver.c) that reads data from
+⍝      stdin, calls the accelerated routines, and prints results
+⍝      to stdout. A+ can fork/exec the driver via []av or $spawn.
+⍝
+⍝ Below we demonstrate the data-flow concept and show expected results.
+
+⍝ ─── Define the problem ───────────────────────────────────────────────
+
+A ← 3 3 ⍴ ⍳9     ⍝ 3×3 matrix
+B ← 2 3 ⍴ 1      ⍝ 3×2 matrix of ones
+
+⍝ ─── How to call the GPU-accelerated library ──────────────────────────
+
+⍝ Option A: If $load works in your A+ build:
+⍝   $load "libaplus_gpu.so"
+⍝   C ← matmul_f32 A B         ⍝ calls the C function directly
+⍝
+⍝ Option B: Via a pipe driver (most portable):
+⍝   cmd ← "echo matmul 3 3 2 1 2 3 4 5 6 7 8 9 1 1 1 1 1 1 | ./gpu_driver"
+⍝   result ← []av cmd
+⍝
+⍝ For this demo we show the expected numeric results.
+
+⍝ ─── Demonstrate the math ourselves ───────────────────────────────────
+
+⍝ Compute expected C = A × B  (3×3  times  3×2)
+⍝ A: 1 2 3    B: 1 1
+⍝    4 5 6       1 1
+⍝    7 8 9       1 1
+⍝
+⍝ C = A +.× B  (inner product)
+
+C ← A +.× B
+
+⍝ C should be:  (1+2+3)  (1+2+3)    =   6  6
+⍝              (4+5+6)  (4+5+6)    =  15 15
+⍝              (7+8+9)  (7+8+9)    =  24 24
+
+⍝ ─── Sigmoid demonstration ──────────────────────────────────────────────
+
+x ← ¯3 ¯2 ¯1 0 1 2 3
+⍝ sigmoid defined in A+:
+sigmoid_Aplus ← {1 ÷ 1 + *-⍵}
+y ← sigmoid_Aplus x
+
+⍝ ─── Print results ──────────────────────────────────────────────────────
+
+⎕ ← "=== A+ GPU Backend Demo ==="
+⎕ ← "Matrix A (3×3):"
+⎕ ← A
+⎕ ← "Matrix B (3×2):"
+⎕ ← B
+⎕ ← "C = A +.× B:"
+⎕ ← C
+⎕ ← ""
+⎕ ← "Sigmoid of -3..3:"
+⎕ ← y
+⎕ ← ""
+⎕ ← "=== To use libaplus_gpu.so from A+ ==="
+⎕ ← "1. Build:   make -f Makefile.gpu"
+⎕ ← "2. Load:    $load 'libaplus_gpu.so'   (dynamic)"
+⎕ ← "   or link during A+ interpreter build (static)"
+⎕ ← "3. Call:    C ← matmul_f32 A B"
+⎕ ← ""
+⎕ ← "=== GPU demo: all done ==="

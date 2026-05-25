@@ -1,0 +1,36 @@
+# Makefile.gpu — Build libaplus_gpu.so (GPU-accelerated backend)
+#
+#   make -f Makefile.gpu          → build libaplus_gpu.so + bench_gpu
+#   make -f Makefile.gpu library  → build only libaplus_gpu.so
+#   make -f Makefile.gpu bench    → build only bench_gpu
+#   make -f Makefile.gpu clean    → remove artifacts
+#
+# Requires: g++ with OpenMP support (-fopenmp)
+
+CXX      := g++
+CXXFLAGS := -std=c++17 -O3 -march=native -fopenmp -fPIC -Wall -Wextra
+LDFLAGS  := -fopenmp -shared
+BENCH_LDFLAGS := -fopenmp -lm
+
+.PHONY: all library bench clean
+
+all: library bench
+
+# ─── Shared library ───────────────────────────────────────────────────────────
+
+library: libaplus_gpu.so
+
+libaplus_gpu.so: gpu_backend.cpp
+	$(CXX) $(CXXFLAGS) $(LDFLAGS) -o $@ $<
+
+# ─── Standalone benchmark ─────────────────────────────────────────────────────
+
+bench: bench_gpu
+
+bench_gpu: bench_gpu.cpp libaplus_gpu.so
+	$(CXX) $(CXXFLAGS) -o $@ bench_gpu.cpp -L. -laplus_gpu $(BENCH_LDFLAGS) -Wl,-rpath,.
+
+# ─── Clean ────────────────────────────────────────────────────────────────────
+
+clean:
+	rm -f libaplus_gpu.so bench_gpu
