@@ -1,0 +1,35 @@
+„sieve.a+ - Sieve of Eratosthenes in A+
+
+„Finds all primes up to N
+
+
+„Generate primes <= N
+
+primes{N}: {
+  mask˚NŒ1
+  mask[0]˚0
+  i˚2
+  while (i*i<=N) {
+    if (mask[i-1]=1) {
+      j˚i*i
+      while (j<=N) {
+        mask[j-1]˚0
+        j˚j+i
+      }
+    }
+    i˚i+1
+  }
+  mask/¢N
+}
+
+„Test cases
+
+p30˚primes{30}
+if (p30[0]=2) { ’"sieve: [PASS] first prime is 2" }
+if (p30[9]=29) { ’"sieve: [PASS] 10th prime under 30" }
+n30˚Œ p30
+if (n30=10) { ’"sieve: [PASS] 10 primes under 30" }
+p100˚primes{100}
+n100˚Œ p100
+if (n100=25) { ’"sieve: [PASS] 25 primes under 100" }
+’"sieve: all tests done"

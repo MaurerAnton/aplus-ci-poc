@@ -1,0 +1,72 @@
+ãgraph.a+ - Graph algorithms in A+
+
+ãBFS and DFS on adjacency matrix
+
+
+ã--- BFS: Breadth-First Search ---
+
+ãadj = adjacency matrix (n x n), start = start node (0-based)
+
+ãReturns: visited array (1 if reachable)
+
+bfs{adj;start}: {
+  nûÎ adj
+  nûn[0]
+  visitedûn Î 0
+  queueûstart
+  visited[start]û1
+  while ((Î queue)>0) {
+    vûqueue[0]
+    queueû1¢(Îqueue)-1
+    iû0
+    while (i<n) {
+      if (adj[vÁn+i]=1) {
+        if (visited[i]=0) {
+          visited[i]û1
+          queueûqueue,i
+        }
+      }
+      iûi+1
+    }
+  }
+  visited
+}
+
+ã--- DFS: Depth-First Search (iterative, stack-based) ---
+
+dfs{adj;start}: {
+  nûÎ adj
+  nûn[0]
+  visitedûn Î 0
+  stackûstart
+  while ((Î stack)>0) {
+    lastû(Îstack)-1
+    vûstack[last]
+    stackû¢(Îstack)-1
+    if (visited[v]=0) {
+      visited[v]û1
+      iûn-1
+      while (i>=0) {
+        if (adj[vÁn+i]=1) {
+          if (visited[i]=0) {
+            stackûstack,i
+          }
+        }
+        iûi-1
+      }
+    }
+  }
+  visited
+}
+
+ãTest graph: 5 nodes, edges 0-1-2-3, 4 isolated
+
+Gû5 5 Î 0 1 0 0 0 1 0 1 0 0 0 1 0 1 0 0 0 1 0 0 0 0 0 0 0
+
+v_bfsûbfs{G;0}
+if (v_bfs[3]=1) { Õ"graph: [PASS] BFS reaches node 3" }
+if (v_bfs[4]=0) { Õ"graph: [PASS] BFS isolated node 4" }
+
+v_dfsûdfs{G;0}
+if (+/v_dfs=4) { Õ"graph: [PASS] DFS visits 4 reachable nodes" }
+Õ"graph: all tests done"

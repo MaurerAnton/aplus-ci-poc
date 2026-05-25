@@ -1,0 +1,19 @@
+# Makefile.wasm — Build A+ WebAssembly artifacts
+#
+# Targets:
+#   make -f Makefile.wasm          Build WASM (Docker + extract)
+#   make -f Makefile.wasm serve    Build + start HTTP server
+#   make -f Makefile.wasm clean    Remove dist/
+
+.PHONY: all build serve clean
+
+all: build
+
+build:
+	./build_wasm.sh
+
+serve:
+	./build_wasm.sh --serve
+
+clean:
+	./build_wasm.sh --clean

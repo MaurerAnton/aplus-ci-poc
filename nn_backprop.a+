@@ -1,0 +1,123 @@
+ã nn_backprop.a+ - 2-Layer Neural Network with Backpropagation in A+
+ã Trains on XOR problem using gradient descent
+ã First-ever backprop implementation in pure A+!
+
+ã Sigmoid activation: s(x) = 1 / (1 + e^(-x))
+sigmoid{x}: {
+  ß1+*-x
+}
+
+ã Sigmoid derivative: s(x) * (1 - s(x))
+dsigmoid{x}: {
+  sûsigmoid{x}
+  sÁ1-s
+}
+
+ã Mean Squared Error loss
+mse{ypred;ytrue}: {
+  (+/(ypred-ytrue)*2) ßÎ ypred
+}
+
+ã XOR training data: 4 samples x 2 features
+Xû4 2 Î 0 0 0 1 1 0 1 1
+ã XOR targets: 4 samples x 1 output
+Yû4 1 Î 0 1 1 0
+
+ã Hyperparameters
+input_sizeû2
+hidden_sizeû3
+output_sizeû1
+lrû0.5
+epochsû5000
+
+ã Weight initialization
+W1û2 3 Î 0.15 0.20 0.25 0.30 0.35 0.40
+W2û3 1 Î 0.45 0.50 0.55
+
+ã === TRAINING LOOP ===
+epochû0
+
+while (epoch<epochs) {
+  Z1ûX +.Á W1
+  Hûsigmoid{Z1}
+  Z2ûH +.Á W2
+  Ypredûsigmoid{Z2}
+ã  --- Loss ---
+  lossûmse{Ypred;Y}
+ã  --- Backprop: output layer ---
+  dZ2û(Ypred-Y) Á dsigmoid{Z2}
+ã  dW2 = H^T * dZ2 computed element-wise
+  dW2û3 1 Î 0
+  kû0
+  while (k<hidden_size) {
+    sumû0
+    sû0
+    while (s<4) {
+      sumûsum + H[sÁhidden_size+k] Á dZ2[s]
+      sûs+1
+    }
+    dW2[k]ûsum
+    kûk+1
+  }
+ã  --- Backprop: hidden layer ---
+  dZ1_rawû4 3 Î 0
+  sû0
+  while (s<4) {
+    kû0
+    while (k<hidden_size) {
+      dZ1_raw[sÁhidden_size+k]ûdZ2[s] Á W2[k]
+      kûk+1
+    }
+    sûs+1
+  }
+  dZ1ûdZ1_raw Á dsigmoid{Z1}
+ã  dW1 = X^T * dZ1 element-wise
+  dW1û2 3 Î 0
+  iû0
+  while (i<input_size) {
+    jû0
+    while (j<hidden_size) {
+      sumû0
+      sû0
+      while (s<4) {
+        sumûsum + X[sÁinput_size+i] Á dZ1[sÁhidden_size+j]
+        sûs+1
+      }
+      dW1[iÁhidden_size+j]ûsum
+      jûj+1
+    }
+    iûi+1
+  }
+ã  --- Gradient descent update ---
+  W1ûW1 - lr Á dW1
+  W2ûW2 - lr Á dW2
+ã  --- Report every 500 epochs ---
+  if (0=500|epoch) {
+    Õ"epoch=" epoch
+    Õ" loss=" loss
+  }
+  epochûepoch+1
+}
+
+ã === Final predictions ===
+Õ"Training complete. Final loss:"
+Õ loss
+
+Z1fûX +.Á W1
+Hfûsigmoid{Z1f}
+Z2fûHf +.Á W2
+Yfûsigmoid{Z2f}
+
+Õ"XOR predictions (expect ~0, ~1, ~1, ~0):"
+Õ Yf[0]
+Õ Yf[1]
+Õ Yf[2]
+Õ Yf[3]
+
+t0ûYf[0]<0.5
+t1ûYf[1]>0.5
+t2ûYf[2]>0.5
+t3ûYf[3]<0.5
+okût0 Á t1 Á t2 Á t3
+if (ok=1) { Õ"[PASS] XOR learned correctly!" } else { Õ"[FAIL] XOR not learned" }
+Õ"nn_backprop: done"

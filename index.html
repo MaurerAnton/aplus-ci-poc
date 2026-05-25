@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>A+ Programming Language — Web REPL</title>
+<style>
+  :root {
+    --bg: #1a1a2e;
+    --surface: #16213e;
+    --primary: #0f3460;
+    --accent: #e94560;
+    --text: #eaeaea;
+    --text-dim: #a0a0b0;
+    --code-bg: #0d1117;
+    --border: #2a2a4a;
+    --success: #4ecca3;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'SF Mono', 'Fira Code', 'Consolas', 'Monaco', monospace;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 20px;
+  }
+  header {
+    text-align: center;
+    margin-bottom: 24px;
+  }
+  header h1 {
+    font-size: 1.6rem;
+    color: var(--accent);
+    letter-spacing: 1px;
+  }
+  header p {
+    font-size: 0.8rem;
+    color: var(--text-dim);
+    margin-top: 4px;
+  }
+  .container {
+    width: 100%;
+    max-width: 900px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .editor-pane {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+  }
+  .pane-header {
+    background: var(--primary);
+    padding: 8px 14px;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--text-dim);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  #input {
+    width: 100%;
+    height: 220px;
+    padding: 14px;
+    font-family: inherit;
+    font-size: 0.9rem;
+    background: var(--code-bg);
+    color: var(--text);
+    border: none;
+    resize: vertical;
+    outline: none;
+    line-height: 1.5;
+    tab-size: 2;
+  }
+  #input::placeholder { color: #555; }
+  .button-row {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+  }
+  button {
+    font-family: inherit;
+    font-size: 0.85rem;
+    padding: 10px 22px;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    transition: background 0.2s, transform 0.1s;
+  }
+  button:active { transform: scale(0.97); }
+  #run {
+    background: var(--accent);
+    color: #fff;
+  }
+  #run:hover { background: #ff5a7a; }
+  #run:disabled {
+    background: #555;
+    cursor: not-allowed;
+    color: #999;
+  }
+  #clear {
+    background: var(--primary);
+    color: var(--text-dim);
+  }
+  #clear:hover { background: #1a4a80; }
+  .status {
+    font-size: 0.75rem;
+    color: var(--text-dim);
+    margin-left: auto;
+  }
+  .status.ready { color: var(--success); }
+  .status.loading { color: #f0c040; }
+  .output-pane {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+  }
+  #output {
+    width: 100%;
+    min-height: 180px;
+    max-height: 500px;
+    padding: 14px;
+    font-family: inherit;
+    font-size: 0.85rem;
+    background: var(--code-bg);
+    color: var(--text);
+    white-space: pre-wrap;
+    word-break: break-word;
+    overflow-y: auto;
+    line-height: 1.5;
+  }
+  #output.error { color: #ff6b6b; }
+  #output:empty::after {
+    content: "Output will appear here...";
+    color: #444;
+  }
+  .examples {
+    margin-top: 8px;
+    font-size: 0.75rem;
+    color: var(--text-dim);
+  }
+  .examples a {
+    color: var(--accent);
+    cursor: pointer;
+    text-decoration: underline;
+  }
+  .examples a:hover { color: #ff5a7a; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>A+ &mdash; Web REPL</h1>
+  <p>APL-descendant array language &bull; running in your browser via WebAssembly</p>
+</header>
+
+<div class="container">
+  <div class="editor-pane">
+    <div class="pane-header">
+      <span>A+ Code</span>
+      <span class="status loading" id="status">Loading WASM&hellip;</span>
+    </div>
+    <textarea id="input" placeholder="Enter A+ code here, e.g.:
+x&#x2190;2+3 4 5
+y&#x2190;x*2
+&#x2352;y
+
+Or try: &#x2352;+/&#x2373;100"></textarea>
+  </div>
+
+  <div class="button-row">
+    <button id="run" disabled>Run &#x25B6;</button>
+    <button id="clear">Clear</button>
+    <span class="examples">
+      Examples:
+      <a data-code="x&#x2190;2+3 4 5&#10;y&#x2190;x*2&#10;&#x2352;y">arithmetic</a> &middot;
+      <a data-code="&#x2352;+/&#x2373;100">sum 1..100</a> &middot;
+      <a data-code="m&#x2190;3 3&#x2374;&#x2373;9&#10;&#x2352;m&#10;&#x2352;+/m&#10;&#x2352;+&#x2339;m">matrix</a> &middot;
+      <a data-code="if (2+2=4) {&#10;  &#x2352;'PASS'&#10;}">conditional</a>
+    </span>
+  </div>
+
+  <div class="output-pane">
+    <div class="pane-header">Output</div>
+    <pre id="output"></pre>
+  </div>
+</div>
+
+<script src="aplus.js"></script>
+<script>
+(function() {
+  var inputEl   = document.getElementById('input');
+  var outputEl  = document.getElementById('output');
+  var runBtn    = document.getElementById('run');
+  var clearBtn  = document.getElementById('clear');
+  var statusEl  = document.getElementById('status');
+  var ready     = false;
+
+  // ── Capture stdout / stderr ──
+  var capturedOutput = '';
+
+  // Override before WASM module initializes
+  var Module = {
+    noInitialRun: true,
+    print: function(text) {
+      capturedOutput += text + '\n';
+    },
+    printErr: function(text) {
+      capturedOutput += text + '\n';
+    },
+    onRuntimeInitialized: function() {
+      ready = true;
+      runBtn.disabled = false;
+      statusEl.textContent = 'Ready';
+      statusEl.className = 'status ready';
+    },
+    onAbort: function(msg) {
+      capturedOutput += '[ABORT] ' + msg + '\n';
+    }
+  };
+
+  // ── Run A+ code ──
+  function runCode() {
+    if (!ready) return;
+
+    var code = inputEl.value.trim();
+    if (!code) {
+      outputEl.textContent = '(no input)';
+      outputEl.className = '';
+      return;
+    }
+
+    capturedOutput = '';
+    outputEl.textContent = '';
+    outputEl.className = '';
+    runBtn.disabled = true;
+    runBtn.textContent = 'Running\u2026';
+    statusEl.textContent = 'Running';
+    statusEl.className = 'status loading';
+
+    try {
+      // Write code to virtual filesystem
+      Module.FS.writeFile('/tmp/script.a+', code);
+
+      // Call a+ interpreter: a+ /tmp/script.a+
+      Module.callMain(['a+', '/tmp/script.a+']);
+
+      // Clean up
+      try { Module.FS.unlink('/tmp/script.a+'); } catch(e) {}
+
+      // Display output
+      if (capturedOutput) {
+        outputEl.textContent = capturedOutput.trimEnd();
+      } else {
+        outputEl.textContent = '(no output)';
+      }
+    } catch (e) {
+      outputEl.textContent = capturedOutput + '\n[ERROR] ' + e.message;
+      outputEl.className = 'error';
+    }
+
+    runBtn.disabled = false;
+    runBtn.textContent = 'Run \u25B6';
+    statusEl.textContent = 'Ready';
+    statusEl.className = 'status ready';
+  }
+
+  // ── Event handlers ──
+  runBtn.addEventListener('click', runCode);
+
+  // Ctrl+Enter / Cmd+Enter to run
+  inputEl.addEventListener('keydown', function(e) {
+    if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+      e.preventDefault();
+      runCode();
+    }
+  });
+
+  clearBtn.addEventListener('click', function() {
+    inputEl.value = '';
+    outputEl.textContent = '';
+    outputEl.className = '';
+  });
+
+  // Example links
+  document.querySelectorAll('.examples a').forEach(function(link) {
+    link.addEventListener('click', function(e) {
+      e.preventDefault();
+      inputEl.value = this.getAttribute('data-code');
+    });
+  });
+
+})();
+</script>
+</body>
+</html>

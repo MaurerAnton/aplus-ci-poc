@@ -1,0 +1,162 @@
+# syntax=docker/dockerfile:1
+# A+ Programming Language — WebAssembly build via Emscripten
+
+FROM emscripten/emsdk:3.1.74
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    autoconf automake libtool ca-certificates wget \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /build
+
+# ── Clone A+ source ──
+ADD https://github.com/louyx/aplus/archive/refs/heads/master.tar.gz /tmp/aplus.tar.gz
+RUN tar xzf /tmp/aplus.tar.gz --strip-components=1 && rm /tmp/aplus.tar.gz
+
+# ── Pre-configure source patches (same 7 patches as native Dockerfile) ──
+
+# 1. sys_errlist[X] -> strerror(X)
+RUN find . -type f \( -name '*.c' -o -name '*.C' -o -name '*.h' -o -name '*.H' \) \
+      -exec sed -i 's/sys_errlist\[\([^]]*\)\]/strerror(\1)/g' {} \;
+
+# 2. Remove extern sys_nerr declarations
+RUN find . -type f \( -name '*.c' -o -name '*.C' -o -name '*.h' -o -name '*.H' \) \
+      -exec sed -i '/extern int sys_nerr;/d' {} \;
+
+# 3. Replace sys_nerr usage
+RUN find . -type f \( -name '*.c' -o -name '*.C' \) \
+      -exec sed -i 's/sys_nerr/9999/g' {} \;
+
+# 4. Add struct sigvec + SV_INTERRUPT fallback for sgnl.h
+RUN for f in src/dap/sgnl.h; do \
+      [ -f "$f" ] && ( \
+        echo '#ifndef _STRUCT_SIGVEC_DEFINED'; \
+        echo '#define _STRUCT_SIGVEC_DEFINED'; \
+        echo 'struct sigvec { void (*sv_handler)(int); int sv_mask; int sv_flags; };'; \
+        echo '#endif'; \
+        echo '#ifndef SV_INTERRUPT'; \
+        echo '#define SV_INTERRUPT 0'; \
+        echo '#endif'; \
+        cat "$f" \
+      ) > "${f}.tmp" && mv "${f}.tmp" "$f"; \
+    done
+
+# 5. HAVE_SIGACTION / HAVE_SVR4
+RUN for f in src/dap/sgnl.h; do \
+      (echo '#define HAVE_SIGACTION 1'; echo '#define HAVE_SVR4 1'; cat "$f") \
+        > "${f}.tmp" && mv "${f}.tmp" "$f"; \
+    done
+RUN for f in src/dap/sgnlcatch.c src/dap/sgnldefault.c \
+             src/dap/sgnlignore.c src/dap/sgnloriginal.c; do \
+      [ -f "$f" ] && sed -i 's/defined(HAVE_SVR4)/1/g' "$f"; \
+    done
+
+# 6. sigvec() fallback
+RUN cat >> src/dap/error.c << 'SIGVECEOF'
+
+/* Provide sigvec() for linking on systems where libc lacks it */
+#include <signal.h>
+#ifndef _STRUCT_SIGVEC_DEFINED
+#define _STRUCT_SIGVEC_DEFINED
+struct sigvec { void (*sv_handler)(int); int sv_mask; int sv_flags; };
+#endif
+int sigvec(int sig, struct sigvec *v, struct sigvec *ov) {
+    struct sigaction n = {0}, o = {0};
+    if (v) { n.sa_handler = v->sv_handler; n.sa_flags = v->sv_flags; }
+    int r = sigaction(sig, v ? &n : 0, ov ? &o : 0);
+    if (r == 0 && ov) { ov->sv_handler = o.sa_handler; ov->sv_flags = o.sa_flags; }
+    return r;
+}
+SIGVECEOF
+
+# 7. k.h posix thread-safe functions
+RUN sed -i 's/defined(APLUS_OLD_POSIX_THREAD_SAFE_FUNCTIONS)/0/g' src/a/k.h
+
+# ── WASM-specific: remove mmap-based atmp (WASM has no mmap in the normal sense) ──
+#    Force BSTUB (malloc-based) memory management which works in WASM
+RUN sed -i 's/^CFLAGS = @CFLAGS@$/\0 -DBSTUB/' src/a/Makefile.am
+RUN sed -i 's/^CFLAGS = @CFLAGS@$/\0 -DBSTUB/' src/main/Makefile.am
+RUN sed -i 's/^CFLAGS = @CFLAGS@$/\0 -DBSTUB/' src/dap/Makefile.am
+RUN sed -i 's/^CFLAGS = @CFLAGS@$/\0 -DBSTUB/' src/cxs/Makefile.am
+RUN sed -i 's/^CFLAGS = @CFLAGS@$/\0 -DBSTUB/' src/cxb/Makefile.am
+RUN sed -i 's/^CFLAGS = @CFLAGS@$/\0 -DBSTUB/' src/cxsys/Makefile.am
+RUN sed -i 's/^CFLAGS = @CFLAGS@$/\0 -DBSTUB/' src/cxc/Makefile.am
+RUN sed -i 's/^CFLAGS = @CFLAGS@$/\0 -DBSTUB/' src/esf/Makefile.am
+
+# ── WASM-specific: remove X11 dependency from configure ──
+#    AC_PATH_X will fail gracefully in emsdk (no X11), producing empty X_LIBS/X_INCLUDES.
+#    But we also patch out the explicit -lX11 -lXext from the native Dockerfile pattern.
+
+# ── Autoreconf to pick up Makefile.am changes ──
+RUN autoreconf -fi 2>&1 || autoreconf -fi
+
+# ── Configure with emconfigure (headless, static) ──
+RUN emconfigure ./configure \
+    --prefix=/opt/aplus \
+    --disable-shared \
+    --enable-static \
+    CFLAGS="-D_GNU_SOURCE" \
+    CXXFLAGS="-std=gnu++98" \
+    LIBS="-lm"
+
+# ── Post-configure: strip X11-dependent and Windows-only subdirectories ──
+#    Keep only the core libraries needed for _INTERPRETER_ONLY mode.
+RUN sed -i 's/^SUBDIRS = .*/SUBDIRS = cxs cxb cxsys cxc esf a dap main/' src/Makefile
+
+# ── Post-configure: add _INTERPRETER_ONLY to main CFLAGS ──
+#    This skips X11 GUI, IPC, and uses stdin/stdout REPL loop.
+RUN sed -i '/^CFLAGS = /s/$/ -D_INTERPRETER_ONLY/' src/main/Makefile
+
+# ── Also add _INTERPRETER_ONLY where CFLAGS includes -DBSTUB ──
+RUN sed -i '/^CFLAGS = .*-DBSTUB/s/$/ -D_INTERPRETER_ONLY/' src/main/Makefile || true
+
+# ── Build: compile core libraries one by one, then main objects ──
+#    We build subdirectories individually to get clear error messages.
+#    The final link in src/main/ is SKIPPED (emcc produces native binary without .js).
+#    We do the link ourselves in the next step.
+
+RUN for dir in cxs cxb cxsys cxc esf a dap; do \
+      echo "=== Building src/$dir ===" && \
+      emmake make -C src/$dir -j$(nproc); \
+    done
+
+# Compile main/ object files (compile only, the link target will fail — that's OK)
+RUN cd src/main && emmake make mainC.o aplus_main.o aplus_uext.o matherr.o
+# If the above fails because of dependency tracking, fall back to compiling all sources:
+RUN cd src/main && for src in mainC.C aplus_main.c aplus_uext.c matherr.c; do \
+      [ -f "${src%.*}.o" ] || emmake make "${src%.*}.o" || true; \
+    done
+# Verify object files exist
+RUN ls -la src/main/mainC.o src/main/aplus_main.o src/main/aplus_uext.o src/main/matherr.o
+
+# ── Manual final link with emcc to produce aplus.js + aplus.wasm ──
+#    Collect all static libraries (.a files in .libs/) and main object files.
+RUN cd src/main && \
+    emcc \
+        -s WASM=1 \
+        -s EXPORTED_FUNCTIONS='["_main","_malloc","_free"]' \
+        -s EXPORTED_RUNTIME_METHODS='["ccall","cwrap","FS","callMain"]' \
+        -s ALLOW_MEMORY_GROWTH=1 \
+        -s FORCE_FILESYSTEM=1 \
+        -s INVOKE_RUN=0 \
+        -s EXIT_RUNTIME=0 \
+        -I.. -I../a -I../dap -I../cxs -I../cxb -I../cxsys -I../cxc -I../esf \
+        -D_INTERPRETER_ONLY -D_GNU_SOURCE -DBSTUB \
+        -std=gnu++98 \
+        -o aplus.js \
+        mainC.o aplus_main.o aplus_uext.o matherr.o \
+        ../a/.libs/liba.a \
+        ../dap/.libs/libdap.a \
+        ../cxs/.libs/libcxs.a \
+        ../cxb/.libs/libcxb.a \
+        ../cxsys/.libs/libcxsys.a \
+        ../cxc/.libs/libcxc.a \
+        ../esf/.libs/libesf.a \
+        -lm
+
+# ── Verify and copy output ──
+RUN ls -la src/main/aplus.js src/main/aplus.wasm
+RUN mkdir -p /output
+RUN cp src/main/aplus.js /output/aplus.js
+RUN cp src/main/aplus.wasm /output/aplus.wasm
+RUN echo "=== WASM build complete ===" && ls -la /output/

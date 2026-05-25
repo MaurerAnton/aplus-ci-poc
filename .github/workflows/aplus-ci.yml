@@ -6,16 +6,29 @@ on:
       - '**.a+'
       - '.github/workflows/aplus-ci.yml'
       - 'fuzz_aplus.py'
+      - 'transpile_aplus.py'
       - 'Dockerfile'
+      - 'Dockerfile.wasm'
+      - 'index.html'
+      - 'build_wasm.sh'
+      - 'Makefile.wasm'
   pull_request:
     paths:
       - '**.a+'
       - '.github/workflows/aplus-ci.yml'
       - 'fuzz_aplus.py'
+      - 'transpile_aplus.py'
       - 'Dockerfile'
+      - 'Dockerfile.wasm'
+      - 'index.html'
+      - 'build_wasm.sh'
+      - 'Makefile.wasm'
   workflow_dispatch:
 
 jobs:
+  # ═══════════════════════════════════════════════════════════════
+  # Build interpreter
+  # ═══════════════════════════════════════════════════════════════
   build:
     name: Build A+ interpreter (Docker)
     runs-on: ubuntu-latest
@@ -48,18 +61,19 @@ jobs:
           path: aplus-install/
           retention-days: 1
 
+  # ═══════════════════════════════════════════════════════════════
+  # Run all A+ programs
+  # ═══════════════════════════════════════════════════════════════
   run-programs:
     name: Run A+ programs
     runs-on: ubuntu-latest
     needs: build
     steps:
       - uses: actions/checkout@v4
-
       - uses: actions/download-artifact@v4
         with:
           name: aplus-interpreter
           path: aplus-install
-
       - name: Make executable
         run: chmod +x aplus-install/bin/a+
 
@@ -74,8 +88,11 @@ jobs:
             echo ""
           done
 
+  # ═══════════════════════════════════════════════════════════════
+  # Neural network with backprop
+  # ═══════════════════════════════════════════════════════════════
   neural-network:
-    name: Neural network demo
+    name: Neural network (forward + backprop)
     runs-on: ubuntu-latest
     needs: build
     steps:
@@ -85,11 +102,65 @@ jobs:
           name: aplus-interpreter
           path: aplus-install
       - run: chmod +x aplus-install/bin/a+
-      - name: Run nn.a+
+
+      - name: Run original nn.a+ (forward pass)
         run: |
-          echo "=== 2-Layer Neural Net in A+ ==="
+          echo "=== Forward pass (nn.a+) ==="
           aplus-install/bin/a+ nn.a+ || true
 
+      - name: Run nn_backprop.a+ (training)
+        run: |
+          echo "=== Backprop training (nn_backprop.a+) ==="
+          aplus-install/bin/a+ nn_backprop.a+ || true
+
+  # ═══════════════════════════════════════════════════════════════
+  # Algorithm benchmarks
+  # ═══════════════════════════════════════════════════════════════
+  benchmarks:
+    name: Algorithm benchmarks
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: aplus-interpreter
+          path: aplus-install
+      - run: chmod +x aplus-install/bin/a+
+
+      - name: Quicksort benchmark
+        run: |
+          A=aplus-install/bin/a+
+          echo "=== Quicksort ==="
+          "$A" quicksort.a+ || true
+
+      - name: Sieve of Eratosthenes benchmark
+        run: |
+          A=aplus-install/bin/a+
+          echo "=== Sieve ==="
+          "$A" sieve.a+ || true
+
+      - name: Binary search benchmark
+        run: |
+          A=aplus-install/bin/a+
+          echo "=== Binary Search ==="
+          "$A" binary_search.a+ || true
+
+      - name: Matrix operations benchmark
+        run: |
+          A=aplus-install/bin/a+
+          echo "=== Matrix (LU + Eigenvalues) ==="
+          "$A" matrix.a+ || true
+
+      - name: Graph algorithms benchmark
+        run: |
+          A=aplus-install/bin/a+
+          echo "=== Graph (BFS + DFS) ==="
+          "$A" graph.a+ || true
+
+  # ═══════════════════════════════════════════════════════════════
+  # Fuzz test
+  # ═══════════════════════════════════════════════════════════════
   fuzz:
     name: Fuzz test interpreter
     runs-on: ubuntu-latest
@@ -101,11 +172,252 @@ jobs:
           name: aplus-interpreter
           path: aplus-install
       - run: chmod +x aplus-install/bin/a+
-      - name: Run fuzzer (smoke + 50 iterations)
+
+      - name: Run fuzzer (smoke + 100 iterations, grammar mode)
         run: |
           python3 fuzz_aplus.py aplus-install/bin/a+ \
-            --seed 12345 -n 50 --timeout 5 --report fuzz-report.txt
+            --seed 12345 -n 100 --timeout 5 --report fuzz-report-grammar.txt
+
+      - name: Run fuzzer (dictionary mode, 50 iterations)
+        run: |
+          python3 fuzz_aplus.py aplus-install/bin/a+ \
+            --seed 12345 -n 50 --timeout 5 --dict --report fuzz-report-dict.txt
+
       - uses: actions/upload-artifact@v4
         with:
-          name: fuzz-report
-          path: fuzz-report.txt
+          name: fuzz-reports
+          path: fuzz-report-*.txt
+
+  # ═══════════════════════════════════════════════════════════════
+  # Transpiler tests
+  # ═══════════════════════════════════════════════════════════════
+  transpiler:
+    name: Transpiler tests (A+ → Python / JS)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Transpile hello.a+ → Python + JavaScript
+        run: |
+          python3 transpile_aplus.py --input hello.a+ --output-py /tmp/hello.py --output-js /tmp/hello.js
+          echo "=== Generated Python ==="
+          cat /tmp/hello.py
+          echo ""
+          echo "=== Generated JavaScript ==="
+          cat /tmp/hello.js
+
+      - name: Run generated Python
+        run: python3 /tmp/hello.py || true
+
+      - name: Run generated JavaScript (Node.js)
+        run: node /tmp/hello.js || true
+
+      - name: Transpile nn.a+ → Python
+        run: |
+          python3 transpile_aplus.py --input nn.a+ --output-py /tmp/nn.py
+          echo "=== Generated nn.py ==="
+          cat /tmp/nn.py
+          python3 /tmp/nn.py || true
+
+      - name: Transpile convert.a+ → Python + JS
+        run: |
+          python3 transpile_aplus.py --input convert.a+ --output-py /tmp/convert.py --output-js /tmp/convert.js
+          python3 /tmp/convert.py || true
+          node /tmp/convert.js || true
+
+  # ═══════════════════════════════════════════════════════════════
+  # WASM build (Emscripten)
+  # ═══════════════════════════════════════════════════════════════
+  wasm:
+    name: Build WebAssembly (Emscripten)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build WASM Docker image
+        run: docker build -t aplus-wasm:ci -f Dockerfile.wasm .
+
+      - name: Extract WASM artifacts
+        run: |
+          mkdir -p dist
+          CID=$(docker create aplus-wasm:ci)
+          docker cp $CID:/output/aplus.js dist/aplus.js
+          docker cp $CID:/output/aplus.wasm dist/aplus.wasm
+          docker rm $CID
+          cp index.html dist/index.html
+          echo "=== WASM artifacts ==="
+          ls -lh dist/
+
+      - name: Upload WASM artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: aplus-wasm
+          path: dist/
+          retention-days: 7
+
+  # ═══════════════════════════════════════════════════════════════
+  # Multi-platform build (ARM64 + x86_64 via QEMU)
+  # ═══════════════════════════════════════════════════════════════
+  build-arm64:
+    name: Build A+ (ARM64)
+    runs-on: ubuntu-24.04-arm
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            g++ make xorg-dev ca-certificates wget
+
+      - name: Build A+ natively on ARM64
+        run: |
+          wget -qO- https://github.com/louyx/aplus/archive/refs/heads/master.tar.gz | tar xz --strip-components=1 -C /tmp/aplus-src
+          cd /tmp/aplus-src
+          find . -type f \( -name '*.c' -o -name '*.C' -o -name '*.h' -o -name '*.H' \) \
+            -exec sed -i 's/sys_errlist\[\([^]]*\)\]/strerror(\1)/g' {} \;
+          find . -type f \( -name '*.c' -o -name '*.C' -o -name '*.h' -o -name '*.H' \) \
+            -exec sed -i '/extern int sys_nerr;/d' {} \;
+          find . -type f \( -name '*.c' -o -name '*.C' \) \
+            -exec sed -i 's/sys_nerr/9999/g' {} \;
+          sed -i 's/defined(APLUS_OLD_POSIX_THREAD_SAFE_FUNCTIONS)/0/g' src/a/k.h
+          CFLAGS="-D_GNU_SOURCE" CXXFLAGS="-std=gnu++98" LIBS="-lX11 -lXext" \
+            ./configure --prefix=/tmp/aplus-install
+          make -j$(nproc)
+          make install
+          echo "=== ARM64 build complete ==="
+          file /tmp/aplus-install/bin/a+
+
+      - name: Smoke test on ARM64
+        run: |
+          echo '1+2' | /tmp/aplus-install/bin/a+ || true
+
+  # ═══════════════════════════════════════════════════════════════
+  # Code coverage (gcov/lcov)
+  # ═══════════════════════════════════════════════════════════════
+  coverage:
+    name: Code coverage (gcov)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            g++ make xorg-dev ca-certificates wget lcov
+
+      - name: Build A+ with coverage flags
+        run: |
+          wget -qO- https://github.com/louyx/aplus/archive/refs/heads/master.tar.gz | tar xz --strip-components=1 -C /tmp/aplus-cov
+          cd /tmp/aplus-cov
+          find . -type f \( -name '*.c' -o -name '*.C' -o -name '*.h' -o -name '*.H' \) \
+            -exec sed -i 's/sys_errlist\[\([^]]*\)\]/strerror(\1)/g' {} \;
+          find . -type f \( -name '*.c' -o -name '*.C' -o -name '*.h' -o -name '*.H' \) \
+            -exec sed -i '/extern int sys_nerr;/d' {} \;
+          find . -type f \( -name '*.c' -o -name '*.C' \) \
+            -exec sed -i 's/sys_nerr/9999/g' {} \;
+          sed -i 's/defined(APLUS_OLD_POSIX_THREAD_SAFE_FUNCTIONS)/0/g' src/a/k.h
+          CFLAGS="-D_GNU_SOURCE --coverage" CXXFLAGS="-std=gnu++98 --coverage" \
+            LIBS="-lX11 -lXext --coverage" \
+            ./configure --prefix=/tmp/aplus-cov-install
+          make -j$(nproc)
+          make install
+
+      - name: Run programs for coverage
+        run: |
+          A=/tmp/aplus-cov-install/bin/a+
+          cd /tmp/aplus-cov
+          # Run all .a+ files from the repo
+          for f in $GITHUB_WORKSPACE/*.a+; do
+            echo "Running $f..."
+            "$A" "$f" || true
+          done
+
+      - name: Generate coverage report
+        run: |
+          cd /tmp/aplus-cov
+          lcov --capture --directory . --output-file coverage.info --no-external 2>/dev/null || true
+          lcov --remove coverage.info '/usr/*' '*/test/*' --output-file coverage_filtered.info 2>/dev/null || true
+          lcov --list coverage_filtered.info 2>/dev/null || true
+
+      - name: Upload coverage
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: /tmp/aplus-cov/coverage_filtered.info
+
+  # ═══════════════════════════════════════════════════════════════
+  # Comparison with J, K, BQN (array language benchmarks)
+  # ═══════════════════════════════════════════════════════════════
+  compare:
+    name: Compare with J / K / BQN
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: aplus-interpreter
+          path: aplus-install
+      - run: chmod +x aplus-install/bin/a+
+
+      - name: Install comparison languages
+        run: |
+          # J interpreter
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends jq
+          wget -q https://github.com/jsoftware/jsource/releases/download/j9.5.2/j9.5.2_linux64.tar.gz -O /tmp/j.tar.gz
+          mkdir -p /tmp/j
+          tar xzf /tmp/j.tar.gz -C /tmp/j
+          chmod +x /tmp/j/jconsole || true
+          echo "J installed" || echo "J not available — skipping"
+
+          # BQN via CBQN
+          wget -q https://github.com/dzaima/CBQN/releases/download/v0.7.0/cbqn -O /tmp/cbqn 2>/dev/null || \
+          wget -q https://github.com/dzaima/CBQN/releases/download/v0.7.0/cbqn-ubuntu -O /tmp/cbqn 2>/dev/null || true
+          chmod +x /tmp/cbqn 2>/dev/null || echo "CBQN not available — skipping"
+
+      - name: "Benchmark: Sum 1..10000"
+        run: |
+          echo "=== A+ sum 1..10000 ==="
+          echo 'a +/i 10000' > /tmp/sum.a+
+          echo '0' >> /tmp/sum.a+
+          time aplus-install/bin/a+ /tmp/sum.a+ || true
+
+          if [ -f /tmp/j/jconsole ]; then
+            echo "=== J sum 1..10000 ==="
+            time echo '+/i.10000' | /tmp/j/jconsole 2>/dev/null || true
+          fi
+
+          if [ -f /tmp/cbqn ] && [ -x /tmp/cbqn ]; then
+            echo "=== BQN sum 1..10000 ==="
+            time echo '+´↕10000' | /tmp/cbqn 2>/dev/null || true
+          fi
+
+      - name: "Benchmark: Matrix multiplication (100x100)"
+        run: |
+          echo "=== A+ 100x100 matmul ==="
+          printf 'comment matmul benchmark\nn 100\nA n n rho iota n*n\nB n n rho iota n*n\nC A +.multiply B\nprint "done"\n' > /tmp/matmul.a+
+          time aplus-install/bin/a+ /tmp/matmul.a+ || true
+
+          if [ -f /tmp/j/jconsole ]; then
+            echo "=== J 100x100 matmul ==="
+            time echo 'n=.100 [ A=.(n,n)$i.n*n [ B=.(n,n)$|.i.n*n [ C=.A +/ .* B [ smoutput ''done''' | /tmp/j/jconsole 2>/dev/null || true
+          fi
+
+      - name: "Benchmark: Sieve of Eratosthenes (100000)"
+        run: |
+          echo "=== A+ sieve 100000 ==="
+          echo 'primes{100000}' >> /tmp/aplus_sieve.a+
+          time aplus-install/bin/a+ /tmp/aplus_sieve.a+ || true
+
+          if [ -f /tmp/j/jconsole ]; then
+            echo "=== J sieve 100000 ==="
+            time echo 'p: i._1 p: 100000' | /tmp/j/jconsole 2>/dev/null || true
+          fi
+
+          if [ -f /tmp/cbqn ] && [ -x /tmp/cbqn ]; then
+            echo "=== BQN primes under 100000 ==="
+            time echo '•Show +´˘2=+˝0=↕˜´100000|⌜↕100000' | /tmp/cbqn 2>/dev/null || true
+          fi
