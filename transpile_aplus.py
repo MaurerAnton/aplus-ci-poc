@@ -63,7 +63,9 @@ class TokenType(Enum):
     IOTA_SYM   = auto()   # ⍳  iota (symbol form)
     PLUS       = auto()
     MINUS      = auto()
-    STAR       = auto()   # * (exponentiation)
+    STAR       = auto()   # * (exponentiation / sign)
+    SLASH      = auto()   # / (reduce / compress)
+    BACKSLASH  = auto()   # \ (scan / expand)
     LPAREN     = auto()
     RPAREN     = auto()
     LBRACE     = auto()
@@ -73,7 +75,13 @@ class TokenType(Enum):
     COLON      = auto()
     SEMICOLON  = auto()
     DOT        = auto()
+    EQUAL      = auto()   # =  equality
+    LESS       = auto()   # <  less than
+    GREATER    = auto()   # >  greater than
+    LE         = auto()   # <= less-equal
+    GE         = auto()   # >= greater-equal
     INNER_PROD = auto()   # +.×  or  +.*
+    REDUCE_OP  = auto()   # +/  */  -/  (reduce operators)
     KW_IF      = auto()
     KW_WHILE   = auto()
     KW_ELSE    = auto()
@@ -98,6 +106,8 @@ _ASCII_OPS: dict[str, TokenType] = {
     '+': TokenType.PLUS,
     '-': TokenType.MINUS,
     '*': TokenType.STAR,
+    '/': TokenType.SLASH,
+    '\\': TokenType.BACKSLASH,
     '(': TokenType.LPAREN,
     ')': TokenType.RPAREN,
     '{': TokenType.LBRACE,
@@ -107,6 +117,9 @@ _ASCII_OPS: dict[str, TokenType] = {
     ':': TokenType.COLON,
     ';': TokenType.SEMICOLON,
     '.': TokenType.DOT,
+    '=': TokenType.EQUAL,
+    '<': TokenType.LESS,
+    '>': TokenType.GREATER,
 }
 
 
@@ -226,14 +239,39 @@ class Lexer:
         self._emit(TokenType.EOF, '', self.line, self.col + 1)
 
         # Post-processing: merge  PLUS DOT (MULT_SYM|STAR)  →  INNER_PROD
-        return self._merge_inner_prod()
+        #                  merge  (PLUS|MINUS|STAR) SLASH   →  REDUCE_OP
+        return self._merge_operators()
 
-    def _merge_inner_prod(self) -> list[Token]:
+    def _merge_operators(self) -> list[Token]:
+        """Merge OP SLASH -> REDUCE_OP and PLUS DOT OP -> INNER_PROD."""
         merged: list[Token] = []
         i = 0
         while i < len(self.tokens):
             t = self.tokens[i]
-            if (t.type == TokenType.PLUS
+            # OP SLASH -> REDUCE_OP (+/  */  -/  ÷/)
+            if (t.type in (TokenType.PLUS, TokenType.MINUS, TokenType.STAR, TokenType.DIVIDE_SYM, TokenType.MULT_SYM)
+                    and i + 1 < len(self.tokens)
+                    and self.tokens[i + 1].type == TokenType.SLASH):
+                merged.append(Token(
+                    TokenType.REDUCE_OP,
+                    t.value + '/',
+                    t.line, t.col,
+                ))
+                i += 2
+            # LESS EQUAL -> LE (<=)
+            elif (t.type == TokenType.LESS
+                    and i + 1 < len(self.tokens)
+                    and self.tokens[i + 1].type == TokenType.EQUAL):
+                merged.append(Token(TokenType.LE, '<=', t.line, t.col))
+                i += 2
+            # GREATER EQUAL -> GE (>=)
+            elif (t.type == TokenType.GREATER
+                    and i + 1 < len(self.tokens)
+                    and self.tokens[i + 1].type == TokenType.EQUAL):
+                merged.append(Token(TokenType.GE, '>=', t.line, t.col))
+                i += 2
+            # PLUS DOT (MULT_SYM|STAR) -> INNER_PROD
+            elif (t.type == TokenType.PLUS
                     and i + 2 < len(self.tokens)
                     and self.tokens[i + 1].type == TokenType.DOT
                     and self.tokens[i + 2].type in (TokenType.MULT_SYM, TokenType.STAR)):
@@ -419,9 +457,10 @@ class Parser:
         return tok.type in (
             TokenType.NUMBER, TokenType.STRING, TokenType.IDENT,
             TokenType.LPAREN, TokenType.LBRACKET,
-            TokenType.MINUS,
+            TokenType.MINUS, TokenType.PLUS, TokenType.STAR,
             TokenType.IOTA_SYM, TokenType.RHO_SYM,
             TokenType.DIVIDE_SYM, TokenType.MULT_SYM,
+            TokenType.REDUCE_OP, TokenType.SLASH,
         )
 
     def _is_binary_op(self, tok: Token) -> bool:
@@ -429,13 +468,21 @@ class Parser:
         return tok.type in (
             TokenType.PLUS, TokenType.MINUS, TokenType.STAR,
             TokenType.MULT_SYM, TokenType.DIVIDE_SYM,
+            TokenType.SLASH, TokenType.BACKSLASH,
+            TokenType.EQUAL, TokenType.LESS, TokenType.GREATER,
+            TokenType.LE, TokenType.GE,
         )
 
     # -- entry ---------------------------------------------------------
 
     def parse(self) -> Program:
         stmts: list[AST] = []
+        max_iter = 10000
+        it = 0
         while self._peek().type != TokenType.EOF:
+            it += 1; 
+            if it > max_iter: 
+                raise ParseError(f"Infinite loop detected at token {self.pos} ({self._peek().type.name})", self._peek())
             self._skip_nl()
             if self._peek().type == TokenType.EOF:
                 break
@@ -464,31 +511,100 @@ class Parser:
             return PrintStmt(self._parse_expression())
 
         # function definition:  name { params } :  { body }
+        # function call:         name { arg1; arg2 }
         if tok.type == TokenType.IDENT:
             saved = self.pos
             self._advance()
             if self._peek().type == TokenType.LBRACE:
-                self.pos = saved
-                return self._parse_func_def()
+                # Peek ahead: is this a definition (has colon after params) or call?
+                look = self.pos + 1
+                brace_depth = 1
+                has_colon = False
+                look_limit = look + 200  # safety bound
+                while look < len(self.tokens) and brace_depth > 0 and look < look_limit:
+                    lt = self.tokens[look]
+                    if lt.type == TokenType.LBRACE:
+                        brace_depth += 1
+                    elif lt.type == TokenType.RBRACE:
+                        brace_depth -= 1
+                    look += 1
+                # Check if there's a colon after the closing brace
+                if look < len(self.tokens) and self.tokens[look].type == TokenType.COLON:
+                    self.pos = saved
+                    return self._parse_func_def()
+                # Otherwise it's a function call
             self.pos = saved
 
-        # assignment:  IDENT ← expr
+        # assignment:  IDENT ← expr   or   IDENT [ idx ] ← expr
         if tok.type == TokenType.IDENT:
             saved = self.pos
             self._advance()
-            if self._peek().type == TokenType.ASSIGN:
+            nxt = self._peek()
+            # Check for multi-assignment: IDENT IDENT ← expr
+            if nxt.type == TokenType.IDENT:
+                look = self.pos + 1
+                if look < len(self.tokens) and self.tokens[look].type == TokenType.ASSIGN:
+                    self.pos = saved
+                    return self._parse_multi_assignment()
+            # Check for IDENT ← expr
+            if nxt.type == TokenType.ASSIGN:
                 self.pos = saved
                 return self._parse_assignment()
+            # Check for IDENT [ idx ] ← expr
+            if nxt.type == TokenType.LBRACKET:
+                # Consume IDENT [ ... ] to find if ← follows
+                look = self.pos
+                bracket_depth = 1
+                while look < len(self.tokens) and bracket_depth > 0:
+                    lt = self.tokens[look]
+                    if lt.type == TokenType.LBRACKET:
+                        bracket_depth += 1
+                    elif lt.type == TokenType.RBRACKET:
+                        bracket_depth -= 1
+                    look += 1
+                if look < len(self.tokens) and self.tokens[look].type == TokenType.ASSIGN:
+                    self.pos = saved
+                    return self._parse_assignment()  # will parse name[idx]←expr
             self.pos = saved
 
-        # expression statement
-        return self._parse_expression()
+        # expression statement — fallback
+        try:
+            return self._parse_expression()
+        except ParseError:
+            # Skip until next statement boundary, consuming as we go
+            while self._peek().type not in (TokenType.NEWLINE, TokenType.SEMICOLON,
+                                             TokenType.RBRACE, TokenType.EOF):
+                self._advance()
+            # Consume the boundary token
+            if self._peek().type in (TokenType.NEWLINE, TokenType.SEMICOLON):
+                self._advance()
+            return None
 
     def _parse_assignment(self) -> Assignment:
         name = self._expect(TokenType.IDENT).value
+        # Handle indexed assignment: name[idx] ← expr
+        if self._peek().type == TokenType.LBRACKET:
+            self._advance()
+            idx_expr = self._parse_expression()
+            self._expect(TokenType.RBRACKET)
+            # Flatten: store as 'name[idx_repr]' with the index pre-rendered
+            idx_str = str(PythonGenerator()._gen_expr(idx_expr))
+            name = f'{name}[{idx_str}]'
         self._expect(TokenType.ASSIGN)
         expr = self._parse_expression()
         return Assignment(name, expr)
+
+    def _parse_multi_assignment(self) -> Assignment:
+        """Handle multi-assignment: L U ← expr"""
+        names = []
+        names.append(self._expect(TokenType.IDENT).value)
+        while self._peek().type == TokenType.IDENT:
+            names.append(self._advance().value)
+        self._expect(TokenType.ASSIGN)
+        expr = self._parse_expression()
+        # Render as tuple unpacking
+        combined_name = ', '.join(names)
+        return Assignment(combined_name, expr)
 
     def _parse_if(self) -> IfStmt:
         self._expect(TokenType.KW_IF)
@@ -497,8 +613,11 @@ class Parser:
         self._expect(TokenType.RPAREN)
         body = self._parse_block()
         else_body: Optional[list[AST]] = None
+        # Skip whitespace before checking for else
+        self._skip_nl()
         if self._peek().type == TokenType.KW_ELSE:
             self._advance()
+            self._skip_nl()
             if self._peek().type == TokenType.KW_IF:
                 else_body = [self._parse_if()]
             else:
@@ -523,7 +642,9 @@ class Parser:
             s = self._parse_statement()
             if s is not None:
                 stmts.append(s)
-            self._skip_nl()
+            # Skip optional semicolons and newlines between statements
+            while self._peek().type in (TokenType.SEMICOLON, TokenType.NEWLINE):
+                self._advance()
         self._expect(TokenType.RBRACE)
         return stmts
 
@@ -574,7 +695,9 @@ class Parser:
 
     def _parse_additive(self) -> AST:
         left = self._parse_multiplicative()
-        while self._peek().type in (TokenType.PLUS, TokenType.MINUS):
+        while self._peek().type in (TokenType.PLUS, TokenType.MINUS, TokenType.SLASH, TokenType.BACKSLASH,
+                                    TokenType.EQUAL, TokenType.LESS, TokenType.GREATER,
+                                    TokenType.LE, TokenType.GE):
             op = self._advance().value
             right = self._parse_multiplicative()
             left = BinaryOp(op, left, right)
@@ -607,26 +730,54 @@ class Parser:
         if tok.type == TokenType.MINUS:
             self._advance()
             return UnaryOp('-', self._parse_unary())
+        if tok.type == TokenType.PLUS:
+            self._advance()
+            return FuncCall('_conjugate', [self._parse_unary()])
+        if tok.type == TokenType.STAR:
+            self._advance()
+            return FuncCall('_sign', [self._parse_unary()])
+        # Reduce operators: +/ expr, */ expr, -/ expr
+        if tok.type == TokenType.REDUCE_OP:
+            op_val = self._advance().value  # '+/', '*/', '-/'
+            arg = self._parse_unary()
+            return FuncCall(f'_reduce_{op_val[0]}', [arg])
         # Symbolic iota/rho can appear as unary prefix functions:
-        #   ⍳ 5   →   iota(5)
-        #   ⍴ 2 3 data  →   reshape(2 3, data)   — handled as function call below
-        # For transpilation, we treat them as function calls.
         if tok.type == TokenType.IOTA_SYM:
             self._advance()
             arg = self._parse_unary()
             return FuncCall('\u2373', [arg])
         if tok.type == TokenType.RHO_SYM:
             self._advance()
-            # Dyadic rho:  ⍴ shape data  or  shape ⍴ data
-            # Here in prefix position:  ⍴ shape data
+            # Dyadic rho:  ⍴ shape data  (prefix)
+            # Monadic rho: ⍴ arr          (shape of arr)
+            saved = self.pos
             shape = self._parse_unary()
-            data = self._parse_unary()
-            return FuncCall('\u2374', [shape, data])
+            # If another expression follows, it's dyadic
+            if self._is_atom_start(self._peek()):
+                data = self._parse_unary()
+                return FuncCall('\u2374', [shape, data])
+            # Monadic: just shape-of
+            return FuncCall('\u2374_shape', [shape])
         return self._parse_postfix()
 
     def _parse_postfix(self) -> AST:
-        """Handle indexing:  expr [ idx ; idx ]"""
+        """Handle indexing:  expr [ idx ; idx ]   and function call: expr { arg }"""
         expr = self._parse_atom()
+        # Function call: expr { arg1; arg2 }
+        if self._peek().type == TokenType.LBRACE:
+            self._advance()
+            args: list[AST] = []
+            if self._peek().type != TokenType.RBRACE:
+                args.append(self._parse_expression())
+                while self._peek().type == TokenType.SEMICOLON:
+                    self._advance()
+                    args.append(self._parse_expression())
+            self._expect(TokenType.RBRACE)
+            if isinstance(expr, Ident):
+                return FuncCall(expr.name, args)
+            # Not an ident — treat as application
+            return FuncCall('_apply', [expr] + args)
+        # Indexing: expr [ idx ; idx ]
         while self._peek().type == TokenType.LBRACKET:
             self._advance()
             indices: list[AST] = [self._parse_expression()]
