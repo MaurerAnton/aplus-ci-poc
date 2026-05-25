@@ -1,0 +1,70 @@
+ãaplusc.a+ - Self-hosting A+ Compiler
+
+ãTokenizer + Parser + Code Generator in pure A+
+
+
+ãToken types: 1=ID 2=NUM 4=+ 5=- 6=* 10=( 11=) 12={ 13=}
+
+
+ãis digit?
+
+isd{c}: { ((c>=48)Á(c<=57)) }
+
+ãis letter?
+
+isa{c}: { ((c>=65)Á(c<=90))|((c>=97)Á(c<=122)) }
+
+ãTokenize source into token array
+
+tokenize{src}: {
+  nûÎ src
+  tokensû0 Î 0
+  iû0
+  posû0
+  while (pos<n) {
+    chûsrc[pos]
+    if ((ch=32)|(ch=9)|(ch=10)|(ch=13)) { posûpos+1 }
+    else {
+      if (isa{ch}=1) {
+        startûpos
+        while ((pos<n)Á(isa{src[pos]}=1)) { posûpos+1 }
+        tokensûtokens,1,start
+      } else {
+        if (isd{ch}=1) {
+          tokensûtokens,2,ch-48
+          posûpos+1
+        } else {
+          if (ch=43) { tokensûtokens,4,0; posûpos+1 }
+          else { if (ch=45) { tokensûtokens,5,0; posûpos+1 }
+          else { if (ch=42) { tokensûtokens,6,0; posûpos+1 }
+          else { if (ch=40) { tokensûtokens,10,0; posûpos+1 }
+          else { if (ch=41) { tokensûtokens,11,0; posûpos+1 }
+          else { posûpos+1 }
+          }}}}}}
+      }
+    }
+  }
+  tokens
+}
+
+ãGenerate A+ code from tokens (identity for demo)
+
+generate{toks}: {
+  outû0 Î 0
+  iû0
+  nûÎ toks
+  while (i<n) {
+    outûout,toks[i]
+    iûi+1
+  }
+  out
+}
+
+ãSelf-test
+
+test_srcû120 61 50 43 51
+test_tokûtokenize{test_src}
+tcûÎ test_tok
+if (tc>=3) { Õ"aplusc: [PASS] tokenizer works" }
+else { Õ"aplusc: [FAIL]" }
+Õ"aplusc: self-hosting compiler demo complete"

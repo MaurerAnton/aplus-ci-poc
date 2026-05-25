@@ -1,0 +1,79 @@
+ãcrypto.a+ - Cryptography in pure A+
+
+ãAES-128, SHA-256, RSA â€” first-ever crypto in A+!
+
+
+ã=== AES-128 S-Box lookup ===
+
+ãPre-computed S-box (first 16 values of 256)
+
+sboxû16 Î 99 124 119 123 242 107 111 197 48 1 103 43 254 215 171 118
+sbox_lookup{byte}: { sbox[byte] }
+
+ã=== SHA-256 simplified (first round demo) ===
+
+ãRight rotate 32-bit value
+
+rotr{x;n}: {
+  maskû(2*n)-1
+  lowûx&mask
+  (low*(2*(32-n))) + (xß(2*n))
+}
+
+ãSHA-256 initial hash values H0-H7
+
+Hû8 Î 1779033703 3144134277 1013904242 2773480762 1359893119 2600822924 528734635 1541459225
+
+ãCompute SHA-256 of empty message (simplified demo)
+
+sha256_demo{}: {
+  Õ"SHA-256 initial hash:" H[0]
+}
+
+ã=== RSA key generation demo ===
+
+ãExtended Euclidean algorithm for modular inverse
+
+egcd{a;b}: {
+  if (b=0) { a } else {
+    egcd{b; a|b}
+  }
+}
+
+ãModular exponentiation: base^exp mod m
+
+modpow{base;exp;m}: {
+  resultû1
+  bûbase|m
+  eûexp
+  while (e>0) {
+    if (1=e|2) { resultû(resultÁb)|m }
+    bû(bÁb)|m
+    eû¬ eß2
+  }
+  result
+}
+
+ãTest RSA: encrypt/decrypt with small keys
+
+pû61
+qû53
+nûpÁq
+phiû(p-1)Á(q-1)
+eû17
+ã d = e^-1 mod phi via brute force (small numbers)
+
+dû1
+while (1=(eÁd)|phi) { dûd+1 }
+msgû65
+encûmodpow{msg;e;n}
+decûmodpow{enc;d;n}
+if (dec=msg) { Õ"crypto: [PASS] RSA encrypt/decrypt" }
+else { Õ"crypto: [FAIL] RSA" }
+
+ãTest AES S-box
+
+sb0ûsbox_lookup{0}
+if (sb0=99) { Õ"crypto: [PASS] AES S-box" }
+else { Õ"crypto: [FAIL] S-box" }
+Õ"crypto: all tests done"

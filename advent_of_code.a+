@@ -1,0 +1,577 @@
+⍝ advent_of_code.a+ — Advent of Code 2023 Days 1-3 in A+
+⍝ All with self-tests on sample data
+
+
+⍝ =====================================================================
+⍝ Day 1: Trebuchet?! — Calibration values
+⍝ Sum of first and last digit in each line
+⍝ =====================================================================
+
+⍝ Hardcoded test data (4 lines from the AoC 2023 Day 1 sample)
+⍝ "1abc2"        → 12
+⍝ "pqr3stu8vwx"  → 38
+⍝ "a1b2c3d4e5f"  → 15
+⍝ "treb7uchet"   → 77
+⍝ Sum = 142
+
+⍝ Line 1: "1abc2"
+s1a←"1abc2"
+len1a←⍴s1a
+first1a←0-1
+last1a←0
+i1a←0
+while (i1a<len1a) {
+  ch←s1a[i1a]
+  d←0-1
+  if (ch="0") { d←0 }
+  if (ch="1") { d←1 }
+  if (ch="2") { d←2 }
+  if (ch="3") { d←3 }
+  if (ch="4") { d←4 }
+  if (ch="5") { d←5 }
+  if (ch="6") { d←6 }
+  if (ch="7") { d←7 }
+  if (ch="8") { d←8 }
+  if (ch="9") { d←9 }
+  if (d>=0) {
+    if (first1a<0) { first1a←d }
+    last1a←d
+  }
+  i1a←i1a+1
+}
+cal1a←first1a×10+last1a
+
+⍝ Line 2: "pqr3stu8vwx"
+s1b←"pqr3stu8vwx"
+len1b←⍴s1b
+first1b←0-1
+last1b←0
+i1b←0
+while (i1b<len1b) {
+  ch←s1b[i1b]
+  d←0-1
+  if (ch="0") { d←0 }
+  if (ch="1") { d←1 }
+  if (ch="2") { d←2 }
+  if (ch="3") { d←3 }
+  if (ch="4") { d←4 }
+  if (ch="5") { d←5 }
+  if (ch="6") { d←6 }
+  if (ch="7") { d←7 }
+  if (ch="8") { d←8 }
+  if (ch="9") { d←9 }
+  if (d>=0) {
+    if (first1b<0) { first1b←d }
+    last1b←d
+  }
+  i1b←i1b+1
+}
+cal1b←first1b×10+last1b
+
+⍝ Line 3: "a1b2c3d4e5f"
+s1c←"a1b2c3d4e5f"
+len1c←⍴s1c
+first1c←0-1
+last1c←0
+i1c←0
+while (i1c<len1c) {
+  ch←s1c[i1c]
+  d←0-1
+  if (ch="0") { d←0 }
+  if (ch="1") { d←1 }
+  if (ch="2") { d←2 }
+  if (ch="3") { d←3 }
+  if (ch="4") { d←4 }
+  if (ch="5") { d←5 }
+  if (ch="6") { d←6 }
+  if (ch="7") { d←7 }
+  if (ch="8") { d←8 }
+  if (ch="9") { d←9 }
+  if (d>=0) {
+    if (first1c<0) { first1c←d }
+    last1c←d
+  }
+  i1c←i1c+1
+}
+cal1c←first1c×10+last1c
+
+⍝ Line 4: "treb7uchet"
+s1d←"treb7uchet"
+len1d←⍴s1d
+first1d←0-1
+last1d←0
+i1d←0
+while (i1d<len1d) {
+  ch←s1d[i1d]
+  d←0-1
+  if (ch="0") { d←0 }
+  if (ch="1") { d←1 }
+  if (ch="2") { d←2 }
+  if (ch="3") { d←3 }
+  if (ch="4") { d←4 }
+  if (ch="5") { d←5 }
+  if (ch="6") { d←6 }
+  if (ch="7") { d←7 }
+  if (ch="8") { d←8 }
+  if (ch="9") { d←9 }
+  if (d>=0) {
+    if (first1d<0) { first1d←d }
+    last1d←d
+  }
+  i1d←i1d+1
+}
+cal1d←first1d×10+last1d
+
+⍝ Day 1 results
+d1_sum←cal1a+cal1b+cal1c+cal1d
+if (cal1a=12) { ⎕"AoC D1: [PASS] line1=12" } else { ⎕"AoC D1: [FAIL] line1" }
+if (cal1b=38) { ⎕"AoC D1: [PASS] line2=38" } else { ⎕"AoC D1: [FAIL] line2" }
+if (cal1c=15) { ⎕"AoC D1: [PASS] line3=15" } else { ⎕"AoC D1: [FAIL] line3" }
+if (cal1d=77) { ⎕"AoC D1: [PASS] line4=77" } else { ⎕"AoC D1: [FAIL] line4" }
+if (d1_sum=142) { ⎕"AoC D1: [PASS] total=142" } else { ⎕"AoC D1: [FAIL] total" }
+
+
+⍝ =====================================================================
+⍝ Day 2: Cube Conundrum
+⍝ Games with colored cubes; max 12 red, 13 green, 14 blue
+⍝ Sum IDs of possible games
+⍝ =====================================================================
+
+⍝ Game 1: "Game 1: 3 blue, 4 red; 1 red, 2 green, 6 blue; 2 green"
+g2a←"Game 1: 3 blue, 4 red; 1 red, 2 green, 6 blue; 2 green"
+len2a←⍴g2a
+id2a←0
+max_r2a←0
+max_g2a←0
+max_b2a←0
+num2a←0
+i2a←5
+⍝ Parse game ID
+while (i2a<len2a) {
+  ch←g2a[i2a]
+  if (ch=":") { break←0 }
+  if ((ch>="0") & (ch<="9")) {
+    d←0
+    if (ch="1") { d←1 }
+    if (ch="2") { d←2 }
+    if (ch="3") { d←3 }
+    if (ch="4") { d←4 }
+    if (ch="5") { d←5 }
+    if (ch="6") { d←6 }
+    if (ch="7") { d←7 }
+    if (ch="8") { d←8 }
+    if (ch="9") { d←9 }
+    id2a←id2a×10+d
+  }
+  i2a←i2a+1
+}
+⍝ Parse reveals after ":"
+while (i2a<len2a) {
+  ch←g2a[i2a]
+  if ((ch>="0") & (ch<="9")) {
+    d←0
+    if (ch="0") { d←0 }
+    if (ch="1") { d←1 }
+    if (ch="2") { d←2 }
+    if (ch="3") { d←3 }
+    if (ch="4") { d←4 }
+    if (ch="5") { d←5 }
+    if (ch="6") { d←6 }
+    if (ch="7") { d←7 }
+    if (ch="8") { d←8 }
+    if (ch="9") { d←9 }
+    num2a←num2a×10+d
+  }
+  if (ch="r") {
+    if (num2a>max_r2a) { max_r2a←num2a }
+    num2a←0
+  }
+  if (ch="g") {
+    if (num2a>max_g2a) { max_g2a←num2a }
+    num2a←0
+  }
+  if (ch="b") {
+    if (num2a>max_b2a) { max_b2a←num2a }
+    num2a←0
+  }
+  i2a←i2a+1
+}
+r2a←0
+if ((max_r2a<=12) & (max_g2a<=13) & (max_b2a<=14)) { r2a←id2a }
+
+⍝ Game 2: "Game 2: 1 blue, 2 green; 3 green, 4 blue, 1 red; 1 green, 1 blue"
+g2b←"Game 2: 1 blue, 2 green; 3 green, 4 blue, 1 red; 1 green, 1 blue"
+len2b←⍴g2b
+id2b←0
+max_r2b←0
+max_g2b←0
+max_b2b←0
+num2b←0
+i2b←5
+while (i2b<len2b) {
+  ch←g2b[i2b]
+  if (ch=":") { break←0 }
+  if ((ch>="0") & (ch<="9")) {
+    d←0
+    if (ch="1") { d←1 }
+    if (ch="2") { d←2 }
+    if (ch="3") { d←3 }
+    if (ch="4") { d←4 }
+    if (ch="5") { d←5 }
+    if (ch="6") { d←6 }
+    if (ch="7") { d←7 }
+    if (ch="8") { d←8 }
+    if (ch="9") { d←9 }
+    id2b←id2b×10+d
+  }
+  i2b←i2b+1
+}
+while (i2b<len2b) {
+  ch←g2b[i2b]
+  if ((ch>="0") & (ch<="9")) {
+    d←0
+    if (ch="0") { d←0 }
+    if (ch="1") { d←1 }
+    if (ch="2") { d←2 }
+    if (ch="3") { d←3 }
+    if (ch="4") { d←4 }
+    if (ch="5") { d←5 }
+    if (ch="6") { d←6 }
+    if (ch="7") { d←7 }
+    if (ch="8") { d←8 }
+    if (ch="9") { d←9 }
+    num2b←num2b×10+d
+  }
+  if (ch="r") {
+    if (num2b>max_r2b) { max_r2b←num2b }
+    num2b←0
+  }
+  if (ch="g") {
+    if (num2b>max_g2b) { max_g2b←num2b }
+    num2b←0
+  }
+  if (ch="b") {
+    if (num2b>max_b2b) { max_b2b←num2b }
+    num2b←0
+  }
+  i2b←i2b+1
+}
+r2b←0
+if ((max_r2b<=12) & (max_g2b<=13) & (max_b2b<=14)) { r2b←id2b }
+
+⍝ Game 3: "Game 3: 8 green, 6 blue, 20 red; 5 blue, 4 red, 13 green; 5 green, 1 red"
+g2c←"Game 3: 8 green, 6 blue, 20 red; 5 blue, 4 red, 13 green; 5 green, 1 red"
+len2c←⍴g2c
+id2c←0
+max_r2c←0
+max_g2c←0
+max_b2c←0
+num2c←0
+i2c←5
+while (i2c<len2c) {
+  ch←g2c[i2c]
+  if (ch=":") { break←0 }
+  if ((ch>="0") & (ch<="9")) {
+    d←0
+    if (ch="1") { d←1 }
+    if (ch="2") { d←2 }
+    if (ch="3") { d←3 }
+    if (ch="4") { d←4 }
+    if (ch="5") { d←5 }
+    if (ch="6") { d←6 }
+    if (ch="7") { d←7 }
+    if (ch="8") { d←8 }
+    if (ch="9") { d←9 }
+    id2c←id2c×10+d
+  }
+  i2c←i2c+1
+}
+while (i2c<len2c) {
+  ch←g2c[i2c]
+  if ((ch>="0") & (ch<="9")) {
+    d←0
+    if (ch="0") { d←0 }
+    if (ch="1") { d←1 }
+    if (ch="2") { d←2 }
+    if (ch="3") { d←3 }
+    if (ch="4") { d←4 }
+    if (ch="5") { d←5 }
+    if (ch="6") { d←6 }
+    if (ch="7") { d←7 }
+    if (ch="8") { d←8 }
+    if (ch="9") { d←9 }
+    num2c←num2c×10+d
+  }
+  if (ch="r") {
+    if (num2c>max_r2c) { max_r2c←num2c }
+    num2c←0
+  }
+  if (ch="g") {
+    if (num2c>max_g2c) { max_g2c←num2c }
+    num2c←0
+  }
+  if (ch="b") {
+    if (num2c>max_b2c) { max_b2c←num2c }
+    num2c←0
+  }
+  i2c←i2c+1
+}
+r2c←0
+if ((max_r2c<=12) & (max_g2c<=13) & (max_b2c<=14)) { r2c←id2c }
+
+⍝ Game 4: "Game 4: 1 green, 3 red, 6 blue; 3 green, 6 red; 4 green, 15 blue, 9 red"
+g2d←"Game 4: 1 green, 3 red, 6 blue; 3 green, 6 red; 4 green, 15 blue, 9 red"
+len2d←⍴g2d
+id2d←0
+max_r2d←0
+max_g2d←0
+max_b2d←0
+num2d←0
+i2d←5
+while (i2d<len2d) {
+  ch←g2d[i2d]
+  if (ch=":") { break←0 }
+  if ((ch>="0") & (ch<="9")) {
+    d←0
+    if (ch="1") { d←1 }
+    if (ch="2") { d←2 }
+    if (ch="3") { d←3 }
+    if (ch="4") { d←4 }
+    if (ch="5") { d←5 }
+    if (ch="6") { d←6 }
+    if (ch="7") { d←7 }
+    if (ch="8") { d←8 }
+    if (ch="9") { d←9 }
+    id2d←id2d×10+d
+  }
+  i2d←i2d+1
+}
+while (i2d<len2d) {
+  ch←g2d[i2d]
+  if ((ch>="0") & (ch<="9")) {
+    d←0
+    if (ch="0") { d←0 }
+    if (ch="1") { d←1 }
+    if (ch="2") { d←2 }
+    if (ch="3") { d←3 }
+    if (ch="4") { d←4 }
+    if (ch="5") { d←5 }
+    if (ch="6") { d←6 }
+    if (ch="7") { d←7 }
+    if (ch="8") { d←8 }
+    if (ch="9") { d←9 }
+    num2d←num2d×10+d
+  }
+  if (ch="r") {
+    if (num2d>max_r2d) { max_r2d←num2d }
+    num2d←0
+  }
+  if (ch="g") {
+    if (num2d>max_g2d) { max_g2d←num2d }
+    num2d←0
+  }
+  if (ch="b") {
+    if (num2d>max_b2d) { max_b2d←num2d }
+    num2d←0
+  }
+  i2d←i2d+1
+}
+r2d←0
+if ((max_r2d<=12) & (max_g2d<=13) & (max_b2d<=14)) { r2d←id2d }
+
+⍝ Game 5: "Game 5: 6 red, 1 blue, 3 green; 2 blue, 1 red, 2 green"
+g2e←"Game 5: 6 red, 1 blue, 3 green; 2 blue, 1 red, 2 green"
+len2e←⍴g2e
+id2e←0
+max_r2e←0
+max_g2e←0
+max_b2e←0
+num2e←0
+i2e←5
+while (i2e<len2e) {
+  ch←g2e[i2e]
+  if (ch=":") { break←0 }
+  if ((ch>="0") & (ch<="9")) {
+    d←0
+    if (ch="1") { d←1 }
+    if (ch="2") { d←2 }
+    if (ch="3") { d←3 }
+    if (ch="4") { d←4 }
+    if (ch="5") { d←5 }
+    if (ch="6") { d←6 }
+    if (ch="7") { d←7 }
+    if (ch="8") { d←8 }
+    if (ch="9") { d←9 }
+    id2e←id2e×10+d
+  }
+  i2e←i2e+1
+}
+while (i2e<len2e) {
+  ch←g2e[i2e]
+  if ((ch>="0") & (ch<="9")) {
+    d←0
+    if (ch="0") { d←0 }
+    if (ch="1") { d←1 }
+    if (ch="2") { d←2 }
+    if (ch="3") { d←3 }
+    if (ch="4") { d←4 }
+    if (ch="5") { d←5 }
+    if (ch="6") { d←6 }
+    if (ch="7") { d←7 }
+    if (ch="8") { d←8 }
+    if (ch="9") { d←9 }
+    num2e←num2e×10+d
+  }
+  if (ch="r") {
+    if (num2e>max_r2e) { max_r2e←num2e }
+    num2e←0
+  }
+  if (ch="g") {
+    if (num2e>max_g2e) { max_g2e←num2e }
+    num2e←0
+  }
+  if (ch="b") {
+    if (num2e>max_b2e) { max_b2e←num2e }
+    num2e←0
+  }
+  i2e←i2e+1
+}
+r2e←0
+if ((max_r2e<=12) & (max_g2e<=13) & (max_b2e<=14)) { r2e←id2e }
+
+⍝ Day 2 results
+d2_sum←r2a+r2b+r2c+r2d+r2e
+if (r2a=1) { ⎕"AoC D2: [PASS] game1 possible" } else { ⎕"AoC D2: [FAIL] game1" }
+if (r2b=2) { ⎕"AoC D2: [PASS] game2 possible" } else { ⎕"AoC D2: [FAIL] game2" }
+if (r2c=0) { ⎕"AoC D2: [PASS] game3 impossible" } else { ⎕"AoC D2: [FAIL] game3" }
+if (r2d=0) { ⎕"AoC D2: [PASS] game4 impossible" } else { ⎕"AoC D2: [FAIL] game4" }
+if (r2e=5) { ⎕"AoC D2: [PASS] game5 possible" } else { ⎕"AoC D2: [FAIL] game5" }
+if (d2_sum=8) { ⎕"AoC D2: [PASS] sum possible IDs = 8" } else { ⎕"AoC D2: [FAIL] sum" }
+
+
+⍝ =====================================================================
+⍝ Day 3: Gear Ratios
+⍝ Find numbers adjacent to symbols in engine schematic
+⍝ =====================================================================
+
+⍝ Sample schematic (10x10 grid, flat string, no newlines)
+⍝ 467..114..
+⍝ ...*......
+⍝ ..35..633.
+⍝ ......#...
+⍝ 617*......
+⍝ .....+.58.
+⍝ ..592.....
+⍝ ......755.
+⍝ ...$.*....
+⍝ .664.598..
+⍝ Part numbers adjacent to symbols: 467(*), 35(*), 633(#), 617(*), 592(+), 755(*), 664($), 598(*)
+⍝ Sum = 467+35+633+617+592+755+664+598 = 4361
+
+d3_schematic←"467..114.....*........35..633........#...617*...........+.58...592...........755....$.*.......664.598.."
+d3_rows←10
+d3_cols←10
+d3_total←0
+d3_r←0
+⍝ For each position, check if a number starts there and is adjacent to a symbol
+while (d3_r<d3_rows) {
+  d3_c←0
+  while (d3_c<d3_cols) {
+    ch←d3_schematic[d3_r×d3_cols+d3_c]
+    if ((ch>="0") & (ch<="9")) {
+      ⍝ Start of a number — extract it
+      d←0
+      if (ch="0") { d←0 }
+      if (ch="1") { d←1 }
+      if (ch="2") { d←2 }
+      if (ch="3") { d←3 }
+      if (ch="4") { d←4 }
+      if (ch="5") { d←5 }
+      if (ch="6") { d←6 }
+      if (ch="7") { d←7 }
+      if (ch="8") { d←8 }
+      if (ch="9") { d←9 }
+      d3_num←d
+      d3_startc←d3_c
+      ⍝ Check for adjacent symbol around (r, c)
+      d3_adjacent←0
+      d3_dr←0-1
+      while ((d3_dr<=1) & (d3_adjacent=0)) {
+        d3_dc←0-1
+        while ((d3_dc<=1) & (d3_adjacent=0)) {
+          d3_nr←d3_r+d3_dr
+          d3_nc←d3_c+d3_dc
+          if ((d3_nr>=0) & (d3_nr<d3_rows) & (d3_nc>=0) & (d3_nc<d3_cols)) {
+            chk←d3_schematic[d3_nr×d3_cols+d3_nc]
+            if (chk="*") { d3_adjacent←1 }
+            if (chk="#") { d3_adjacent←1 }
+            if (chk="+") { d3_adjacent←1 }
+            if (chk="$") { d3_adjacent←1 }
+            if (chk="@") { d3_adjacent←1 }
+            if (chk="%") { d3_adjacent←1 }
+            if (chk="&") { d3_adjacent←1 }
+            if (chk="/") { d3_adjacent←1 }
+            if (chk="=") { d3_adjacent←1 }
+            if (chk="-") { d3_adjacent←1 }
+          }
+          d3_dc←d3_dc+1
+        }
+        d3_dr←d3_dr+1
+      }
+      ⍝ Consume remaining digits of the number
+      d3_c←d3_c+1
+      d3_inner←1
+      while ((d3_c<d3_cols) & (d3_inner=1)) {
+        ch2←d3_schematic[d3_r×d3_cols+d3_c]
+        if ((ch2>="0") & (ch2<="9")) {
+          d2←0
+          if (ch2="0") { d2←0 }
+          if (ch2="1") { d2←1 }
+          if (ch2="2") { d2←2 }
+          if (ch2="3") { d2←3 }
+          if (ch2="4") { d2←4 }
+          if (ch2="5") { d2←5 }
+          if (ch2="6") { d2←6 }
+          if (ch2="7") { d2←7 }
+          if (ch2="8") { d2←8 }
+          if (ch2="9") { d2←9 }
+          d3_num←d3_num×10+d2
+          ⍝ Also check adjacency for this digit if not already adjacent
+          if (d3_adjacent=0) {
+            d3_dr2←0-1
+            while ((d3_dr2<=1) & (d3_adjacent=0)) {
+              d3_dc2←0-1
+              while ((d3_dc2<=1) & (d3_adjacent=0)) {
+                d3_nr2←d3_r+d3_dr2
+                d3_nc2←d3_c+d3_dc2
+                if ((d3_nr2>=0) & (d3_nr2<d3_rows) & (d3_nc2>=0) & (d3_nc2<d3_cols)) {
+                  chk2←d3_schematic[d3_nr2×d3_cols+d3_nc2]
+                  if (chk2="*") { d3_adjacent←1 }
+                  if (chk2="#") { d3_adjacent←1 }
+                  if (chk2="+") { d3_adjacent←1 }
+                  if (chk2="$") { d3_adjacent←1 }
+                  if (chk2="@") { d3_adjacent←1 }
+                  if (chk2="%") { d3_adjacent←1 }
+                  if (chk2="&") { d3_adjacent←1 }
+                  if (chk2="/") { d3_adjacent←1 }
+                  if (chk2="=") { d3_adjacent←1 }
+                  if (chk2="-") { d3_adjacent←1 }
+                }
+                d3_dc2←d3_dc2+1
+              }
+              d3_dr2←d3_dr2+1
+            }
+          }
+          d3_c←d3_c+1
+        } else { d3_inner←0 }
+      }
+      if (d3_adjacent=1) { d3_total←d3_total+d3_num }
+    }
+    d3_c←d3_c+1
+  }
+  d3_r←d3_r+1
+}
+if (d3_total=4361) { ⎕"AoC D3: [PASS] gear ratio sum = 4361" } else { ⎕"AoC D3: [FAIL]" }
+
+
+⎕"advent_of_code: all 3 days done"

@@ -3,303 +3,309 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>A+ Programming Language — Web REPL</title>
+<title>A+ — Browser IDE</title>
 <style>
   :root {
-    --bg: #1a1a2e;
-    --surface: #16213e;
-    --primary: #0f3460;
-    --accent: #e94560;
-    --text: #eaeaea;
-    --text-dim: #a0a0b0;
-    --code-bg: #0d1117;
-    --border: #2a2a4a;
-    --success: #4ecca3;
+    --bg: #1a1a2e; --surface: #16213e; --primary: #0f3460;
+    --accent: #e94560; --text: #eaeaea; --text-dim: #a0a0b0;
+    --code-bg: #0d1117; --border: #2a2a4a; --success: #4ecca3;
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body {
-    font-family: 'SF Mono', 'Fira Code', 'Consolas', 'Monaco', monospace;
-    background: var(--bg);
-    color: var(--text);
-    min-height: 100vh;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    padding: 20px;
+    font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+    background: var(--bg); color: var(--text);
+    min-height: 100vh; display: flex; flex-direction: column;
+    overflow: hidden; height: 100vh;
   }
   header {
-    text-align: center;
-    margin-bottom: 24px;
+    text-align: center; padding: 10px; flex-shrink: 0;
+    border-bottom: 1px solid var(--border);
   }
-  header h1 {
-    font-size: 1.6rem;
-    color: var(--accent);
-    letter-spacing: 1px;
+  header h1 { font-size: 1.2rem; color: var(--accent); }
+  header span { font-size: 0.7rem; color: var(--text-dim); }
+  .main { display: flex; flex: 1; overflow: hidden; }
+  .left-panel { flex: 1; display: flex; flex-direction: column; border-right: 1px solid var(--border); }
+  .right-panel { flex: 1; display: flex; flex-direction: column; min-width: 300px; }
+
+  .tabs { display: flex; background: var(--surface); overflow-x: auto; flex-shrink: 0; }
+  .tab {
+    padding: 6px 14px; cursor: pointer; font-size: 0.75rem;
+    color: var(--text-dim); border-right: 1px solid var(--border);
+    white-space: nowrap; min-width: 80px;
   }
-  header p {
-    font-size: 0.8rem;
-    color: var(--text-dim);
-    margin-top: 4px;
+  .tab.active { color: var(--accent); background: var(--code-bg); border-bottom: 2px solid var(--accent); }
+  .tab-add { padding: 6px 10px; cursor: pointer; color: var(--success); font-size: 0.8rem; }
+  .tab-close { margin-left: 6px; cursor: pointer; color: var(--text-dim); font-size: 0.7rem; }
+  .tab-close:hover { color: var(--accent); }
+  .editor-wrap { flex: 1; display: flex; overflow: hidden; position: relative; }
+  .line-numbers {
+    width: 40px; background: #0a0e17; color: #444; text-align: right;
+    padding: 10px 6px; font-size: 0.75rem; overflow: hidden;
+    user-select: none; line-height: 1.6; flex-shrink: 0;
   }
-  .container {
-    width: 100%;
-    max-width: 900px;
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
+  textarea.code {
+    flex: 1; padding: 10px; font-family: inherit; font-size: 0.85rem;
+    background: var(--code-bg); color: var(--text); border: none;
+    resize: none; outline: none; line-height: 1.6; tab-size: 2;
   }
-  .editor-pane {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    overflow: hidden;
-  }
-  .pane-header {
-    background: var(--primary);
-    padding: 8px 14px;
-    font-size: 0.75rem;
-    text-transform: uppercase;
-    letter-spacing: 1px;
-    color: var(--text-dim);
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-  }
-  #input {
-    width: 100%;
-    height: 220px;
-    padding: 14px;
-    font-family: inherit;
-    font-size: 0.9rem;
-    background: var(--code-bg);
-    color: var(--text);
-    border: none;
-    resize: vertical;
-    outline: none;
-    line-height: 1.5;
-    tab-size: 2;
-  }
-  #input::placeholder { color: #555; }
-  .button-row {
-    display: flex;
-    gap: 10px;
-    align-items: center;
+  textarea.code::placeholder { color: #444; }
+  .output-area { flex: 1; display: flex; flex-direction: column; min-height: 0; }
+  .output-tabs { display: flex; background: var(--surface); flex-shrink: 0; }
+  .out-tab { padding: 5px 12px; cursor: pointer; font-size: 0.7rem; color: var(--text-dim); }
+  .out-tab.active { color: var(--accent); border-bottom: 2px solid var(--accent); }
+  .output-pane { flex: 1; overflow: auto; padding: 10px; font-size: 0.8rem; background: var(--code-bg); }
+  .output-pane pre { white-space: pre-wrap; word-break: break-word; }
+  #plot-canvas { width: 100%; min-height: 200px; }
+  .toolbar {
+    display: flex; gap: 6px; padding: 6px 10px; background: var(--surface);
+    border-bottom: 1px solid var(--border); flex-shrink: 0; align-items: center;
   }
   button {
-    font-family: inherit;
-    font-size: 0.85rem;
-    padding: 10px 22px;
-    border: none;
-    border-radius: 6px;
-    cursor: pointer;
-    font-weight: 600;
-    letter-spacing: 0.5px;
-    transition: background 0.2s, transform 0.1s;
+    font-family: inherit; font-size: 0.7rem; padding: 5px 12px;
+    border: none; border-radius: 4px; cursor: pointer; font-weight: 600;
+    background: var(--primary); color: var(--text-dim);
   }
-  button:active { transform: scale(0.97); }
-  #run {
-    background: var(--accent);
-    color: #fff;
+  button:hover { background: #1a4a80; }
+  button.run { background: var(--accent); color: #fff; }
+  button.run:hover { background: #ff5a7a; }
+  .status { font-size: 0.65rem; color: var(--text-dim); margin-left: auto; }
+  .kmap-hint {
+    font-size: 0.6rem; color: #555; padding: 4px 10px;
+    background: var(--surface); border-top: 1px solid var(--border); flex-shrink: 0;
   }
-  #run:hover { background: #ff5a7a; }
-  #run:disabled {
-    background: #555;
-    cursor: not-allowed;
-    color: #999;
+  .kmap-hint kbd {
+    background: #222; padding: 1px 4px; border-radius: 2px;
+    border: 1px solid #444; margin: 0 2px;
   }
-  #clear {
-    background: var(--primary);
-    color: var(--text-dim);
-  }
-  #clear:hover { background: #1a4a80; }
-  .status {
-    font-size: 0.75rem;
-    color: var(--text-dim);
-    margin-left: auto;
-  }
-  .status.ready { color: var(--success); }
-  .status.loading { color: #f0c040; }
-  .output-pane {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    overflow: hidden;
-  }
-  #output {
-    width: 100%;
-    min-height: 180px;
-    max-height: 500px;
-    padding: 14px;
-    font-family: inherit;
-    font-size: 0.85rem;
-    background: var(--code-bg);
-    color: var(--text);
-    white-space: pre-wrap;
-    word-break: break-word;
-    overflow-y: auto;
-    line-height: 1.5;
-  }
-  #output.error { color: #ff6b6b; }
-  #output:empty::after {
-    content: "Output will appear here...";
-    color: #444;
-  }
-  .examples {
-    margin-top: 8px;
-    font-size: 0.75rem;
-    color: var(--text-dim);
-  }
-  .examples a {
-    color: var(--accent);
-    cursor: pointer;
-    text-decoration: underline;
-  }
-  .examples a:hover { color: #ff5a7a; }
 </style>
 </head>
 <body>
 
 <header>
-  <h1>A+ &mdash; Web REPL</h1>
-  <p>APL-descendant array language &bull; running in your browser via WebAssembly</p>
+  <h1>A+ &mdash; Browser IDE</h1>
+  <span>Multi-file editor &bull; KAPL autocomplete &bull; SVG plots</span>
 </header>
 
-<div class="container">
-  <div class="editor-pane">
-    <div class="pane-header">
-      <span>A+ Code</span>
-      <span class="status loading" id="status">Loading WASM&hellip;</span>
+<div class="toolbar">
+  <button class="run" id="run" disabled>Run (Ctrl+Enter)</button>
+  <button id="stop">Stop</button>
+  <button id="fmt">Format</button>
+  <select id="examples" style="font-size:0.7rem;background:var(--primary);color:var(--text);border:none;padding:4px;border-radius:4px;">
+    <option>Examples...</option>
+    <option value="arith">Arithmetic</option>
+    <option value="matmul">Matrix multiply</option>
+    <option value="sieve">Sieve 100</option>
+    <option value="nn">Neural net fwd</option>
+  </select>
+  <span class="status" id="status">Loading WASM&hellip;</span>
+</div>
+
+<div class="main">
+  <div class="left-panel">
+    <div class="tabs" id="tabs">
+      <div class="tab active" data-id="main.a+">main.a+</div>
+      <div class="tab" data-id="lib.a+">lib.a+</div>
+      <div class="tab-add" title="New file">+</div>
     </div>
-    <textarea id="input" placeholder="Enter A+ code here, e.g.:
-x&#x2190;2+3 4 5
-y&#x2190;x*2
-&#x2352;y
-
-Or try: &#x2352;+/&#x2373;100"></textarea>
+    <div class="editor-wrap">
+      <div class="line-numbers" id="line-nums">1</div>
+      <textarea class="code" id="code" placeholder="Enter A+ code..." spellcheck="false"></textarea>
+    </div>
+    <div class="kmap-hint" id="kmap-hint">
+      <kbd>Alt+A</kbd>← <kbd>Alt+P</kbd>⎕ <kbd>Alt+R</kbd>⍴ <kbd>Alt+D</kbd>÷ <kbd>Alt+X</kbd>× <kbd>Alt+I</kbd>⍳ <kbd>Alt+C</kbd>⍝ <kbd>Alt+M</kbd>⌈ <kbd>Alt+F</kbd>⌊
+    </div>
   </div>
 
-  <div class="button-row">
-    <button id="run" disabled>Run &#x25B6;</button>
-    <button id="clear">Clear</button>
-    <span class="examples">
-      Examples:
-      <a data-code="x&#x2190;2+3 4 5&#10;y&#x2190;x*2&#10;&#x2352;y">arithmetic</a> &middot;
-      <a data-code="&#x2352;+/&#x2373;100">sum 1..100</a> &middot;
-      <a data-code="m&#x2190;3 3&#x2374;&#x2373;9&#10;&#x2352;m&#10;&#x2352;+/m&#10;&#x2352;+&#x2339;m">matrix</a> &middot;
-      <a data-code="if (2+2=4) {&#10;  &#x2352;'PASS'&#10;}">conditional</a>
-    </span>
-  </div>
-
-  <div class="output-pane">
-    <div class="pane-header">Output</div>
-    <pre id="output"></pre>
+  <div class="right-panel">
+    <div class="output-tabs">
+      <div class="out-tab active" data-pane="console">Console</div>
+      <div class="out-tab" data-pane="plot">Plot</div>
+      <div class="out-tab" data-pane="files">Files</div>
+    </div>
+    <div class="output-area">
+      <div class="output-pane" id="console-pane"><pre id="output"></pre></div>
+      <div class="output-pane" id="plot-pane" style="display:none"><svg id="plot-canvas"></svg></div>
+      <div class="output-pane" id="files-pane" style="display:none"><pre id="files-list"></pre></div>
+    </div>
   </div>
 </div>
 
 <script src="aplus.js"></script>
 <script>
 (function() {
-  var inputEl   = document.getElementById('input');
-  var outputEl  = document.getElementById('output');
-  var runBtn    = document.getElementById('run');
-  var clearBtn  = document.getElementById('clear');
-  var statusEl  = document.getElementById('status');
-  var ready     = false;
-
-  // ── Capture stdout / stderr ──
+  var codeEl = document.getElementById('code');
+  var outputEl = document.getElementById('output');
+  var runBtn = document.getElementById('run');
+  var statusEl = document.getElementById('status');
+  var lineNums = document.getElementById('line-nums');
+  var plotSvg = document.getElementById('plot-canvas');
+  var ready = false;
   var capturedOutput = '';
 
-  // Override before WASM module initializes
+  // Multi-file system
+  var files = {
+    'main.a+': 'x\u21902+3\ny\u2190x*2\n\u2395y\n\u2395"done"',
+    'lib.a+': '\u235D library functions\n\u2395"lib loaded"'
+  };
+  var activeFile = 'main.a+';
+
   var Module = {
     noInitialRun: true,
-    print: function(text) {
-      capturedOutput += text + '\n';
-    },
-    printErr: function(text) {
-      capturedOutput += text + '\n';
-    },
+    print: function(text) { capturedOutput += text + '\n'; },
+    printErr: function(text) { capturedOutput += text + '\n'; },
     onRuntimeInitialized: function() {
-      ready = true;
-      runBtn.disabled = false;
-      statusEl.textContent = 'Ready';
-      statusEl.className = 'status ready';
-    },
-    onAbort: function(msg) {
-      capturedOutput += '[ABORT] ' + msg + '\n';
+      ready = true; runBtn.disabled = false;
+      statusEl.textContent = 'Ready'; statusEl.style.color = 'var(--success)';
     }
   };
 
-  // ── Run A+ code ──
+  // ── Tabs ──
+  document.getElementById('tabs').addEventListener('click', function(e) {
+    var tab = e.target.closest('.tab');
+    if (tab && !e.target.closest('.tab-close')) {
+      // Save current
+      files[activeFile] = codeEl.value;
+      // Switch
+      document.querySelectorAll('.tab').forEach(function(t) { t.classList.remove('active'); });
+      tab.classList.add('active');
+      activeFile = tab.dataset.id;
+      codeEl.value = files[activeFile] || '';
+      updateLineNumbers();
+    }
+    if (e.target.closest('.tab-close')) {
+      var id = e.target.closest('.tab').dataset.id;
+      if (Object.keys(files).length <= 1) return;
+      delete files[id];
+      e.target.closest('.tab').remove();
+      if (activeFile === id) {
+        activeFile = Object.keys(files)[0];
+        document.querySelector('.tab').classList.add('active');
+        codeEl.value = files[activeFile] || '';
+      }
+    }
+    if (e.target.closest('.tab-add')) {
+      var name = 'untitled' + (Object.keys(files).length) + '.a+';
+      files[name] = '';
+      var t = document.createElement('div');
+      t.className = 'tab'; t.dataset.id = name;
+      t.innerHTML = name + '<span class="tab-close">&times;</span>';
+      document.querySelector('.tab-add').before(t);
+      t.click();
+    }
+  });
+
+  // ── Output tabs ──
+  document.querySelector('.output-tabs').addEventListener('click', function(e) {
+    var ot = e.target.closest('.out-tab');
+    if (!ot) return;
+    document.querySelectorAll('.out-tab').forEach(function(t) { t.classList.remove('active'); });
+    ot.classList.add('active');
+    var paneId = ot.dataset.pane + '-pane';
+    document.querySelectorAll('.output-pane').forEach(function(p) { p.style.display = 'none'; });
+    document.getElementById(paneId).style.display = 'block';
+  });
+
+  // ── Line numbers ──
+  function updateLineNumbers() {
+    var lines = codeEl.value.split('\n').length;
+    var nums = '';
+    for (var i = 1; i <= lines; i++) nums += i + '\n';
+    lineNums.textContent = nums;
+  }
+  codeEl.addEventListener('input', updateLineNumbers);
+  codeEl.addEventListener('scroll', function() { lineNums.scrollTop = codeEl.scrollTop; });
+
+  // ── KAPL autocomplete ──
+  var kaplMap = {
+    'Alt+a': '\u2190', 'Alt+p': '\u2395', 'Alt+r': '\u2374', 'Alt+d': '\u00F7',
+    'Alt+x': '\u00D7', 'Alt+i': '\u2373', 'Alt+c': '\u235D', 'Alt+m': '\u2308',
+    'Alt+f': '\u230A', 'Alt+e': '\u220A', 'Alt+l': '\u2190'
+  };
+  codeEl.addEventListener('keydown', function(e) {
+    var key = (e.altKey ? 'Alt+' : '') + e.key.toLowerCase();
+    if (kaplMap[key]) {
+      e.preventDefault();
+      var start = codeEl.selectionStart, end = codeEl.selectionEnd;
+      codeEl.value = codeEl.value.substring(0, start) + kaplMap[key] + codeEl.value.substring(end);
+      codeEl.selectionStart = codeEl.selectionEnd = start + 1;
+      updateLineNumbers();
+    }
+    if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') { e.preventDefault(); runCode(); }
+  });
+
+  // ── Examples ──
+  document.getElementById('examples').addEventListener('change', function(e) {
+    var exs = {
+      arith: 'x\u21902+3 4 5\ny\u2190x*2\n\u2395y',
+      matmul: 'A\u21902 2\u23742 3 4 5\nB\u21902 2\u2374\u23739\nC\u2190A +.\u00D7 B\n\u2395C',
+      sieve: 'primes{N}: {\n  mask\u2190N\u23741\n  mask[0]\u21900\n  i\u21902\n  while(i*i<=N) {\n    if(mask[i-1]=1) {\n      j\u2190i*i\n      while(j<=N) { mask[j-1]\u21900; j\u2190j+i }\n    }\n    i\u2190i+1\n  }\n  mask/\u2373N\n}\n\u2395primes{100}',
+      nn: 'sigmoid{x}: { \u00F71+*-x }\nX\u21904 2\u23740 0 0 1 1 0 1 1\nW1\u21902 3\u23740.1 0.2 0.3 0.4 0.5 0.6\nW2\u21903 1\u23740.7 0.8 0.9\nH\u2190sigmoid X +.\u00D7 W1\nY\u2190sigmoid H +.\u00D7 W2\n\u2395Y'
+    };
+    var sel = this.value;
+    if (exs[sel]) { codeEl.value = exs[sel]; updateLineNumbers(); }
+    this.value = 'Examples...';
+  });
+
+  // ── Run code ──
   function runCode() {
     if (!ready) return;
+    files[activeFile] = codeEl.value;
+    var code = codeEl.value.trim();
+    if (!code) { outputEl.textContent = '(no input)'; return; }
 
-    var code = inputEl.value.trim();
-    if (!code) {
-      outputEl.textContent = '(no input)';
-      outputEl.className = '';
-      return;
-    }
-
-    capturedOutput = '';
-    outputEl.textContent = '';
-    outputEl.className = '';
-    runBtn.disabled = true;
-    runBtn.textContent = 'Running\u2026';
-    statusEl.textContent = 'Running';
-    statusEl.className = 'status loading';
+    capturedOutput = ''; outputEl.textContent = '';
+    runBtn.disabled = true; runBtn.textContent = 'Running\u2026';
+    statusEl.textContent = 'Running'; statusEl.style.color = '#f0c040';
 
     try {
-      // Write code to virtual filesystem
       Module.FS.writeFile('/tmp/script.a+', code);
-
-      // Call a+ interpreter: a+ /tmp/script.a+
       Module.callMain(['a+', '/tmp/script.a+']);
-
-      // Clean up
       try { Module.FS.unlink('/tmp/script.a+'); } catch(e) {}
-
-      // Display output
-      if (capturedOutput) {
-        outputEl.textContent = capturedOutput.trimEnd();
-      } else {
-        outputEl.textContent = '(no output)';
-      }
-    } catch (e) {
+      outputEl.textContent = capturedOutput || '(no output)';
+      tryPlot(capturedOutput);
+    } catch(e) {
       outputEl.textContent = capturedOutput + '\n[ERROR] ' + e.message;
-      outputEl.className = 'error';
     }
-
-    runBtn.disabled = false;
-    runBtn.textContent = 'Run \u25B6';
-    statusEl.textContent = 'Ready';
-    statusEl.className = 'status ready';
+    runBtn.disabled = false; runBtn.textContent = 'Run';
+    statusEl.textContent = 'Ready'; statusEl.style.color = 'var(--success)';
   }
 
-  // ── Event handlers ──
+  // ── SVG Plot ──
+  function tryPlot(text) {
+    var numbers = text.match(/[\d.-]+/g);
+    if (!numbers || numbers.length < 2) return;
+    var data = numbers.map(Number).filter(function(n) { return isFinite(n); });
+    if (data.length < 2) return;
+
+    var w = plotSvg.clientWidth || 400, h = 200;
+    var pad = 20;
+    var max = Math.max.apply(null, data), min = Math.min.apply(null, data);
+    var range = max - min || 1;
+    var xStep = (w - 2*pad) / (data.length - 1 || 1);
+
+    var points = data.map(function(v, i) {
+      var x = pad + i * xStep;
+      var y = h - pad - ((v - min) / range) * (h - 2*pad);
+      return x + ',' + y;
+    }).join(' ');
+
+    plotSvg.setAttribute('viewBox', '0 0 ' + w + ' ' + h);
+    plotSvg.innerHTML =
+      '<rect width="' + w + '" height="' + h + '" fill="var(--code-bg)"/>' +
+      '<polyline points="' + points + '" fill="none" stroke="var(--accent)" stroke-width="2"/>' +
+      data.map(function(v, i) {
+        var x = pad + i * xStep, y = h - pad - ((v - min) / range) * (h - 2*pad);
+        return '<circle cx="' + x + '" cy="' + y + '" r="3" fill="var(--success)"/>';
+      }).join('');
+  }
+
   runBtn.addEventListener('click', runCode);
-
-  // Ctrl+Enter / Cmd+Enter to run
-  inputEl.addEventListener('keydown', function(e) {
-    if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
-      e.preventDefault();
-      runCode();
-    }
+  document.getElementById('stop').addEventListener('click', function() { outputEl.textContent = '(stopped)'; });
+  document.getElementById('fmt').addEventListener('click', function() {
+    codeEl.value = codeEl.value.replace(/\n\s*\n\s*\n/g, '\n\n');
+    updateLineNumbers();
   });
-
-  clearBtn.addEventListener('click', function() {
-    inputEl.value = '';
-    outputEl.textContent = '';
-    outputEl.className = '';
-  });
-
-  // Example links
-  document.querySelectorAll('.examples a').forEach(function(link) {
-    link.addEventListener('click', function(e) {
-      e.preventDefault();
-      inputEl.value = this.getAttribute('data-code');
-    });
-  });
-
+  updateLineNumbers();
 })();
 </script>
 </body>

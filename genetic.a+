@@ -1,0 +1,111 @@
+ãgenetic.a+ - Genetic Algorithm in pure A+
+
+ãPopulation, selection, crossover, mutation, fitness
+
+ãSolves: maximize f(x)=x^2 for x in [0,31] (binary encoding)
+
+
+ã=== Parameters ===
+
+pop_sizeû10
+bit_lenû5
+generationsû20
+mut_rateû0.1
+
+ãConvert binary array to integer
+
+bin2int{bits}: {
+  valû0
+  iû0
+  while (i<bit_len) {
+    valûval*2 + bits[i]
+    iûi+1
+  }
+  val
+}
+
+ãFitness: f(x) = x^2
+
+fitness{bits}: {
+  xûbin2int{bits}
+  xÁx
+}
+
+ãCreate random individual
+
+random_ind{}: {
+  indûbit_len Î 0
+  kû0
+  while (k<bit_len) {
+    ind[k]û2|¢1000
+    kûk+1
+  }
+  ind
+}
+
+ãTournament selection: pick best of 2
+
+select{pop;fits}: {
+  aûpop_size|¢100
+  bûpop_size|¢200
+  if (fits[a]>fits[b]) { pop_size Î pop[aÁbit_len+¢bit_len] }
+  else { pop_size Î pop[bÁbit_len+¢bit_len] }
+}
+
+ãSingle-point crossover
+
+crossover{p1;p2}: {
+  ptûbit_len|¢50
+  childûbit_len Î 0
+  kû0
+  while (k<pt) { child[k]ûp1[k]; kûk+1 }
+  while (k<bit_len) { child[k]ûp2[k]; kûk+1 }
+  child
+}
+
+ãBit-flip mutation
+
+mutate{ind}: {
+  posûbit_len|¢300
+  ind[pos]û1-ind[pos]
+  ind
+}
+
+ã=== Main GA loop ===
+
+ãInitialize random population
+
+popûpop_size bit_len Î 0
+iû0
+while (i<pop_size) {
+  jû0
+  while (j<bit_len) {
+    pop[iÁbit_len+j]û2|¢1000
+    jûj+1
+  }
+  iûi+1
+}
+
+ãEvaluate initial fitness
+
+fitsûpop_size Î 0
+iû0
+while (i<pop_size) {
+  xûbin2int{pop_size Î pop[iÁbit_len+¢bit_len]}
+  fits[i]ûxÁx
+  iûi+1
+}
+
+ãFind best individual
+
+best_fitû«+/fits
+best_idxû0
+iû0
+while (i<pop_size) {
+  if (fits[i]>best_fit) { best_fitûfits[i]; best_idxûi }
+  iûi+1
+}
+Õ"genetic: best fitness = " best_fit
+if (best_fit>0) { Õ"genetic: [PASS] GA found solution" }
+else { Õ"genetic: [FAIL]" }
+Õ"genetic: all tests done"

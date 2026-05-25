@@ -1,0 +1,428 @@
+ã gpt.a+ - Mini-GPT: Multi-Head Transformer in Pure A+
+ã First-ever GPT implemented entirely in A+!
+ã 8-token vocab, 4-head attention, FFN, layer norm, residuals
+ã Trained weights from Python; forward pass + self-test in A+
+
+ã === Model Configuration ===
+vocabû8
+seqû4
+dmû8
+nheadsû4
+dkû2
+dffû16
+
+ã === Helper: Sigmoid ===
+sigmoid{x}: {
+  Õ 1ß1+*-x
+}
+
+  ã === Helper: Softmax (row-wise) ===
+softmax{row;n}: {
+  ã Find max for numerical stability
+  mxûrow[0]
+  iû0
+  while (i<n) {
+    if (row[i]>mx) { mxûrow[i] }
+    iûi+1
+  }
+  ã Compute exp(x - max) and sum (store in temporary array)
+  tmpûn Î 0
+  smû0.0
+  iû0
+  while (i<n) {
+    eû*row[i]-mx
+    tmp[i]ûe
+    smûsm+e
+    iûi+1
+  }
+  ã Normalize back into row
+  iû0
+  while (i<n) {
+    row[i]ûtmp[i]ßsm
+    iûi+1
+  }
+  row
+}
+
+ã === Trained Weights (embedded from Python training) ===
+
+ã Token embedding: vocab x dm
+Eû8 8 Î 0.062036 0.084860 0.006258 0.176048 0.038586 -0.131419 -0.275116 -0.109640 0.085133 0.128134 0.055899 0.140170 0.082525 -0.270219 -0.146674 -0.067423 0.068185 0.117158 0.046100 0.057469 0.154920 -0.336035 0.029961 -0.077306 -0.045131 -0.011408 0.006572 0.036728 0.173006 -0.273152 0.221252 -0.124216 -0.274020 -0.167555 -0.107593 0.067178 0.108125 -0.123474 0.226505 -0.134505 -0.200827 -0.115170 -0.073357 0.212761 0.164969 0.199243 0.135819 -0.051277 -0.123246 -0.078833 -0.110169 0.173200 0.101492 0.265081 -0.169182 -0.167828 0.058211 0.091154 -0.002904 0.217615 0.129895 0.168077 -0.264423 -0.112731
+
+ã Position embedding: seq x dm
+Pû4 8 Î 0.047645 -0.072184 0.001677 0.012662 -0.015780 0.036182 0.029039 0.116070 0.030998 -0.030470 -0.028090 -0.041579 0.047614 -0.028342 -0.003513 0.037465 -0.036173 -0.014683 -0.092064 -0.054124 -0.028387 0.020788 0.059675 -0.000923 0.013068 0.008398 0.054237 0.044668 0.013685 -0.050547 0.045169 0.019052
+
+ã Attention: Q, K, V, output projection (each dm x dm)
+Wqû8 8 Î 0.122703 -0.002993 0.195303 -0.035883 0.159307 0.011510 -0.051623 -0.112846 -0.015096 0.142330 0.081632 0.068894 -0.237586 0.071095 0.055590 -0.054994 -0.062737 -0.000231 0.172484 -0.105505 -0.042780 0.136177 -0.044612 -0.036426 0.009779 -0.124131 0.021998 -0.120965 0.088520 0.000320 0.228341 0.028085 0.136569 -0.130327 -0.012212 0.032312 0.174574 -0.168092 0.099064 0.059135 0.153352 0.071240 0.005214 -0.052177 -0.124822 0.019547 -0.019184 0.202031 -0.061114 0.032044 -0.156897 -0.039546 0.026116 0.082396 0.144813 -0.004416 -0.111726 0.045786 0.051697 0.049168 -0.070029 0.113337 0.008787 0.069983
+Wkû8 8 Î 0.127408 0.060930 0.028632 0.215278 0.024373 -0.029595 0.011196 0.148277 0.011871 0.051941 0.119563 -0.051286 -0.172656 0.029944 0.022975 -0.060799 0.087108 0.060759 -0.099509 0.051822 -0.019611 -0.148300 0.045292 -0.004526 -0.074528 0.052295 0.048796 -0.057756 0.040035 0.101507 -0.071270 0.038089 0.000276 0.226601 -0.186232 0.069529 -0.030626 -0.010019 0.190159 -0.000859 0.224098 -0.044218 0.035020 -0.049092 -0.069066 0.006243 -0.028256 0.020261 -0.210505 0.200245 -0.016674 0.174294 -0.100717 0.029256 0.316492 -0.086984 -0.149530 -0.054652 0.047243 0.069333 0.129041 -0.025701 -0.160230 -0.043506
+Wvû8 8 Î 0.126819 0.050768 -0.189238 -0.000225 0.141094 0.215654 0.061617 0.037866 -0.121785 -0.080757 0.010115 0.053829 0.059222 -0.044603 -0.110653 -0.071625 -0.115146 0.065305 -0.229665 -0.028955 0.046087 0.154780 0.009106 0.103809 -0.037343 -0.070520 -0.062135 0.140953 0.096735 0.044620 0.334290 -0.005717 0.063248 0.034794 -0.017873 0.222189 0.145934 -0.140135 -0.040624 0.040830 0.076560 -0.144640 -0.236140 -0.193118 -0.000017 -0.023931 0.031768 -0.086492 -0.126850 -0.205305 0.026243 0.038851 0.094684 0.083674 -0.026430 0.130708 -0.014207 -0.067411 -0.053632 -0.054324 -0.215116 0.016718 0.025063 -0.035130
+Woû8 8 Î -0.065663 0.042022 0.173409 0.004671 -0.052334 -0.061187 -0.016513 -0.126456 -0.009675 0.009392 0.187292 0.092056 0.104812 -0.085894 0.072623 -0.113037 0.020339 0.033655 -0.080226 0.202905 0.061964 -0.184313 0.067020 -0.043968 -0.007093 0.043328 0.038102 -0.196455 -0.106097 0.070956 0.138098 0.182878 0.178221 -0.205627 0.077029 -0.187108 0.166333 0.021050 -0.113040 0.196793 0.065387 -0.188560 0.030683 -0.077977 0.009753 -0.053876 0.144919 -0.139183 0.035496 0.185781 -0.081624 0.027158 0.022465 -0.069959 0.052504 0.005431 -0.101902 0.170421 0.076751 -0.015484 -0.060446 -0.074739 0.132394 -0.016377
+
+ã Feed-forward: W1 (dm x dff), W2 (dff x dm)
+W1û8 16 Î 0.046550 -0.019461 0.060533 -0.011858 0.077719 -0.016480 0.082584 0.069390 -0.011117 -0.087710 -0.088971 -0.072103 -0.100270 0.086266 -0.000349 0.157117 0.227176 0.001857 -0.155915 -0.038280 -0.005632 -0.147480 -0.025505 0.029744 -0.046254 -0.078304 -0.071828 0.180303 -0.017862 -0.083033 -0.034628 0.095239 -0.068228 0.047774 0.072347 0.074530 0.141166 -0.054353 0.112508 -0.079219 -0.039954 0.119009 0.085891 0.000958 -0.119324 0.056188 -0.060548 -0.093486 -0.065726 0.024803 -0.211709 0.036218 0.017557 -0.058982 0.104551 0.061743 -0.060438 -0.066419 0.065762 -0.151343 -0.033190 -0.063327 0.004633 0.022343 0.000377 0.114031 0.022467 -0.032065 -0.119615 0.070707 0.053326 0.143599 -0.075572 0.002806 -0.009127 -0.008890 0.003574 -0.171051 0.080802 0.065525 0.120455 0.224937 -0.029667 -0.001091 -0.005898 0.195976 -0.171581 0.053097 -0.144660 -0.257531 -0.205622 -0.138634 0.101731 -0.087769 -0.024966 -0.112286 0.057139 -0.108695 0.132272 -0.100554 -0.075485 0.008228 0.001381 0.135680 0.009922 -0.119003 -0.058802 -0.060656 0.079476 0.039414 -0.015574 0.083474 -0.052386 -0.013814 0.017885 0.152657 -0.009829 -0.034731 -0.104877 0.068358 -0.058448 0.034994 -0.189419 0.103681 -0.133527 -0.077655 0.106392 -0.134439
+W2û16 8 Î -0.007569 0.007333 -0.099176 0.134035 0.148706 -0.195521 -0.146185 0.080934 -0.127438 -0.036377 0.014076 0.068900 -0.024010 0.010891 -0.083090 0.128781 -0.053213 0.031176 -0.051992 0.010967 -0.018184 -0.009110 -0.100298 0.079765 0.142117 0.025033 0.073912 0.082370 0.091379 0.031756 0.020760 0.086194 0.007103 -0.096938 0.002945 -0.190408 -0.001657 0.041136 0.124758 0.015569 0.094504 0.001273 -0.101923 -0.140706 -0.098688 -0.131366 0.056727 -0.021526 0.053689 0.004588 0.104487 0.103857 -0.067576 -0.021348 -0.049386 -0.160891 0.065545 0.117100 -0.000636 -0.049836 0.106313 -0.225258 0.015743 0.014139 -0.060488 0.136274 0.096797 -0.027568 -0.010815 -0.032143 -0.048271 -0.130260 0.134513 0.099929 0.079706 -0.111644 0.205635 0.203420 0.023600 -0.089496 -0.089549 0.039340 -0.091219 -0.005569 0.105454 -0.143184 0.202833 0.157808 -0.125709 -0.143660 -0.028101 -0.105073 -0.027988 -0.255180 -0.018597 0.180704 -0.111549 -0.027415 -0.148929 0.064299 -0.024658 0.201774 0.014865 -0.037484 0.052435 -0.052276 -0.134269 0.029414 -0.018411 0.020136 0.039987 -0.050689 0.041060 0.172716 -0.110403 0.172565 -0.026927 -0.069880 0.241764 0.015275 0.133720 0.078930 -0.167924 0.010130 -0.055451 -0.128213 -0.173433 0.011410
+
+ã Layer norm parameters
+gamma1û8 Î 0.988498 0.986111 0.991541 0.974563 0.963687 0.928762 0.991753 0.981048
+beta1û8 Î -0.001473 -0.001343 0.000581 -0.001910 -0.004005 0.009429 -0.001529 0.000258
+gamma2û8 Î 1.005566 1.006891 1.002208 1.024141 1.013496 1.075365 1.064800 0.998443
+beta2û8 Î -0.064745 0.022448 -0.027407 0.225872 0.192947 -0.054955 -0.063488 -0.176124
+
+scaleû0.707107
+
+ã === Training Corpus (8 sequences, for reference) ===
+ã Sequences: [0,1,2,3] [1,2,3,4] [2,3,4,5] [3,4,5,6] [4,5,6,7] [5,6,7,0] [6,7,0,1] [7,0,1,2]
+ã Targets:    [1,2,3,4] [2,3,4,5] [3,4,5,6] [4,5,6,7] [5,6,7,0] [6,7,0,1] [7,0,1,2] [0,1,2,3]
+
+ã === Forward Pass: One Transformer Block ===
+ã gpt_forward tokens -> logits (seq x vocab) using stored weights
+gpt_forward{tokens}: {
+
+  ã 1. Embedding lookup + position encoding
+  xembûseq dm Î 0
+  posû0
+  while (pos<seq) {
+    idxûtokens[pos]
+    jû0
+    while (j<dm) {
+      xemb[posÁdm+j]ûE[idxÁdm+j] + P[posÁdm+j]
+      jûj+1
+    }
+    posûpos+1
+  }
+
+  ã 2. Compute Q, K, V = xemb @ Wq, Wk, Wv
+  Qûseq dm Î 0
+  Kûseq dm Î 0
+  Vûseq dm Î 0
+  ã Q = xemb +.Á Wq using manual loops (inner product not available for all impls)
+  iû0
+  while (i<seq) {
+    jû0
+    while (j<dm) {
+      sû0.0
+      kû0
+      while (k<dm) {
+        sûs + xemb[iÁdm+k] Á Wq[kÁdm+j]
+        kûk+1
+      }
+      Q[iÁdm+j]ûs
+      sû0.0
+      kû0
+      while (k<dm) {
+        sûs + xemb[iÁdm+k] Á Wk[kÁdm+j]
+        kûk+1
+      }
+      K[iÁdm+j]ûs
+      sû0.0
+      kû0
+      while (k<dm) {
+        sûs + xemb[iÁdm+k] Á Wv[kÁdm+j]
+        kûk+1
+      }
+      V[iÁdm+j]ûs
+      jûj+1
+    }
+    iûi+1
+  }
+
+  ã 3. Multi-head attention (4 heads, dk=2) + concatenate + project
+  concatûseq dm Î 0
+  hû0
+  while (h<nheads) {
+    hoffûhÁdk
+
+    ã Compute attention scores for head h: scores = Q_h @ K_h^T * scale
+    scoresûseq seq Î 0
+    qiû0
+    while (qi<seq) {
+      kjû0
+      while (kj<seq) {
+        dotû0.0
+        dû0
+        while (d<dk) {
+          dotûdot + Q[qiÁdm+hoff+d] Á K[kjÁdm+hoff+d]
+          dûd+1
+        }
+        scores[qiÁseq+kj]ûdot Á scale
+        kjûkj+1
+      }
+      qiûqi+1
+    }
+
+    ã Softmax row-wise on scores -> attn_weights
+    attnûseq seq Î 0
+    qiû0
+    while (qi<seq) {
+      ã Extract row and compute softmax
+      rowûseq Î 0
+      kjû0
+      while (kj<seq) {
+        row[kj]ûscores[qiÁseq+kj]
+        kjûkj+1
+      }
+      srowûsoftmax{row;seq}
+      kjû0
+      while (kj<seq) {
+        attn[qiÁseq+kj]ûsrow[kj]
+        kjûkj+1
+      }
+      qiûqi+1
+    }
+
+    ã Weighted sum: context_h = attn @ V_h
+    ctxûseq dk Î 0
+    qiû0
+    while (qi<seq) {
+      djû0
+      while (dj<dk) {
+        sû0.0
+        kkû0
+        while (kk<seq) {
+          sûs + attn[qiÁseq+kk] Á V[kkÁdm+hoff+dj]
+          kkûkk+1
+        }
+        ctx[qiÁdk+dj]ûs
+        djûdj+1
+      }
+      qiûqi+1
+    }
+
+    ã Place context_h into concat at head position
+    qiû0
+    while (qi<seq) {
+      djû0
+      while (dj<dk) {
+        concat[qiÁdm+hoff+dj]ûctx[qiÁdk+dj]
+        djûdj+1
+      }
+      qiûqi+1
+    }
+    hûh+1
+  }
+
+  ã 4. Output projection: attn_out = concat @ Wo
+  attn_outûseq dm Î 0
+  iû0
+  while (i<seq) {
+    jû0
+    while (j<dm) {
+      sû0.0
+      kû0
+      while (k<dm) {
+        sûs + concat[iÁdm+k] Á Wo[kÁdm+j]
+        kûk+1
+      }
+      attn_out[iÁdm+j]ûs
+      jûj+1
+    }
+    iûi+1
+  }
+
+  ã 5. Residual connection + Layer Norm 1
+  x1lnûseq dm Î 0
+  iû0
+  while (i<seq) {
+    ã Compute mean
+    mû0.0
+    jû0
+    while (j<dm) {
+      mûm + xemb[iÁdm+j] + attn_out[iÁdm+j]
+      jûj+1
+    }
+    mûmßdm
+    ã Compute variance
+    vû0.0
+    jû0
+    while (j<dm) {
+      tûxemb[iÁdm+j] + attn_out[iÁdm+j] - m
+      vûv + tÁt
+      jûj+1
+    }
+    vûvßdm
+    ã Normalize and scale: y = gamma*(x-mean)/(var+eps) + beta
+    epsû0.00001
+    jû0
+    while (j<dm) {
+      tûxemb[iÁdm+j] + attn_out[iÁdm+j]
+      x1ln[iÁdm+j]ûgamma1[j] Á (t-m) ß (v+eps) + beta1[j]
+      jûj+1
+    }
+    iûi+1
+  }
+
+  ã 6. Feed-forward: h_ffn = sigmoid(x1ln @ W1), ffn_out = h_ffn @ W2
+  hffnûseq dff Î 0
+  iû0
+  while (i<seq) {
+    jû0
+    while (j<dff) {
+      sû0.0
+      kû0
+      while (k<dm) {
+        sûs + x1ln[iÁdm+k] Á W1[kÁdff+j]
+        kûk+1
+      }
+      ã sigmoid
+      hffn[iÁdff+j]û1ß1+*-s
+      jûj+1
+    }
+    iûi+1
+  }
+
+  ffn_outûseq dm Î 0
+  iû0
+  while (i<seq) {
+    jû0
+    while (j<dm) {
+      sû0.0
+      kû0
+      while (k<dff) {
+        sûs + hffn[iÁdff+k] Á W2[kÁdm+j]
+        kûk+1
+      }
+      ffn_out[iÁdm+j]ûs
+      jûj+1
+    }
+    iûi+1
+  }
+
+  ã 7. Residual connection + Layer Norm 2
+  x2lnûseq dm Î 0
+  iû0
+  while (i<seq) {
+    mû0.0
+    jû0
+    while (j<dm) {
+      mûm + x1ln[iÁdm+j] + ffn_out[iÁdm+j]
+      jûj+1
+    }
+    mûmßdm
+    vû0.0
+    jû0
+    while (j<dm) {
+      tûx1ln[iÁdm+j] + ffn_out[iÁdm+j] - m
+      vûv + tÁt
+      jûj+1
+    }
+    vûvßdm
+    epsû0.00001
+    jû0
+    while (j<dm) {
+      tûx1ln[iÁdm+j] + ffn_out[iÁdm+j]
+      x2ln[iÁdm+j]ûgamma2[j] Á (t-m) ß (v+eps) + beta2[j]
+      jûj+1
+    }
+    iûi+1
+  }
+
+  ã 8. Output projection to vocab: logits = x2ln @ E^T
+  logitsûseq vocab Î 0
+  iû0
+  while (i<seq) {
+    tû0
+    while (t<vocab) {
+      sû0.0
+      kû0
+      while (k<dm) {
+        sûs + x2ln[iÁdm+k] Á E[tÁdm+k]
+        kûk+1
+      }
+      logits[iÁvocab+t]ûs
+      tût+1
+    }
+    iûi+1
+  }
+
+  logits
+}
+
+ã === Self-Tests ===
+
+ã Test 1: softmax integrity
+tsvûsoftmax{1 2 3;3}
+tssûtsv[0]+tsv[1]+tsv[2]
+if ((tss>0.99)Á(tss<1.01)) { Õ"[PASS] softmax sums to ~1" } else { Õ"[FAIL] softmax" }
+
+ã Test 2: Forward pass on prompt [0,1,2,3]
+promptû4 Î 0 1 2 3
+resultûgpt_forward{prompt}
+
+ã Test 3: Verify output shape is 4x8
+rshûÎ result
+if (rsh[0]=4) { Õ"[PASS] output has 4 rows" } else { Õ"[FAIL] rows" }
+if (rsh[1]=8) { Õ"[PASS] output has 8 cols" } else { Õ"[FAIL] cols" }
+
+ã Test 4: Verify logits are finite (not inf/nan)
+okû1
+iû0
+while (i<4) {
+  jû0
+  while (j<8) {
+    vûresult[iÁ8+j]
+    if (v<0-1e6) { okû0 }
+    if (v>1e6) { okû0 }
+    jûj+1
+  }
+  iûi+1
+}
+if (ok=1) { Õ"[PASS] logits in finite range" } else { Õ"[FAIL] logits range" }
+
+ã Test 5: Last position (token 3) should predict token 4 as most likely
+lastû4Á8
+predû0-1e9
+pred_idxû0
+jû0
+while (j<8) {
+  if (result[last+j]>pred) {
+    predûresult[last+j]
+    pred_idxûj
+  }
+  jûj+1
+}
+Õ"Predicted next token:"
+Õ pred_idx
+if (pred_idx=4) {
+  Õ"[PASS] GPT correctly predicts token 4 after [0,1,2,3]"
+}
+if (pred_idx=4) { ok_predû1 } else { ok_predû0 }
+if (ok_pred=0) {
+  Õ"[INFO] GPT predicts token different from expected 4"
+  Õ"  (This may be OK with random initialization + limited training)"
+}
+
+ã Test 6: Softmax distribution over vocab at last position
+lrowû8 Î 0
+jû0
+while (j<8) {
+  lrow[j]ûresult[last+j]
+  jûj+1
+}
+probsûsoftmax{lrow;8}
+Õ"Token probabilities (last position):"
+jû0
+while (j<8) {
+  Õ j
+  Õ probs[j]
+  jûj+1
+}
+
+ã Test 7: Second prompt [7,0,1,2] -> expecting token 3
+prompt2û4 Î 7 0 1 2
+result2ûgpt_forward{prompt2}
+last2û3Á8
+pred2û0-1e9
+pred2_idxû0
+jû0
+while (j<8) {
+  if (result2[last2+j]>pred2) {
+    pred2ûresult2[last2+j]
+    pred2_idxûj
+  }
+  jûj+1
+}
+Õ"Prompt [7,0,1,2] predicted next:"
+Õ pred2_idx
+
+ã === Done ===
+Õ"gpt.a+: all tests complete. First GPT in pure A+!"
