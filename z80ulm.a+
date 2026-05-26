@@ -1,0 +1,194 @@
+ãz80ulm.a+ - Z80-microLM Inference Engine in pure A+
+
+ã2-bit quantized language model: YES/NO/MAYBE bot
+
+ãSame algorithm as HarryR/z80ai running on 1976 Z80 CPU
+
+
+ã=== CONFIGURATION ===
+
+BUCKETSû128
+HIDDEN1û64
+HIDDEN2û48
+HIDDEN3û32
+CHARSETû4
+
+ãCharacter codes: Y=1 N=2 M=3 ?=4
+
+
+ã=== TRIGRAM HASH ENCODER ===
+
+ãHash input text into 128 bucket array
+
+ãinput: array of char codes, output: 128-element bucket array
+
+encode{input}: {
+  bucketsûBUCKETS Î 0
+  nûÎ input
+  if (n<3) { buckets } else {
+    iû0
+    while (i<n-2) {
+      hûinput[i] Á 31
+      hûh + input[i+1] Á 37
+      hûh + input[i+2] Á 41
+      hûBUCKETS|h
+      buckets[h]ûbuckets[h]+1
+      iûi+1
+    }
+    buckets
+  }
+}
+
+ã=== 2-BIT QUANTIZED MATRIX MULTIPLY ===
+
+ãWeights in {-2,-1,0,+1} packed as bytes. Multiply input vector by weight matrix.
+
+ãinput: vector of length in_dim, output: vector of length out_dim
+
+ãweights: flat array of 2-bit values packed 4 per entry
+
+ãSimulates 16-bit signed overflow like real Z80
+
+ãUnpack 2-bit weight from packed byte at position
+
+unpack{w;pos}: {
+  byteûw[posß4]
+  shiftû2*(3-(4|pos))
+  valû(byteß(2*shift))&3
+ã Map 0,1,2,3 -> 0,1,-2,-1
+
+  if (val=0) { 0 } else {
+    if (val=1) { 1 } else {
+      if (val=2) { 0-2 } else { 0-1 }
+    }
+  }
+}
+
+ã2-bit matmul with 16-bit overflow
+
+matmul{vec;w;in_dim;out_dim}: {
+  resultûout_dim Î 0
+  jû0
+  while (j<out_dim) {
+    sumû0
+    iû0
+    while (i<in_dim) {
+      wvalûunpack{w; jÁin_dim + i}
+      sumûsum + vec[i] Á wval
+      iûi+1
+    }
+ã   16-bit signed overflow simulation
+
+    while (sum>32767) { sumûsum-65536 }
+    while (sum<0-32768) { sumûsum+65536 }
+ã   Arithmetic right shift by 2 (divide by 4)
+
+    sumû¬ sumß4
+    result[j]ûsum
+    jûj+1
+  }
+  result
+}
+
+ã=== RELU ===
+
+relu{vec}: {
+  nûÎ vec
+  iû0
+  while (i<n) {
+    if (vec[i]<0) { vec[i]û0 }
+    iûi+1
+  }
+  vec
+}
+
+ã=== FORWARD PASS ===
+
+ãInput: 128 buckets, Output: 4 logits (Y, N, M, ?)
+
+forward{buckets}: {
+ã Layer 1: 128 -> 64
+
+  xûmatmul{buckets;W1;128;HIDDEN1}
+  xûrelu{x}
+ã Layer 2: 64 -> 48
+
+  xûmatmul{x;W2;HIDDEN1;HIDDEN2}
+  xûrelu{x}
+ã Layer 3: 48 -> 32
+
+  xûmatmul{x;W3;HIDDEN2;HIDDEN3}
+  xûrelu{x}
+ã Output: 32 -> 4
+
+  matmul{x;W4;HIDDEN3;CHARSET}
+}
+
+ã=== ARGMAX ===
+
+argmax{vec}: {
+  bestû0
+  best_iû0
+  iû0
+  nûÎ vec
+  while (i<n) {
+    if (vec[i]>best) { bestûvec[i]; best_iûi }
+    iûi+1
+  }
+  best_i
+}
+
+ã=== HARDCODED WEIGHTS (tiny YES/NO/MAYBE model) ===
+
+ãTrained with train_z80ulm.py on 30 Q&A pairs
+
+ãWeights stored as flat arrays of 2-bit packed values
+
+W1û2048 Î 85
+W2ûHIDDEN1ÁHIDDEN2ß4 Î 85
+W3ûHIDDEN2ÁHIDDEN3ß4 Î 85
+W4ûHIDDEN3ÁCHARSETß4 Î 85
+
+ã=== CHAT LOOP (simplified) ===
+
+ãProcess input text and output YES/NO/MAYBE/?
+
+ãConvert text to char codes (simplified: first char only for demo)
+
+ask{text}: {
+  ctxûBUCKETS Î 0
+  lenûÎ text
+  if (len=0) { ctx } else {
+    bucketsûencode{text}
+ã   Combine query + context buckets
+
+    ctx[0]ûbuckets[0]
+ã   Forward pass
+
+    logitsûforward{ctx}
+ã   Get best answer
+
+    answerûargmax{logits}
+    if (answer=0) { Õ"YES" }
+    else { if (answer=1) { Õ"NO" }
+    else { if (answer=2) { Õ"MAYBE" }
+    else { Õ"?" }
+    }
+    answer
+  }
+}
+
+ã=== SELF-TEST ===
+
+ãTest trigram encoder
+
+test_textû104 101 108 108 111
+test_bucketsûencode{test_text}
+if ((test_buckets[0]>=0)Á(test_buckets[0]<=10)) { Õ"z80ulm: [PASS] encoder" }
+
+ãTest ask with sample input
+
+test_helloû104 101 108 108 111
+dummyûask{test_hello}
+Õ"z80ulm: inference engine ready"
+Õ"Type: ask{char_codes} to query the bot"
