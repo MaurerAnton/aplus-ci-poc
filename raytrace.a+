@@ -1,0 +1,178 @@
+ãraytrace.a+ - Ray Tracer in pure A+
+
+ãSpheres, shadows, reflections, checkerboard
+
+
+ã=== Vector math ===
+
+vdot{a;b}:
+{
+  a[0]*b[0] + a[1]*b[1] + a[2]*b[2]
+}
+
+vlen{v}:
+{
+  dûvdot{v;v}
+  sqrt{d}
+}
+
+vnorm{v}:
+{
+  lûvlen{v}
+  v[0]ßl, v[1]ßl, v[2]ßl
+}
+
+vsub{a;b}:
+{
+  a[0]-b[0], a[1]-b[1], a[2]-b[2]
+}
+
+vadd{a;b}:
+{
+  a[0]+b[0], a[1]+b[1], a[2]+b[2]
+}
+
+vscale{v;s}:
+{
+  v[0]*s, v[1]*s, v[2]*s
+}
+
+vreflect{v;n}:
+{
+  dû2*vdot{v;n}
+  vsub{v; vscale{n;d}}
+}
+
+sqrt{x}:
+{
+  gûxß2
+  iû0
+  while (i<8) {
+    gû(g+xßg)ß2
+    iûi+1
+  }
+  g
+}
+
+ã=== Scene ===
+
+SPHERESû5 8 Î 0
+ãSphere 0: red, center-left
+
+SPHERES[0]û0 0-1 0-5 0.6 1 0.2 0.2 0.4
+ãSphere 1: blue, center-right
+
+SPHERES[1]û1.2 0-0.3 0-5 0.8 0.2 0.3 1 0.4
+ãSphere 2: green, back
+
+SPHERES[2]û0-1.2 0-0.2 0-6 0.5 0.2 1 0.2 0.4
+ãSphere 3: floor (large, below)
+
+SPHERES[3]û0 0-10004 0-20 10000 0.6 0.6 0.6 0
+ãSphere 4: light (small, white)
+
+SPHERES[4]û0 5 0-5 0.5 0 0 0 0
+NSû5
+LIGHTû0 6 0-5
+AMBû0.1
+
+hit{orig;dir;i}:
+{
+  sû8 Î SPHERES[i*8+¢8]
+  ocûvsub{orig; s[0],s[1],s[2]}
+  aûvdot{dir;dir}
+  bû2*vdot{oc;dir}
+  cûvdot{oc;oc} - s[3]*s[3]
+  discûb*b - 4*a*c
+  if (disc<0) { 0-1 } else {
+    tû(0-b - sqrt{disc})ß(2*a)
+    if (t>0.001) { t } else { 0-1 }
+  }
+}
+
+trace{orig;dir;depth}:
+{
+  nearû999999
+  hiû0-1
+  iû0
+  while (i<NS) {
+    tûhit{orig;dir;i}
+    if ((t>0)Á(t<near)) { nearût; hiûi }
+    iûi+1
+  }
+  if (hi=0-1) {
+    ttû0.5*(dir[1]+1)
+    (1-tt)+tt*0.5, (1-tt)+tt*0.7, 1
+  } else {
+    sû8 Î SPHERES[hi*8+¢8]
+    ptûvadd{orig; vscale{dir;near}}
+    nûvnorm{vsub{pt; s[0],s[1],s[2]}}
+    mcûs[4],s[5],s[6]
+ã   Checkerboard on floor
+
+    if (hi=3) {
+      cxû¬ pt[0]*2
+      czû¬ pt[2]*2
+      if (0=2|(cx+cz)) { mcû0.3,0.3,0.3 }
+      else { mcû0.9,0.9,0.9 }
+    }
+ã   Shadow
+
+    ldûvnorm{vsub{LIGHT; pt}}
+    shû0
+    jû0
+    while (j<NS) {
+      stûhit{vadd{pt; vscale{n;0.01}}; ld; j}
+      if (st>0) { shû1; jûNS }
+      jûj+1
+    }
+ã   Lighting
+
+    dfûvdot{n; ld}
+    if (df<0) { dfû0 }
+    ltûAMB + (1-sh)*df
+    clûmc[0]*lt, mc[1]*lt, mc[2]*lt
+ã   Reflection
+
+    rfûs[7]
+    if ((rf>0)Á(depth>0)) {
+      rdûvreflect{dir; n}
+      roûvadd{pt; vscale{n;0.01}}
+      rcûtrace{ro; rd; depth-1}
+      clûcl[0]*(1-rf)+rc[0]*rf, cl[1]*(1-rf)+rc[1]*rf, cl[2]*(1-rf)+rc[2]*rf
+    }
+    cl
+  }
+}
+
+clamp{c}:
+{
+  vû¬ c*255
+  if (v<0) { 0 } else { if (v>255) { 255 } else { v } }
+}
+
+ã=== Render 80x40 PPM ===
+
+Wû40
+Hû20
+DEPTHû0
+Õ"P3"
+Õ"40 20"
+Õ"255"
+camû0 0.5 1
+yûH-1
+while (y>=0) {
+  xû0
+  while (x<W) {
+    uû(x-20)ß40
+    vvû(y-10)ß20
+    dirûvnorm{u, vv, 0-1}
+    colûtrace{cam; dir; DEPTH}
+    Õ clamp{col[0]}
+    Õ clamp{col[1]}
+    Õ clamp{col[2]}
+    xûx+1
+  }
+  yûy-1
+}
+Õ"raytrace: done"
