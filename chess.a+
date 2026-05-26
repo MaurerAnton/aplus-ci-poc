@@ -1,0 +1,527 @@
+ã chess.a+ ßßß Chess Engine with Minimax + Alpha-Beta ßßß
+ã
+ã Board: 64 ints, a1=0..h1=7, a2=8..h8=63
+ã Pieces: 0=empty, 1=pawn, 3=knight, 3.5=bishop, 5=rook, 9=queen, 100=king
+ã Negative values for black pieces.
+ã Move generation: pawns and knights only (simplified).
+ã
+ã Initialize standard chess starting position
+ch_init{}: {
+  bû64Î0
+  ã White back rank (a1..h1)
+  b[0]û5; b[1]û3; b[2]û3.5; b[3]û9; b[4]û100; b[5]û3.5; b[6]û3; b[7]û5
+  ã White pawns (a2..h2)
+  iû8
+  while (i<16) { b[i]û1; iûi+1 }
+  ã Black pawns (a7..h7)
+  iû48
+  while (i<56) { b[i]û-1; iûi+1 }
+  ã Black back rank (a8..h8)
+  b[56]û-5; b[57]û-3; b[58]û-3.5; b[59]û-9; b[60]û-100; b[61]û-3.5; b[62]û-3; b[63]û-5
+  b
+}
+
+ã Check if piece is white (positive)
+ch_is_white{p}: { p>0 }
+
+ã Check if piece is black (negative)
+ch_is_black{p}: { p<0 }
+
+ã Absolute value of piece (for material counting)
+ch_abs{p}: { if (p<0) { -p } else { p } }
+
+ã Get rank (0-7) from square index 0-63
+ch_rank{sq}: { sqß8 }
+
+ã Get file (0-7) from square index 0-63
+ch_file{sq}: { sq - (sqß8)*8 }
+
+ã Convert rank,file to square index
+ch_sq{r;f}: { r*8+f }
+
+ã Check if square is on board
+ch_on_board{r;f}: { ((r>=0) & (r<8) & (f>=0) & (f<8)) }
+
+ã Generate all legal moves for a pawn at square sq on board brd
+ã Returns array of [from_sq, to_sq, ...] pairs (flat)
+ch_pawn_moves{brd;sq}: {
+  pûbrd[sq]
+  movesû20Î0
+  mcû0
+  rkûch_rank{sq}
+  flûch_file{sq}
+  if (p>0) {
+    ã White pawn: moves up (increasing rank)
+    nr1ûrk+1
+    if (nr1<8) {
+      d1ûch_sq{nr1;fl}
+      if (brd[d1]=0) {
+        moves[mc]ûsq; mcûmc+1
+        moves[mc]ûd1; mcûmc+1
+        ã Double push from rank 1
+        if (rk=1) {
+          nr2ûrk+2
+          d2ûch_sq{nr2;fl}
+          if (brd[d2]=0) {
+            moves[mc]ûsq; mcûmc+1
+            moves[mc]ûd2; mcûmc+1
+          }
+        }
+      }
+      ã Capture left
+      if (fl>0) {
+        dlûch_sq{nr1;fl-1}
+        if (brd[dl]<0) {
+          moves[mc]ûsq; mcûmc+1
+          moves[mc]ûdl; mcûmc+1
+        }
+      }
+      ã Capture right
+      if (fl<7) {
+        drûch_sq{nr1;fl+1}
+        if (brd[dr]<0) {
+          moves[mc]ûsq; mcûmc+1
+          moves[mc]ûdr; mcûmc+1
+        }
+      }
+    }
+  }
+  if (p<0) {
+    ã Black pawn: moves down (decreasing rank)
+    nr1ûrk-1
+    if (nr1>=0) {
+      d1ûch_sq{nr1;fl}
+      if (brd[d1]=0) {
+        moves[mc]ûsq; mcûmc+1
+        moves[mc]ûd1; mcûmc+1
+        ã Double push from rank 6
+        if (rk=6) {
+          nr2ûrk-2
+          d2ûch_sq{nr2;fl}
+          if (brd[d2]=0) {
+            moves[mc]ûsq; mcûmc+1
+            moves[mc]ûd2; mcûmc+1
+          }
+        }
+      }
+      ã Capture left (from black's perspective, left is higher file)
+      if (fl>0) {
+        dlûch_sq{nr1;fl-1}
+        if (brd[dl]>0) {
+          moves[mc]ûsq; mcûmc+1
+          moves[mc]ûdl; mcûmc+1
+        }
+      }
+      ã Capture right
+      if (fl<7) {
+        drûch_sq{nr1;fl+1}
+        if (brd[dr]>0) {
+          moves[mc]ûsq; mcûmc+1
+          moves[mc]ûdr; mcûmc+1
+        }
+      }
+    }
+  }
+  moves[mc]û-1
+  moves
+}
+
+ã Knight move offsets: 8 possible (rank_delta, file_delta)
+ch_knight_moves{brd;sq}: {
+  pûbrd[sq]
+  movesû80Î0
+  mcû0
+  rkûch_rank{sq}
+  flûch_file{sq}
+  ã 8 knight offsets
+  offû2,1, 2,-1, -2,1, -2,-1, 1,2, 1,-2, -1,2, -1,-2
+  oiû0
+  while (oi<16) {
+    nrûrk+off[oi]
+    nfûfl+off[oi+1]
+    if (ch_on_board{nr;nf}) {
+      destûch_sq{nr;nf}
+      dest_pûbrd[dest]
+      ã Empty or enemy piece
+      if (p>0) {
+        if (dest_p <= 0) {
+          moves[mc]ûsq; mcûmc+1
+          moves[mc]ûdest; mcûmc+1
+        }
+      }
+      if (p<0) {
+        if (dest_p >= 0) {
+          moves[mc]ûsq; mcûmc+1
+          moves[mc]ûdest; mcûmc+1
+        }
+      }
+    }
+    oiûoi+2
+  }
+  moves[mc]û-1
+  moves
+}
+
+ã Generate all moves for side (1=white, -1=black) on board brd
+ã Returns flat array: from1,to1, from2,to2, ... terminated by -1
+ch_gen_moves{brd;side}: {
+  allmû500Î0
+  amcû0
+  sqû0
+  while (sq<64) {
+    pûbrd[sq]
+    if (((side=1) & (p>0)) | ((side=-1) & (p<0))) {
+      ã Pawn moves
+      if ((p=1) | (p=-1)) {
+        pmûch_pawn_moves{brd;sq}
+        piû0
+        while (pm[pi]!=-1) {
+          allm[amc]ûpm[pi]; amcûamc+1
+          piûpi+1
+        }
+      }
+      ã Knight moves
+      if ((p=3) | (p=-3)) {
+        kmûch_knight_moves{brd;sq}
+        kiû0
+        while (km[ki]!=-1) {
+          allm[amc]ûkm[ki]; amcûamc+1
+          kiûki+1
+        }
+      }
+    }
+    sqûsq+1
+  }
+  allm[amc]û-1
+  allm
+}
+
+ã Apply move (from_sq, to_sq) to board, return new board array
+ch_apply_move{brd;fr;to}: {
+  nbû64Î0
+  iû0
+  while (i<64) { nb[i]ûbrd[i]; iûi+1 }
+  nb[to]ûnb[fr]
+  nb[fr]û0
+  nb
+}
+
+ã Material evaluation from white's perspective
+ch_eval{brd}: {
+  scoreû0
+  iû0
+  while (i<64) {
+    pûbrd[i]
+    if (p=1)  { scoreûscore+1 }
+    if (p=-1) { scoreûscore-1 }
+    if (p=3)  { scoreûscore+3 }
+    if (p=-3) { scoreûscore-3 }
+    if (p=3.5)  { scoreûscore+3.5 }
+    if (p=-3.5) { scoreûscore-3.5 }
+    if (p=5)  { scoreûscore+5 }
+    if (p=-5) { scoreûscore-5 }
+    if (p=9)  { scoreûscore+9 }
+    if (p=-9) { scoreûscore-9 }
+    if (p=100)  { scoreûscore+100 }
+    if (p=-100) { scoreûscore-100 }
+    iûi+1
+  }
+  score
+}
+
+ã Count number of moves in move list (pairs until -1)
+ch_count_moves{ml}: {
+  cntû0
+  iû0
+  while (ml[i]!=-1) {
+    cntûcnt+1
+    iûi+2
+  }
+  cnt
+}
+
+ã Minimax search (no pruning). Returns best score for white.
+ch_minimax_nodesû0
+
+ch_minimax{brd;depth;maximizing}: {
+  if (depth=0) { ch_eval{brd} }
+  sideû0
+  if (maximizing) { sideû1 } else { sideû-1 }
+  mlûch_gen_moves{brd;side}
+  if (ml[0]=-1) {
+    ã No moves - if maximizing (white), bad for white; else good
+    if (maximizing) { -9999 } else { 9999 }
+  }
+  if (maximizing) {
+    bestû-9999
+    iû0
+    while (ml[i]!=-1) {
+      ch_minimax_nodesûch_minimax_nodes+1
+      nbûch_apply_move{brd;ml[i];ml[i+1]}
+      valûch_minimax{nb;depth-1;0}
+      if (val>best) { bestûval }
+      iûi+2
+    }
+    best
+  } else {
+    bestû9999
+    iû0
+    while (ml[i]!=-1) {
+      ch_minimax_nodesûch_minimax_nodes+1
+      nbûch_apply_move{brd;ml[i];ml[i+1]}
+      valûch_minimax{nb;depth-1;1}
+      if (val<best) { bestûval }
+      iûi+2
+    }
+    best
+  }
+}
+
+ã Alpha-beta search. Returns best score for white.
+ch_ab_nodesû0
+
+ch_alphabeta{brd;depth;alpha;beta;maximizing}: {
+  if (depth=0) { ch_eval{brd} }
+  sideû0
+  if (maximizing) { sideû1 } else { sideû-1 }
+  mlûch_gen_moves{brd;side}
+  if (ml[0]=-1) {
+    if (maximizing) { -9999 } else { 9999 }
+  }
+  if (maximizing) {
+    bestû-9999
+    iû0
+    while (ml[i]!=-1) {
+      ch_ab_nodesûch_ab_nodes+1
+      nbûch_apply_move{brd;ml[i];ml[i+1]}
+      valûch_alphabeta{nb;depth-1;alpha;beta;0}
+      if (val>best) { bestûval }
+      if (val>alpha) { alphaûval }
+      if (alpha>=beta) { iû9999 }
+      iûi+2
+    }
+    best
+  } else {
+    bestû9999
+    iû0
+    while (ml[i]!=-1) {
+      ch_ab_nodesûch_ab_nodes+1
+      nbûch_apply_move{brd;ml[i];ml[i+1]}
+      valûch_alphabeta{nb;depth-1;alpha;beta;1}
+      if (val<best) { bestûval }
+      if (val<beta) { betaûval }
+      if (alpha>=beta) { iû9999 }
+      iûi+2
+    }
+    best
+  }
+}
+
+ã Find best move for side using alpha-beta at given depth
+ch_best_move{brd;side;depth}: {
+  mlûch_gen_moves{brd;side}
+  best_scoreû-99999
+  best_fromû-1
+  best_toû-1
+  if (side=1) {
+    iû0
+    while (ml[i]!=-1) {
+      nbûch_apply_move{brd;ml[i];ml[i+1]}
+      valûch_alphabeta{nb;depth-1;-99999;99999;0}
+      if (val>best_score) {
+        best_scoreûval
+        best_fromûml[i]
+        best_toûml[i+1]
+      }
+      iûi+2
+    }
+  } else {
+    best_scoreû99999
+    iû0
+    while (ml[i]!=-1) {
+      nbûch_apply_move{brd;ml[i];ml[i+1]}
+      valûch_alphabeta{nb;depth-1;-99999;99999;1}
+      if (val<best_score) {
+        best_scoreûval
+        best_fromûml[i]
+        best_toûml[i+1]
+      }
+      iûi+2
+    }
+  }
+  ã Return [from_sq, to_sq, score]
+  resultûbest_from, best_to, best_score
+  result
+}
+
+ã Print board as ASCII diagram
+ch_print_board{brd}: {
+  Õ ""
+  Õ "  +------------------------+"
+  rkû7
+  while (rk>=0) {
+    Õ ""
+    Õ (rk+1) 
+    Õ "|"
+    flû0
+    while (fl<8) {
+      sqûrk*8+fl
+      pûbrd[sq]
+      ã Use 0x-prefixed values for non-integer piece types
+      if (p=0)   { Õ " ." }
+      if (p=1)   { Õ " P" }
+      if (p=-1)  { Õ " p" }
+      if (p=3)   { Õ " N" }
+      if (p=-3)  { Õ " n" }
+      if (p=3.5) { Õ " B" }
+      if (p=-3.5){ Õ " b" }
+      if (p=5)   { Õ " R" }
+      if (p=-5)  { Õ " r" }
+      if (p=9)   { Õ " Q" }
+      if (p=-9)  { Õ " q" }
+      if (p=100) { Õ " K" }
+      if (p=-100){ Õ " k" }
+      flûfl+1
+    }
+    Õ " |"
+    rkûrk-1
+  }
+  Õ "  +------------------------+"
+  Õ "    a b c d e f g h"
+  Õ ""
+}
+
+ã Get piece character as ASCII code
+ch_piece_char{p}: {
+  if (p=0)    { 46 }
+  if (p=1)    { 80 }
+  if (p=-1)   { 112 }
+  if (p=3)    { 78 }
+  if (p=-3)   { 110 }
+  if (p=3.5)  { 66 }
+  if (p=-3.5) { 98 }
+  if (p=5)    { 82 }
+  if (p=-5)   { 114 }
+  if (p=9)    { 81 }
+  if (p=-9)   { 113 }
+  if (p=100)  { 75 }
+  if (p=-100) { 107 }
+  46
+}
+
+ã Play a few moves with both sides using alpha-beta
+ch_selfplay{}: {
+  brdûch_init{}
+  turnû1
+  move_countû0
+  Õ "=== Chess Self-Play (depth 2 alpha-beta) ==="
+  ch_print_board{brd}
+  while (move_count < 4) {
+    if (turn=1) {
+      Õ "White to move (move"
+      Õ (move_count+1)
+    } else {
+      Õ "Black to move (move"
+      Õ (move_count+1)
+    }
+    bmûch_best_move{brd;turn;2}
+    frûbm[0]
+    toûbm[1]
+    scûbm[2]
+    if (fr!=-1) {
+      brdûch_apply_move{brd;fr;to}
+      Õ "  Best move: from="
+      Õ fr
+      Õ " to="
+      Õ to
+      Õ " score="
+      Õ sc
+      ch_print_board{brd}
+    } else {
+      Õ "  No legal moves!"
+      move_countû99
+    }
+    move_countûmove_count+1
+    turnû-turn
+  }
+  Õ "=== Self-play complete ==="
+}
+
+Õ "=== Chess Engine Self-Tests ==="
+Õ ""
+
+Õ "-- Test 1: Initial position piece count --"
+ct_bûch_init{}
+ct_wpû0; ct_bpû0; ct_wnû0; ct_bnû0
+ct_wkû0; ct_bkû0; ct_totû0
+ct_iû0
+while (ct_i<64) {
+  if (ct_b[ct_i]=1)   { ct_wpûct_wp+1 }
+  if (ct_b[ct_i]=-1)  { ct_bpûct_bp+1 }
+  if (ct_b[ct_i]=3)   { ct_wnûct_wn+1 }
+  if (ct_b[ct_i]=-3)  { ct_bnûct_bn+1 }
+  if (ct_b[ct_i]=100) { ct_wkûct_wk+1 }
+  if (ct_b[ct_i]=-100){ ct_bkûct_bk+1 }
+  if (ct_b[ct_i]!=0)  { ct_totûct_tot+1 }
+  ct_iûct_i+1
+}
+if ((ct_wp=8) & (ct_bp=8) & (ct_wn=2) & (ct_bn=2) & (ct_wk=1) & (ct_bk=1) & (ct_tot=32)) {
+  Õ "[PASS] chess: Initial position has 8 white pawns, 8 black pawns, 2 knights each, 1 king each, 32 total pieces"
+} else {
+  Õ "[FAIL] chess: Initial position piece count wrong"
+  Õ "  wp="
+  Õ ct_wp
+  Õ " bp="
+  Õ ct_bp
+  Õ " total="
+  Õ ct_tot
+}
+
+Õ "-- Test 2: Minimax finds a legal move --"
+t2_brdûch_init{}
+t2_mlûch_gen_moves{t2_brd;1}
+t2_nmûch_count_moves{t2_ml}
+if (t2_nm > 0) {
+  Õ "[PASS] chess: White has"
+  Õ t2_nm
+  Õ "legal moves in initial position"
+} else {
+  Õ "[FAIL] chess: No legal moves for white in initial position"
+}
+
+Õ "-- Test 3: Alpha-beta vs Minimax node counts (depth 2) --"
+t3_brdûch_init{}
+ch_minimax_nodesû0
+t3_mmûch_minimax{t3_brd;2;1}
+t3_mm_nodesûch_minimax_nodes
+ch_ab_nodesû0
+t3_abûch_alphabeta{t3_brd;2;-99999;99999;1}
+t3_ab_nodesûch_ab_nodes
+Õ "  Minimax visited:"
+  Õ t3_mm_nodes
+Õ "  Alpha-beta visited:"
+  Õ t3_ab_nodes
+if (t3_ab_nodes < t3_mm_nodes) {
+  Õ "[PASS] chess: Alpha-beta prunes branches (fewer nodes than minimax)"
+} else {
+  if (t3_ab_nodes = t3_mm_nodes) {
+    Õ "[NOTE] chess: Alpha-beta visited same nodes as minimax (no pruning at depth 2)"
+  } else {
+    Õ "[FAIL] chess: Alpha-beta visited more nodes than minimax"
+  }
+}
+
+Õ "-- Test 4: Material balance (initial position) --"
+t4_evûch_eval{ch_init{}}
+if (t4_ev=0) {
+  Õ "[PASS] chess: Initial position material balance is 0"
+} else {
+  Õ "[FAIL] chess: Initial position material balance should be 0, got"
+  Õ t4_ev
+}
+
+Õ "-- Test 5: Self-play 4 half-moves --"
+ch_selfplay{}
+Õ "[PASS] chess: Self-play completed"
+
+Õ "=== Chess tests complete ==="

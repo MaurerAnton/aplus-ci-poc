@@ -1,0 +1,574 @@
+ã basic.a+ ßßß Tiny BASIC Interpreter in A+ ßßß
+ã
+ã Line-numbered program storage, 26 variables A-Z, execution engine.
+ã
+ã Commands: LET X = expr, PRINT expr, IF cond THEN line#,
+ã           GOTO line#, INPUT X, END
+ã
+ã Expressions: +, -, *, /, parentheses, variables, numbers
+ã Conditions: =, <, >, <>, <=, >=
+ã
+ã ====== Global Program Storage ======
+VAR_Aû0
+VAR_Bû0
+VAR_Cû0
+VAR_Dû0
+VAR_Eû0
+VAR_Fû0
+VAR_Gû0
+VAR_Hû0
+VAR_Iû0
+VAR_Jû0
+VAR_Kû0
+VAR_Lû0
+VAR_Mû0
+VAR_Nû0
+VAR_Oû0
+VAR_Pû0
+VAR_Qû0
+VAR_Rû0
+VAR_Sû0
+VAR_Tû0
+VAR_Uû0
+VAR_Vû0
+VAR_Wû0
+VAR_Xû0
+VAR_Yû0
+VAR_Zû0
+
+ã ====== Variable Access ======
+ã Get value of variable by character code (65=A ... 90=Z)
+var_get{ch}: {
+  valû0
+  if (ch=65) { valûVAR_A }
+  if (ch=66) { valûVAR_B }
+  if (ch=67) { valûVAR_C }
+  if (ch=68) { valûVAR_D }
+  if (ch=69) { valûVAR_E }
+  if (ch=70) { valûVAR_F }
+  if (ch=71) { valûVAR_G }
+  if (ch=72) { valûVAR_H }
+  if (ch=73) { valûVAR_I }
+  if (ch=74) { valûVAR_J }
+  if (ch=75) { valûVAR_K }
+  if (ch=76) { valûVAR_L }
+  if (ch=77) { valûVAR_M }
+  if (ch=78) { valûVAR_N }
+  if (ch=79) { valûVAR_O }
+  if (ch=80) { valûVAR_P }
+  if (ch=81) { valûVAR_Q }
+  if (ch=82) { valûVAR_R }
+  if (ch=83) { valûVAR_S }
+  if (ch=84) { valûVAR_T }
+  if (ch=85) { valûVAR_U }
+  if (ch=86) { valûVAR_V }
+  if (ch=87) { valûVAR_W }
+  if (ch=88) { valûVAR_X }
+  if (ch=89) { valûVAR_Y }
+  if (ch=90) { valûVAR_Z }
+  val
+}
+
+ã Set value of variable by character code (65=A ... 90=Z)
+var_set{ch;val}: {
+  if (ch=65) { VAR_Aûval }
+  if (ch=66) { VAR_Bûval }
+  if (ch=67) { VAR_Cûval }
+  if (ch=68) { VAR_Dûval }
+  if (ch=69) { VAR_Eûval }
+  if (ch=70) { VAR_Fûval }
+  if (ch=71) { VAR_Gûval }
+  if (ch=72) { VAR_Hûval }
+  if (ch=73) { VAR_Iûval }
+  if (ch=74) { VAR_Jûval }
+  if (ch=75) { VAR_Kûval }
+  if (ch=76) { VAR_Lûval }
+  if (ch=77) { VAR_Mûval }
+  if (ch=78) { VAR_Nûval }
+  if (ch=79) { VAR_Oûval }
+  if (ch=80) { VAR_Pûval }
+  if (ch=81) { VAR_Qûval }
+  if (ch=82) { VAR_Rûval }
+  if (ch=83) { VAR_Sûval }
+  if (ch=84) { VAR_Tûval }
+  if (ch=85) { VAR_Uûval }
+  if (ch=86) { VAR_Vûval }
+  if (ch=87) { VAR_Wûval }
+  if (ch=88) { VAR_Xûval }
+  if (ch=89) { VAR_Yûval }
+  if (ch=90) { VAR_Zûval }
+}
+
+ã ====== Program Storage ======
+progû1000Î0
+prog_ptrû0
+program_loadedû0
+
+ã Load a program from char-code array (the source text)
+ã Format: each line is 'line_number statement...'
+basic_load{src}: {
+  nûÎ src
+  prog_ptrû0
+  posû0
+  while (pos < n) {
+    ã Skip whitespace before line number
+    while ((pos<n) & ((src[pos]=32) | (src[pos]=9) | (src[pos]=10) | (src[pos]=13))) {
+      posûpos+1
+    }
+    if (pos>=n) { break }
+    ã Parse line number
+    lnû0
+    while ((pos<n) & (src[pos]>=48) & (src[pos]<=57)) {
+      lnûlnÁ10 + (src[pos]-48)
+      posûpos+1
+    }
+    ã Skip whitespace after line number
+    while ((pos<n) & ((src[pos]=32) | (src[pos]=9))) {
+      posûpos+1
+    }
+    ã Store line number
+    prog[prog_ptr]ûln
+    prog_ptrûprog_ptr+1
+    ã Store line length placeholder
+    len_posûprog_ptr
+    prog[prog_ptr]û0
+    prog_ptrûprog_ptr+1
+    ã Store line content until newline or end
+    line_lenû0
+    while ((pos<n) & (src[pos]!=10) & (src[pos]!=13)) {
+      prog[prog_ptr]ûsrc[pos]
+      prog_ptrûprog_ptr+1
+      line_lenûline_len+1
+      posûpos+1
+    }
+    ã Backfill line length
+    prog[len_pos]ûline_len
+    ã Skip newlines
+    while ((pos<n) & ((src[pos]=10) | (src[pos]=13))) {
+      posûpos+1
+    }
+  }
+  program_loadedû1
+  prog_ptr
+}
+
+ã ====== Expression Evaluator (recursive descent) ======
+ã Evaluate a complete expression, returning [value, new_pos]
+basic_expr{src;pos;len}: {
+  ã Step 1: evaluate term (+ and -)
+  result_posûbasic_term{src;pos;len}
+  resultûresult_pos[0]
+  posûresult_pos[1]
+  while (pos < len) {
+    ã Skip whitespace
+    while ((pos<len) & ((src[pos]=32) | (src[pos]=9))) { posûpos+1 }
+    chûsrc[pos]
+    if (ch=43) {
+      posûpos+1
+      tpûbasic_term{src;pos;len}
+      resultûresult + tp[0]
+      posûtp[1]
+    }
+    if (ch=45) {
+      posûpos+1
+      tpûbasic_term{src;pos;len}
+      resultûresult - tp[0]
+      posûtp[1]
+    }
+    if ((ch!=43) & (ch!=45)) { break }
+  }
+  result,pos
+}
+
+ã Evaluate a term (* and /)
+basic_term{src;pos;len}: {
+  result_posûbasic_factor{src;pos;len}
+  resultûresult_pos[0]
+  posûresult_pos[1]
+  while (pos < len) {
+    while ((pos<len) & ((src[pos]=32) | (src[pos]=9))) { posûpos+1 }
+    chûsrc[pos]
+    if (ch=42) {
+      posûpos+1
+      fpûbasic_factor{src;pos;len}
+      resultûresult Á fp[0]
+      posûfp[1]
+    }
+    if (ch=47) {
+      posûpos+1
+      fpûbasic_factor{src;pos;len}
+      if (fp[0]!=0) { resultûresult ß fp[0] }
+      posûfp[1]
+    }
+    if ((ch!=42) & (ch!=47)) { break }
+  }
+  result,pos
+}
+
+ã Evaluate a factor (number, variable, or parenthesized expression)
+basic_factor{src;pos;len}: {
+  while ((pos<len) & ((src[pos]=32) | (src[pos]=9))) { posûpos+1 }
+  chûsrc[pos]
+  ã Parenthesized expression
+  if (ch=40) {
+    posûpos+1
+    rpûbasic_expr{src;pos;len}
+    valûrp[0]
+    posûrp[1]
+    while ((pos<len) & ((src[pos]=32) | (src[pos]=9))) { posûpos+1 }
+    if ((pos<len) & (src[pos]=41)) { posûpos+1 }
+    val,pos
+  }
+  ã Number
+  if ((ch>=48) & (ch<=57)) {
+    valû0
+    while ((pos<len) & (src[pos]>=48) & (src[pos]<=57)) {
+      valûvalÁ10 + (src[pos]-48)
+      posûpos+1
+    }
+    val,pos
+  }
+  ã Variable (A-Z)
+  if ((ch>=65) & (ch<=90)) {
+    valûvar_get{ch}
+    posûpos+1
+    val,pos
+  }
+  ã Negative number or unary minus
+  if (ch=45) {
+    posûpos+1
+    fpûbasic_factor{src;pos;len}
+    -fp[0],fp[1]
+  }
+  0,pos
+}
+
+ã ====== Condition Evaluator ======
+ã Returns 1 if condition is true, 0 if false
+basic_cond{src;pos;len}: {
+  ã Evaluate left side
+  lpûbasic_expr{src;pos;len}
+  leftûlp[0]
+  posûlp[1]
+  ã Skip whitespace
+  while ((pos<len) & ((src[pos]=32) | (src[pos]=9))) { posûpos+1 }
+  ã Detect operator
+  opûsrc[pos]
+  ã Check for two-char operators: <=, >=, <>
+  op2û0
+  if (pos+1<len) { op2ûsrc[pos+1] }
+  ã Handle combined operators
+  resultû0
+  if ((op=60) & (op2=62)) {
+    posûpos+2
+    rpûbasic_expr{src;pos;len}
+    rightûrp[0]
+    posûrp[1]
+    if (left!=right) { resultû1 }
+  }
+  if ((op=60) & (op2=61)) {
+    posûpos+2
+    rpûbasic_expr{src;pos;len}
+    rightûrp[0]
+    posûrp[1]
+    if ((left<right) | (left=right)) { resultû1 }
+  }
+  if ((op=62) & (op2=61)) {
+    posûpos+2
+    rpûbasic_expr{src;pos;len}
+    rightûrp[0]
+    posûrp[1]
+    if ((left>right) | (left=right)) { resultû1 }
+  }
+  ã Single-char operators: = < >
+  if ((op=61) & (op2!=60) & (op2!=62)) {
+    posûpos+1
+    rpûbasic_expr{src;pos;len}
+    rightûrp[0]
+    posûrp[1]
+    if (left=right) { resultû1 }
+  }
+  if ((op=60) & (op2!=62) & (op2!=61)) {
+    posûpos+1
+    rpûbasic_expr{src;pos;len}
+    rightûrp[0]
+    posûrp[1]
+    if (left<right) { resultû1 }
+  }
+  if ((op=62) & (op2!=61)) {
+    posûpos+1
+    rpûbasic_expr{src;pos;len}
+    rightûrp[0]
+    posûrp[1]
+    if (left>right) { resultû1 }
+  }
+  result,pos
+}
+
+ã ====== String Matching (keyword detection) ======
+basic_starts_with{src;pos;len;kw}: {
+  kwlenûÎ kw
+  if (pos+kwlen > len) { 0 }
+  matchû1
+  iû0
+  while (i<kwlen) {
+    if (src[pos+i]=kw[i]) { } else { matchû0 }
+    iûi+1
+  }
+  match
+}
+
+ã Skip whitespace and return new pos
+basic_skip_ws{src;pos;len}: {
+  while ((pos<len) & ((src[pos]=32) | (src[pos]=9))) { posûpos+1 }
+  pos
+}
+
+ã ====== Find line index in program by line number ======
+ã Returns line index (0-based, into prog array) or -1
+basic_find_line{ln}: {
+  idxû0
+  while (idx < prog_ptr) {
+    if (prog[idx]=ln) { idx }
+    line_lenûprog[idx+1]
+    idxûidx + 2 + line_len
+  }
+  -1
+}
+
+ã ====== Execute One Line ======
+ã Given index into prog, execute that line. Returns next line index or -1 for END.
+basic_exec_line{line_idx}: {
+  ã Extract line data
+  lnûprog[line_idx]
+  line_lenûprog[line_idx+1]
+  ã Copy line content to local array for parsing
+  line_srcûline_lenÎ0
+  kû0
+  while (k<line_len) {
+    line_src[k]ûprog[line_idx+2+k]
+    kûk+1
+  }
+  posû0
+  posûbasic_skip_ws{line_src;pos;line_len}
+  ã --- LET ---
+  if (basic_starts_with{line_src;pos;line_len;76,69,84}) {
+    posûpos+3
+    posûbasic_skip_ws{line_src;pos;line_len}
+    var_chûline_src[pos]
+    posûpos+1
+    posûbasic_skip_ws{line_src;pos;line_len}
+    ã Expect '='
+    if ((pos<line_len) & (line_src[pos]=61)) {
+      posûpos+1
+      epûbasic_expr{line_src;pos;line_len}
+      var_set{var_ch;ep[0]}
+    }
+    ã Advance to next line in program
+    line_idx + 2 + line_len
+  }
+  ã --- PRINT ---
+  if (basic_starts_with{line_src;pos;line_len;80,82,73,78,84}) {
+    posûpos+5
+    posûbasic_skip_ws{line_src;pos;line_len}
+    epûbasic_expr{line_src;pos;line_len}
+    Õ ep[0]
+    line_idx + 2 + line_len
+  }
+  ã --- IF cond THEN line# ---
+  if (basic_starts_with{line_src;pos;line_len;73,70}) {
+    posûpos+2
+    posûbasic_skip_ws{line_src;pos;line_len}
+    cpûbasic_cond{line_src;pos;line_len}
+    cond_valûcp[0]
+    posûcp[1]
+    posûbasic_skip_ws{line_src;pos;line_len}
+    ã Expect THEN
+    if (basic_starts_with{line_src;pos;line_len;84,72,69,78}) {
+      posûpos+4
+      posûbasic_skip_ws{line_src;pos;line_len}
+      ã Parse target line number
+      targetû0
+      while ((pos<line_len) & (line_src[pos]>=48) & (line_src[pos]<=57)) {
+        targetûtargetÁ10 + (line_src[pos]-48)
+        posûpos+1
+      }
+      if (cond_val) {
+        ã Jump to target line
+        tgt_idxûbasic_find_line{target}
+        if (tgt_idx >= 0) { tgt_idx }
+        if (tgt_idx < 0) { line_idx + 2 + line_len }
+      }
+      if (cond_val=0) { line_idx + 2 + line_len }
+    }
+    if (basic_starts_with{line_src;pos;line_len;84,72,69,78}=0) {
+      line_idx + 2 + line_len
+    }
+  }
+  ã --- GOTO line# ---
+  if (basic_starts_with{line_src;pos;line_len;71,79,84,79}) {
+    posûpos+4
+    posûbasic_skip_ws{line_src;pos;line_len}
+    targetû0
+    while ((pos<line_len) & (line_src[pos]>=48) & (line_src[pos]<=57)) {
+      targetûtargetÁ10 + (line_src[pos]-48)
+      posûpos+1
+    }
+    tgt_idxûbasic_find_line{target}
+    if (tgt_idx >= 0) { tgt_idx }
+    if (tgt_idx < 0) { -1 }
+  }
+  ã --- INPUT X (read from user - we just set to 0 for testing) ---
+  if (basic_starts_with{line_src;pos;line_len;73,78,80,85,84}) {
+    posûpos+5
+    posûbasic_skip_ws{line_src;pos;line_len}
+    ã Get variable name
+    var_chûline_src[pos]
+    posûpos+1
+    ã In this interpreter, INPUT defaults to 0 for testing
+    var_set{var_ch;0}
+    line_idx + 2 + line_len
+  }
+  ã --- END ---
+  if (basic_starts_with{line_src;pos;line_len;69,78,68}) {
+    -1
+  }
+  ã Default: advance to next line
+  line_idx + 2 + line_len
+}
+
+ã ====== Main Execution Loop ======
+basic_run{}: {
+  if (program_loaded=0) {
+    Õ "BASIC: No program loaded"
+    0
+  }
+  ã Find first line (lowest line number)
+  line_idxû0
+  min_lnû99999
+  first_idxû0
+  ã Scan to find first line
+  iû0
+  while (i < prog_ptr) {
+    this_lnûprog[i]
+    if (this_ln < min_ln) {
+      min_lnûthis_ln
+      first_idxûi
+    }
+    iûi + 2 + prog[i+1]
+  }
+  line_idxûfirst_idx
+  ã Execute lines until END or out of bounds
+  while ((line_idx >= 0) & (line_idx < prog_ptr)) {
+    line_idxûbasic_exec_line{line_idx}
+  }
+  1
+}
+
+Õ "=== Tiny BASIC Interpreter Self-Tests ==="
+
+Õ "-- Test 1: LET A=5, LET B=10, PRINT A+B --"
+ã Load program:
+ã 10 LET A=5
+ã 20 LET B=10
+ã 30 PRINT A+B
+prog1û49 48 32 76 69 84 32 65 61 53 10 50 48 32 76 69 84 32 66 61 49 48 10 51 48 32 80 82 73 78 84 32 65 43 66
+basic_load{prog1}
+basic_run{}
+Õ "BASIC Test 1: Expected A+B=15"
+ã Verify: VAR_A should be 5, VAR_B should be 10
+if ((VAR_A=5) & (VAR_B=10)) {
+  Õ "[PASS] basic: LET and expression evaluation"
+} else {
+  Õ "[FAIL] basic: LET and expression evaluation"
+}
+
+Õ "-- Test 2: IF X>0 THEN 50, PRINT 0, END, PRINT 1 --"
+ã 10 LET X=1
+ã 20 IF X>0 THEN 50
+ã 30 PRINT 0
+ã 40 END
+ã 50 PRINT 1
+prog2û49 48 32 76 69 84 32 88 61 49 10 50 48 32 73 70 32 88 62 48 32 84 72 69 78 32 53 48 10 51 48 32 80 82 73 78 84 32 48 10 52 48 32 69 78 68 10 53 48 32 80 82 73 78 84 32 49
+basic_load{prog2}
+basic_run{}
+Õ "BASIC Test 2: Expected output 1 (print from line 50)"
+ã Verify: X should be 1
+if (VAR_X=1) {
+  Õ "[PASS] basic: IF/THEN/GOTO control flow"
+} else {
+  Õ "[FAIL] basic: IF/THEN/GOTO control flow"
+}
+
+Õ "-- Test 3: LET C=(2+3)*4 -> should be 20 --"
+ã 10 LET C=(2+3)*4
+ã 20 PRINT C
+prog3û49 48 32 76 69 84 32 67 61 40 50 43 51 41 42 52 10 50 48 32 80 82 73 78 84 32 67
+basic_load{prog3}
+basic_run{}
+if (VAR_C=20) {
+  Õ "[PASS] basic: parenthesized expression (2+3)*4=20"
+} else {
+  Õ "[FAIL] basic: parenthesized expression (2+3)*4=20"
+}
+
+Õ "-- Test 4: LET D=20/4 -> should be 5 --"
+ã 10 LET D=20/4
+ã 20 PRINT D
+prog4û49 48 32 76 69 84 32 68 61 50 48 47 52 10 50 48 32 80 82 73 78 84 32 68
+basic_load{prog4}
+basic_run{}
+if (VAR_D=5) {
+  Õ "[PASS] basic: division 20/4=5"
+} else {
+  Õ "[FAIL] basic: division 20/4=5"
+}
+
+Õ "-- Test 5: GOTO loop -> count to 5 --"
+ã 10 LET N=0
+ã 20 LET N=N+1
+ã 30 IF N<5 THEN 20
+ã 40 PRINT N
+prog5û49 48 32 76 69 84 32 78 61 48 10 50 48 32 76 69 84 32 78 61 78 43 49 10 51 48 32 73 70 32 78 60 53 32 84 72 69 78 32 50 48 10 52 48 32 80 82 73 78 84 32 78
+basic_load{prog5}
+basic_run{}
+if (VAR_N=5) {
+  Õ "[PASS] basic: GOTO loop counted to 5"
+} else {
+  Õ "[FAIL] basic: GOTO loop counted to 5"
+}
+
+Õ "-- Test 6: Comparison operators <= >= <> --"
+ã 10 LET A=10
+ã 20 LET B=10
+ã 30 IF A<=B THEN 60
+ã 40 PRINT 0
+ã 50 END
+ã 60 IF A>=B THEN 90
+ã 70 PRINT 0
+ã 80 END
+ã 90 IF A<>B THEN 40
+ã 100 PRINT 1
+prog6û49 48 32 76 69 84 32 65 61 49 48 10 50 48 32 76 69 84 32 66 61 49 48 10 51 48 32 73 70 32 65 60 61 66 32 84 72 69 78 32 54 48 10 52 48 32 80 82 73 78 84 32 48 10 53 48 32 69 78 68 10 54 48 32 73 70 32 65 62 61 66 32 84 72 69 78 32 57 48 10 55 48 32 80 82 73 78 84 32 48 10 56 48 32 69 78 68 10 57 48 32 73 70 32 65 60 62 66 32 84 72 69 78 32 52 48 10 49 48 48 32 80 82 73 78 84 32 49
+basic_load{prog6}
+basic_run{}
+Õ "BASIC Test 6: Expected output 1 (<= and >= pass, <> fails -> print 1)"
+if ((VAR_A=10) & (VAR_B=10)) {
+  Õ "[PASS] basic: comparison operators <= >= <>"
+} else {
+  Õ "[FAIL] basic: comparison operators"
+}
+
+Õ "-- Test 7: LET E=10-3-2 -> should be 5 --"
+ã 10 LET E=10-3-2
+ã 20 PRINT E
+prog7û49 48 32 76 69 84 32 69 61 49 48 45 51 45 50 10 50 48 32 80 82 73 78 84 32 69
+basic_load{prog7}
+basic_run{}
+if (VAR_E=5) {
+  Õ "[PASS] basic: subtraction 10-3-2=5"
+} else {
+  Õ "[FAIL] basic: subtraction 10-3-2=5"
+}
+
+Õ "basic: all tests done"

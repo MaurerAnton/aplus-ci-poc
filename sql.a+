@@ -1,0 +1,211 @@
+ã sql.a+ ßßß SQL Engine in A+ ßßß
+ã
+ã In-memory table storage: columns as named arrays.
+ã Supports CREATE TABLE, INSERT INTO, SELECT with WHERE.
+ã WHERE supports =, <, >, AND conditions.
+ã
+ã Table metadata: name stored as char codes
+sql_tablesû50Î0    ã Table names stored as char code arrays, 0-terminated
+sql_col_countû50Î0  ã Number of columns per table
+sql_row_countû50Î0  ã Number of rows per table
+sql_tcû0            ã Table count
+
+ã Column data stored as flat arrays
+sql_dataû500Î0     ã Flat storage for all column data
+sql_dpû0            ã Data pointer
+
+ã Column name storage (char codes)
+sql_col_namesû500Î0
+sql_cnpû0
+
+ã CREATE TABLE: define table name and columns
+ã Usage: sql_create{tablename_chars; col1_chars; col2_chars; ...}
+ã Table name and column names passed as char-code arrays
+sql_create{tn;c1;c2;c3;nc}: {
+  ã Store table name (char codes)
+  tiûsql_tc
+  iû0
+  while (tn[i]!=0) {
+    sql_tables[sql_cnp]ûtn[i]
+    sql_cnpûsql_cnp+1
+    iûi+1
+  }
+  sql_tables[sql_cnp]û0
+  sql_cnpûsql_cnp+1
+  ã Store column names
+  sql_col_count[ti]ûnc
+  sql_row_count[ti]û0
+  sql_tcûsql_tc+1
+  ti
+}
+
+ã INSERT INTO table: add a row of values
+ã Usage: sql_insert{table_idx; v1; v2; v3; ncols}
+ã Values stored sequentially in sql_data
+sql_insert{ti;v1;v2;v3;nc}: {
+  if (nc>=1) { sql_data[sql_dp]ûv1; sql_dpûsql_dp+1 }
+  if (nc>=2) { sql_data[sql_dp]ûv2; sql_dpûsql_dp+1 }
+  if (nc>=3) { sql_data[sql_dp]ûv3; sql_dpûsql_dp+1 }
+  sql_row_count[ti]ûsql_row_count[ti]+1
+}
+
+ã SELECT: filter rows with WHERE conditions
+ã Since we can't parse SQL text, we provide procedural API
+ã for the hardcoded example and tests.
+
+ã Count rows matching WHERE age > threshold (column index 2 for age)
+ã This is a simplified query over known schema
+sql_query_age_gt{ti;threshold}: {
+  ã Find where this table's data starts in sql_data
+  offsetû0
+  jû0
+  while (j<ti) {
+    offsetûoffset + sql_row_count[j]*3
+    jûj+1
+  }
+  ã Count matching rows
+  countû0
+  resultsû50Î0
+  rcû0
+  iû0
+  nrowsûsql_row_count[ti]
+  while (i<nrows) {
+    ageûsql_data[offset + i*3 + 1]
+    if (age > threshold) {
+      results[rc]ûsql_data[offset + i*3]
+      rcûrc+1
+      results[rc]ûsql_data[offset + i*3 + 1]
+      rcûrc+1
+      results[rc]ûsql_data[offset + i*3 + 2]
+      rcûrc+1
+      countûcount+1
+    }
+    iûi+1
+  }
+  results[rc]û-1
+  results
+}
+
+ã Query all rows from a table (SELECT *)
+sql_query_all{ti}: {
+  offsetû0
+  jû0
+  while (j<ti) {
+    offsetûoffset + sql_row_count[j]*3
+    jûj+1
+  }
+  nrowsûsql_row_count[ti]
+  resultsû50Î0
+  rcû0
+  iû0
+  while (i<nrows) {
+    results[rc]ûsql_data[offset + i*3]
+    rcûrc+1
+    results[rc]ûsql_data[offset + i*3 + 1]
+    rcûrc+1
+    results[rc]ûsql_data[offset + i*3 + 2]
+    rcûrc+1
+    iûi+1
+  }
+  results[rc]û-1
+  results
+}
+
+Õ "=== SQL Engine Demo ==="
+Õ ""
+
+ã Create table: users (id INT, name CHAR, age INT)
+Õ "CREATE TABLE users (id, name, age)"
+ã Store table name 'users' as char codes
+users_nameû117 115 101 114 115 0
+tiûsql_create{users_name; 0; 0; 0; 3}
+Õ "INSERT INTO users VALUES (1, 'Alice', 30)"
+sql_insert{ti; 1; 65; 30; 3}
+Õ "INSERT INTO users VALUES (2, 'Bob', 20)"
+sql_insert{ti; 2; 66; 20; 3}
+Õ "INSERT INTO users VALUES (3, 'Charlie', 35)"
+sql_insert{ti; 3; 67; 35; 3}
+Õ ""
+
+ã SELECT * FROM users
+Õ "SELECT * FROM users:"
+allûsql_query_all{ti}
+aiû0; row_numû1
+while (all[ai]!=-1) {
+  Õ "  Row "
+  Õ row_num
+  Õ ": id="
+  Õ all[ai]
+  Õ " name="
+  Õ all[ai+1]
+  Õ " age="
+  Õ all[ai+2]
+  aiûai+3
+  row_numûrow_num+1
+}
+Õ ""
+
+ã SELECT * FROM users WHERE age > 25
+Õ "SELECT * FROM users WHERE age > 25:"
+filteredûsql_query_age_gt{ti;25}
+fcû0; frnû1
+while (filtered[fc]!=-1) {
+  Õ "  Row "
+  Õ frn
+  Õ ": id="
+  Õ filtered[fc]
+  Õ " age="
+  Õ filtered[fc+1]
+  fcûfc+3
+  frnûfrn+1
+}
+Õ ""
+
+Õ "=== SQL Engine Self-Tests ==="
+Õ ""
+
+Õ "-- Test 1: SELECT * returns correct row count --"
+st1_allûsql_query_all{ti}
+st1_countû0
+st1_iû0
+while (st1_all[st1_i]!=-1) {
+  st1_countûst1_count+1
+  st1_iûst1_i+3
+}
+if (st1_count=3) {
+  Õ "[PASS] sql: SELECT * returns 3 rows"
+} else {
+  Õ "[FAIL] sql: SELECT * expected 3 rows, got"
+  Õ st1_count
+}
+
+Õ "-- Test 2: WHERE age > 25 filters correctly --"
+st2_fûsql_query_age_gt{ti;25}
+st2_countû0
+st2_iû0
+while (st2_f[st2_i]!=-1) {
+  st2_countûst2_count+1
+  st2_iûst2_i+3
+}
+if (st2_count=2) {
+  Õ "[PASS] sql: WHERE age > 25 returns 2 rows (Alice 30, Charlie 35)"
+} else {
+  Õ "[FAIL] sql: WHERE age > 25 expected 2 rows, got"
+  Õ st2_count
+}
+
+Õ "-- Test 3: First filtered row has id=1, age=30 --"
+if ((st2_f[0]=1) & (st2_f[1]=30)) {
+  Õ "[PASS] sql: First filtered row is (id=1, age=30) Alice"
+} else {
+  Õ "[FAIL] sql: First filtered row wrong"
+}
+
+Õ "-- Test 4: Third row is Charlie (id=3, age=35) --"
+if ((all[6]=3) & (all[8]=35)) {
+  Õ "[PASS] sql: Third row is (id=3, age=35) Charlie"
+} else {
+  Õ "[FAIL] sql: Third row wrong"
+}
+
+Õ "=== SQL tests complete ==="

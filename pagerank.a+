@@ -1,0 +1,131 @@
+ã pagerank.a+ ßßß PageRank Algorithm in A+ ßßß
+ã
+ã 5-node web graph: page 0 -> 1,2; page 1 -> 2; page 2 -> 0,3;
+ã page 3 -> 0,4; page 4 -> 2
+ã Damping factor d = 0.85 (stored as integer: 85 with scale 100)
+ã 20 iterations of power method
+ã
+ã Representation note: all values stored scaled by 10000
+ã   d = 8500 (= 0.85 * 10000)
+ã   (1-d)/N = 1500/5 = 300 (= 0.03 * 10000)
+ã   Initial rank: 2000 each (= 0.20 * 10000)
+ã
+ã Adjacency matrix (5x5 flat, row-major):
+Nû5
+SCALEû10000
+d_scaledû8500
+teleportû300
+adjû0 1 1 0 0 0 0 1 0 0 1 0 0 1 0 1 0 0 0 1 0 0 1 0 0
+
+ã Compute out-degree for each page (number of outgoing links)
+outdegûNÎ0
+iû0
+while (i<N) {
+  cntû0
+  jû0
+  while (j<N) {
+    cntûcnt + adj[iÁN+j]
+    jûj+1
+  }
+  outdeg[i]ûcnt
+  iûi+1
+}
+
+ã Build transition probability matrix M (scaled by SCALE)
+M_matûNÁNÎ0
+iû0
+while (i<N) {
+  odûoutdeg[i]
+  if (od>0) {
+    probûSCALEßod
+    jû0
+    while (j<N) {
+      if (adj[iÁN+j]) {
+        M_mat[iÁN+j]ûprob
+      }
+      jûj+1
+    }
+  }
+  if (od=0) {
+    probûSCALEßN
+    jû0
+    while (j<N) {
+      M_mat[iÁN+j]ûprob
+      jûj+1
+    }
+  }
+  iûi+1
+}
+
+ã Initialize rank vector: uniform 1/N for each page
+rankûNÎinit_rank
+
+Õ "PageRank: initial ranks (uniform):"
+Õ rank
+
+ã Power iteration: 20 iterations
+iterû0
+while (iter<20) {
+  new_rankûNÎ0
+  ã Compute M.T * old_rank (incoming probability mass)
+  jû0
+  while (j<N) {
+    incomingû0
+    iû0
+    while (i<N) {
+      incomingûincoming + (M_mat[iÁN+j] Á rank[i]) ß SCALE
+      iûi+1
+    }
+    new_rank[j]û(d_scaled Á incoming) ß SCALE + teleport
+    jûj+1
+  }
+  rankûnew_rank
+  iterûiter+1
+}
+
+Õ "PageRank: final ranks after 20 iterations:"
+Õ rank
+
+ã === SELF-TEST: Ranks sum to 1 (SCALE) ===
+rank_sumû0
+iû0
+while (i<N) {
+  rank_sumûrank_sum + rank[i]
+  iûi+1
+}
+Õ "PageRank: sum of ranks (target 10000):"
+Õ rank_sum
+diffûrank_sum - SCALE
+if (diff < 0) { diffû-diff }
+if (diff <= 50) {
+  Õ "[PASS] pagerank: ranks sum to 1 (within tolerance)"
+} else {
+  Õ "[FAIL] pagerank: ranks do not sum to 1"
+}
+
+ã === SELF-TEST: Page with most inbound links (page 2) has highest rank ===
+max_idxû0
+max_valûrank[0]
+iû1
+while (i<N) {
+  if (rank[i] > max_val) {
+    max_valûrank[i]
+    max_idxûi
+  }
+  iûi+1
+}
+Õ "PageRank: page with highest rank is page:"
+Õ max_idx
+if (max_idx=2) {
+  Õ "[PASS] pagerank: page 2 (most in-links) has highest rank"
+} else {
+  Õ "[FAIL] pagerank: expected page 2 to have highest rank"
+}
+
+if (rank[2] > rank[1]) {
+  Õ "[PASS] pagerank: page 2 outranks page 1 (more inbound links)"
+} else {
+  Õ "[FAIL] pagerank: page 2 should outrank page 1"
+}
+
+Õ "pagerank: all tests done"
