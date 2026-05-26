@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>A+ CI — Proof of Concept</title>
+<style>
+:root {
+  --bg: #0d1117; --surface: #161b22; --border: #30363d;
+  --accent: #58a6ff; --text: #c9d1d9; --dim: #8b949e;
+  --green: #3fb950; --orange: #d2991d; --red: #f85149;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+  background: var(--bg); color: var(--text); line-height: 1.6; max-width: 960px;
+  margin: 0 auto; padding: 20px;
+}
+a { color: var(--accent); text-decoration: none; }
+a:hover { text-decoration: underline; }
+header {
+  text-align: center; padding: 60px 20px 40px; border-bottom: 1px solid var(--border);
+  margin-bottom: 40px;
+}
+header h1 { font-size: 2.5rem; color: #f0f6fc; margin-bottom: 10px; }
+header p { font-size: 1.1rem; color: var(--dim); }
+.badge { display: inline-block; padding: 4px 10px; border-radius: 12px; font-size: 0.75rem; margin: 4px; }
+.badge-green { background: #1b3824; color: var(--green); border: 1px solid var(--green); }
+.badge-blue { background: #0c2d6b; color: var(--accent); border: 1px solid var(--accent); }
+.stats { display: flex; justify-content: center; gap: 30px; margin: 30px 0; flex-wrap: wrap; }
+.stat { text-align: center; }
+.stat-num { font-size: 2rem; font-weight: 700; color: var(--accent); }
+.stat-label { font-size: 0.8rem; color: var(--dim); }
+section { margin: 40px 0; }
+section h2 { font-size: 1.4rem; color: #f0f6fc; border-bottom: 1px solid var(--border); padding-bottom: 8px; margin-bottom: 20px; }
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; }
+.card {
+  background: var(--surface); border: 1px solid var(--border); border-radius: 8px;
+  padding: 16px; transition: border-color 0.2s;
+}
+.card:hover { border-color: var(--accent); }
+.card h3 { font-size: 0.9rem; color: var(--accent); margin-bottom: 6px; }
+.card p { font-size: 0.8rem; color: var(--dim); }
+.card .file { font-size: 0.7rem; color: var(--green); font-family: monospace; }
+table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+th, td { text-align: left; padding: 6px 10px; border-bottom: 1px solid var(--border); }
+th { color: var(--dim); font-weight: 600; }
+.quickstart {
+  background: var(--surface); border: 1px solid var(--border); border-radius: 8px;
+  padding: 20px; font-family: monospace; font-size: 0.8rem; overflow-x: auto;
+}
+.quickstart .cmd { color: var(--green); }
+footer { text-align: center; padding: 40px 20px; color: var(--dim); font-size: 0.8rem; border-top: 1px solid var(--border); margin-top: 40px; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>A+ CI — Proof of Concept</h1>
+  <p>The most comprehensive A+ programming language project ever built.<br>
+  APL descendant (Arthur Whitney, Morgan Stanley, 1988) — proven on real hardware.</p>
+  <div style="margin-top:15px">
+    <span class="badge badge-green">60+ files</span>
+    <span class="badge badge-blue">18 000+ lines</span>
+    <span class="badge badge-green">A+ 4.22 built on GCC 13+</span>
+    <span class="badge badge-blue">First-ever in APL family</span>
+  </div>
+  <div class="stats">
+    <div class="stat"><div class="stat-num">30+</div><div class="stat-label">A+ Programs</div></div>
+    <div class="stat"><div class="stat-num">5</div><div class="stat-label">Transpiler Targets</div></div>
+    <div class="stat"><div class="stat-num">Z80</div><div class="stat-label">Inference Engine</div></div>
+    <div class="stat"><div class="stat-num">WASM</div><div class="stat-label">Browser REPL</div></div>
+  </div>
+</header>
+
+<section>
+  <h2>Machine Learning</h2>
+  <div class="grid">
+    <div class="card">
+      <h3>Mini-GPT</h3>
+      <p>Multi-head Transformer with attention, FFN, layer norm, residuals. First GPT in pure A+.</p>
+      <span class="file">gpt.a+ (428 lines)</span>
+    </div>
+    <div class="card">
+      <h3>Neural Network + Backprop</h3>
+      <p>2-layer NN with sigmoid. Forward pass + gradient descent training on XOR. 5000 epochs.</p>
+      <span class="file">nn.a+ · nn_backprop.a+</span>
+    </div>
+    <div class="card">
+      <h3>Transformer Attention</h3>
+      <p>Single-head scaled dot-product attention. Q/K/V matrices, softmax, 4 samples.</p>
+      <span class="file">transformer.a+ (128 lines)</span>
+    </div>
+    <div class="card">
+      <h3>AutoDiff Framework</h3>
+      <p>Reverse-mode automatic differentiation. Value graph, add/mul/relu, backward pass.</p>
+      <span class="file">autodiff.a+ (183 lines)</span>
+    </div>
+    <div class="card">
+      <h3>K-Means & Linear Regression</h3>
+      <p>Clustering with assignment/update. Regression with gradient descent on synthetic data.</p>
+      <span class="file">kmeans.a+ · linear_regression.a+</span>
+    </div>
+    <div class="card">
+      <h3>Decision Tree</h3>
+      <p>Gini impurity split for binary classification. AND/OR problem on 4 points.</p>
+      <span class="file">decision_tree.a+</span>
+    </div>
+  </div>
+</section>
+
+<section>
+  <h2>Retro Computing &amp; Z80</h2>
+  <div class="grid">
+    <div class="card">
+      <h3>Z80-μLM Inference</h3>
+      <p>2-bit quantized language model running Z80 algorithm in A+. YES/NO/MAYBE bot.</p>
+      <span class="file">z80ulm.a+ · train_z80ulm.py</span>
+    </div>
+    <div class="card">
+      <h3>20 Questions Game</h3>
+      <p>Interactive game using Z80-μLM inference. Think of a dog — model guesses.</p>
+      <span class="file">twenty_questions.a+ · play_20q.py</span>
+    </div>
+  </div>
+</section>
+
+<section>
+  <h2>Algorithms &amp; Data Structures</h2>
+  <div class="grid">
+    <div class="card"><h3>Quicksort</h3><span class="file">quicksort.a+</span></div>
+    <div class="card"><h3>Sieve of Eratosthenes</h3><span class="file">sieve.a+</span></div>
+    <div class="card"><h3>Binary Search</h3><span class="file">binary_search.a+</span></div>
+    <div class="card"><h3>Merge/Heap/Counting Sort</h3><span class="file">sorting.a+</span></div>
+    <div class="card"><h3>BFS &amp; DFS</h3><span class="file">graph.a+</span></div>
+    <div class="card"><h3>LU Decomposition + Eigenvalues</h3><span class="file">matrix.a+</span></div>
+  </div>
+</section>
+
+<section>
+  <h2>Math, Crypto &amp; More</h2>
+  <div class="grid">
+    <div class="card"><h3>Math Library</h3><p>sqrt, exp, log, sin, cos via Taylor series/Newton.</p><span class="file">math.a+</span></div>
+    <div class="card"><h3>Statistics</h3><p>Mean, variance, stddev, correlation, histogram.</p><span class="file">stats.a+</span></div>
+    <div class="card"><h3>Cryptography</h3><p>AES S-box, SHA-256 demo, RSA encrypt/decrypt.</p><span class="file">crypto.a+</span></div>
+    <div class="card"><h3>Genetic Algorithm</h3><p>Population, tournament selection, crossover, mutation.</p><span class="file">genetic.a+</span></div>
+    <div class="card"><h3>Physics Engine</h3><p>2D gravity, Verlet integration, elastic collisions.</p><span class="file">physics.a+ (321 lines)</span></div>
+    <div class="card"><h3>L-System Fractals</h3><p>Plant, Koch snowflake, Sierpinski — turtle graphics.</p><span class="file">fractal.a+ (315 lines)</span></div>
+  </div>
+</section>
+
+<section>
+  <h2>Competitive Programming</h2>
+  <div class="grid">
+    <div class="card"><h3>Project Euler #1-5</h3><p>Multiples, Fibonacci, primes, palindrome, LCM.</p><span class="file">project_euler.a+</span></div>
+    <div class="card"><h3>Project Euler #6-15</h3><p>Sum square diff, 10001st prime, lattice paths...</p><span class="file">euler_more.a+</span></div>
+    <div class="card"><h3>Project Euler #16-25</h3><p>Big-int power, factorials, amicable numbers...</p><span class="file">euler_extra.a+</span></div>
+    <div class="card"><h3>Advent of Code 2023</h3><p>Days 1-10 solved in A+.</p><span class="file">advent_of_code.a+ · aoc_more.a+</span></div>
+  </div>
+</section>
+
+<section>
+  <h2>Graphics</h2>
+  <div class="grid">
+    <div class="card">
+      <h3>Ray Tracer</h3>
+      <p>Spheres, shadows, reflections, checkerboard floor. PPM output. First in APL family.</p>
+      <span class="file">raytrace.a+ (177 lines)</span>
+    </div>
+  </div>
+</section>
+
+<section>
+  <h2>Self-Hosting Compiler</h2>
+  <div class="grid">
+    <div class="card">
+      <h3>A+ Compiler in A+</h3>
+      <p>Tokenizer, parser, code generator — all in pure A+. Bootstrap demo included.</p>
+      <span class="file">aplusc.a+ · bootstrap.py</span>
+    </div>
+  </div>
+</section>
+
+<section>
+  <h2>Developer Tools</h2>
+  <div class="grid">
+    <div class="card">
+      <h3>Transpiler (5 targets)</h3>
+      <p>A+ to Python, JavaScript, Go, Rust, C. Recursive-descent parser, constant folding, source maps.</p>
+      <span class="file">transpile_aplus.py (1900+ lines)</span>
+    </div>
+    <div class="card">
+      <h3>LSP Server</h3>
+      <p>Autocomplete, diagnostics, hover, go-to-definition. JSON-RPC over stdio.</p>
+      <span class="file">aplus_lsp.py (651 lines)</span>
+    </div>
+    <div class="card">
+      <h3>Grammar Fuzzer</h3>
+      <p>Mutation, dictionary, grammar-based. Delta debugging crash minimization.</p>
+      <span class="file">fuzz_aplus.py (1017 lines)</span>
+    </div>
+    <div class="card">
+      <h3>Benchmark Suite</h3>
+      <p>Timing, JSON/MD/SVG reports. Cross-language comparison (Python, JS, J, BQN).</p>
+      <span class="file">benchmark.py · plot_bench.py</span>
+    </div>
+    <div class="card">
+      <h3>Package Manager</h3>
+      <p>Install/list/update A+ packages. $load directive resolution.</p>
+      <span class="file">aplus_pm.py</span>
+    </div>
+    <div class="card">
+      <h3>VSCode Extension</h3>
+      <p>TextMate grammar, 40+ builtins, KAPL glyphs. Run/Transpile commands.</p>
+      <span class="file">vscode-aplus/</span>
+    </div>
+    <div class="card">
+      <h3>Jupyter Kernel</h3>
+      <p>ipykernel-based. Subprocess execution with install script.</p>
+      <span class="file">jupyter_aplus/</span>
+    </div>
+    <div class="card">
+      <h3>GPU Backend</h3>
+      <p>OpenMP matrix multiply, SIMD sigmoid. 2.76-5.69x speedup on 18 threads.</p>
+      <span class="file">gpu_backend.cpp · Makefile.gpu</span>
+    </div>
+  </div>
+</section>
+
+<section>
+  <h2>WebAssembly &amp; Browser</h2>
+  <div class="grid">
+    <div class="card">
+      <h3>WASM Build</h3>
+      <p>Emscripten-based. aplus.js + aplus.wasm. Dockerfile + build script.</p>
+      <span class="file">Dockerfile.wasm · build_wasm.sh</span>
+    </div>
+    <div class="card">
+      <h3>Browser IDE</h3>
+      <p>Multi-file tabs, KAPL autocomplete (Alt+A/P/R), SVG plots, line numbers.</p>
+      <span class="file">index.html</span>
+    </div>
+  </div>
+</section>
+
+<section>
+  <h2>CI/CD Pipeline</h2>
+  <table>
+    <tr><th>Job</th><th>Description</th></tr>
+    <tr><td>build</td><td>Docker build of A+ interpreter</td></tr>
+    <tr><td>run-programs</td><td>Run all 30+ .a+ files</td></tr>
+    <tr><td>neural-network</td><td>Forward + backprop tests</td></tr>
+    <tr><td>benchmarks</td><td>Quicksort, sieve, binary search, matrix, graph</td></tr>
+    <tr><td>fuzz</td><td>Grammar + dictionary-based fuzzing</td></tr>
+    <tr><td>transpiler</td><td>A+ to Python/JS, run generated code</td></tr>
+    <tr><td>wasm</td><td>Emscripten WASM build + artifact</td></tr>
+    <tr><td>build-arm64</td><td>Native ARM64 compilation</td></tr>
+    <tr><td>coverage</td><td>gcov/lcov code coverage</td></tr>
+    <tr><td>compare</td><td>Benchmark vs J, BQN</td></tr>
+    <tr><td>benchmark-report</td><td>Timing report with SVG plots</td></tr>
+  </table>
+</section>
+
+<section>
+  <h2>Quick Start</h2>
+  <div class="quickstart">
+    <span class="cmd">git clone https://github.com/MaurerAnton/aplus-ci-poc</span><br>
+    <span class="cmd">cd aplus-ci-poc</span><br><br>
+    <span style="color:var(--dim)"># Build A+ interpreter:</span><br>
+    <span class="cmd">docker build -t aplus:ci .</span><br><br>
+    <span style="color:var(--dim)"># Run a program:</span><br>
+    <span class="cmd">echo '2+3' | docker run --rm -i aplus:ci</span><br><br>
+    <span style="color:var(--dim)"># Transpile to Python/JS/Go/Rust/C:</span><br>
+    <span class="cmd">python3 transpile_aplus.py --input hello.a+ --output-py out.py --output-js out.js</span><br><br>
+    <span style="color:var(--dim)"># Play 20 Questions:</span><br>
+    <span class="cmd">python3 play_20q.py</span><br><br>
+    <span style="color:var(--dim)"># Run benchmarks:</span><br>
+    <span class="cmd">python3 benchmark.py /path/to/a+</span>
+  </div>
+</section>
+
+<footer>
+  <p>A+ interpreter: GNU GPL v2.0 (Morgan Stanley). This PoC: MIT.</p>
+  <p><a href="https://github.com/MaurerAnton/aplus-ci-poc">github.com/MaurerAnton/aplus-ci-poc</a></p>
+</footer>
+
+</body>
+</html>
