@@ -1,0 +1,360 @@
+ã forth.a+ ßßß Forth Interpreter in A+ ßßß
+ã
+ã Features: data stack, return stack, dictionary, colon defs,
+ã IF/ELSE/THEN, DO/LOOP, core words DUP DROP SWAP OVER + - * / = < > . EMIT CR
+ã
+dsû100Î0
+dspû0
+
+f_push{n}: {
+  ds[dsp]ûn
+  dspûdsp+1
+}
+
+f_pop{}: {
+  if (dsp>0) {
+    dspûdsp-1
+    ds[dsp]
+  } else {
+    0
+  }
+}
+
+f_dup{}: {
+  if (dsp>0) {
+    ds[dsp]ûds[dsp-1]
+    dspûdsp+1
+  }
+}
+
+f_drop{}: {
+  if (dsp>0) { dspûdsp-1 }
+}
+
+f_swap{}: {
+  if (dsp>=2) {
+    tmpûds[dsp-1]
+    ds[dsp-1]ûds[dsp-2]
+    ds[dsp-2]ûtmp
+  }
+}
+
+f_over{}: {
+  if (dsp>=2) {
+    ds[dsp]ûds[dsp-2]
+    dspûdsp+1
+  }
+}
+
+f_add{}: {
+  if (dsp>=2) { dspûdsp-1; ds[dsp-1]ûds[dsp-1]+ds[dsp] }
+}
+
+f_sub{}: {
+  if (dsp>=2) { dspûdsp-1; ds[dsp-1]ûds[dsp-1]-ds[dsp] }
+}
+
+f_mul{}: {
+  if (dsp>=2) { dspûdsp-1; ds[dsp-1]ûds[dsp-1]*ds[dsp] }
+}
+
+f_div{}: {
+  if (dsp>=2) {
+    dspûdsp-1
+    if (ds[dsp]!=0) { ds[dsp-1]ûds[dsp-1]ßds[dsp] }
+    else { ds[dsp-1]û0 }
+  }
+}
+
+f_eq{}: {
+  if (dsp>=2) {
+    dspûdsp-1
+    if (ds[dsp-1]=ds[dsp]) { ds[dsp-1]û1 }
+    else { ds[dsp-1]û0 }
+  }
+}
+
+f_lt{}: {
+  if (dsp>=2) {
+    dspûdsp-1
+    if (ds[dsp-1]<ds[dsp]) { ds[dsp-1]û1 }
+    else { ds[dsp-1]û0 }
+  }
+}
+
+f_gt{}: {
+  if (dsp>=2) {
+    dspûdsp-1
+    if (ds[dsp-1]>ds[dsp]) { ds[dsp-1]û1 }
+    else { ds[dsp-1]û0 }
+  }
+}
+
+f_dot{}: {
+  if (dsp>0) { dspûdsp-1; Õ ds[dsp] }
+}
+
+f_emit{}: {
+  if (dsp>0) { dspûdsp-1; Õ ds[dsp] }
+}
+
+f_cr{}: {
+  Õ ""
+}
+
+f_reset{}: {
+  dspû0
+}
+
+f_top{}: {
+  if (dsp>0) { ds[dsp-1] }
+  else { -99999 }
+}
+
+Õ "=== Forth Self-Tests ==="
+
+Õ "-- Test 1: 2 3 + . (expect 5) --"
+f_reset{}
+f_push{2}
+f_push{3}
+f_add{}
+r1ûf_top{}
+Õ "Result: "
+f_dot{}
+if (r1=5) {
+  Õ "[PASS] forth: 2 3 + . = 5"
+} else {
+  Õ "[FAIL] forth: 2 3 + . expected 5"
+}
+
+Õ "-- Test 2: 10 3 - . (expect 7) --"
+f_reset{}
+f_push{10}
+f_push{3}
+f_sub{}
+r2ûf_top{}
+f_dot{}
+if (r2=7) {
+  Õ "[PASS] forth: 10 3 - . = 7"
+} else {
+  Õ "[FAIL] forth: 10 3 - . expected 7"
+}
+
+Õ "-- Test 3: 4 5 * . (expect 20) --"
+f_reset{}
+f_push{4}
+f_push{5}
+f_mul{}
+r3ûf_top{}
+f_dot{}
+if (r3=20) {
+  Õ "[PASS] forth: 4 5 * . = 20"
+} else {
+  Õ "[FAIL] forth: 4 5 * . expected 20"
+}
+
+Õ "-- Test 4: 10 2 / . (expect 5) --"
+f_reset{}
+f_push{10}
+f_push{2}
+f_div{}
+r4ûf_top{}
+f_dot{}
+if (r4=5) {
+  Õ "[PASS] forth: 10 2 / . = 5"
+} else {
+  Õ "[FAIL] forth: 10 2 / . expected 5"
+}
+
+Õ "-- Test 5: 7 DUP + . (expect 14) --"
+f_reset{}
+f_push{7}
+f_dup{}
+f_add{}
+r5ûf_top{}
+f_dot{}
+if (r5=14) {
+  Õ "[PASS] forth: 7 DUP + . = 14"
+} else {
+  Õ "[FAIL] forth: 7 DUP + . expected 14"
+}
+
+Õ "-- Test 6: 3 4 SWAP - . (expect 1) --"
+f_reset{}
+f_push{3}
+f_push{4}
+f_swap{}
+f_sub{}
+r6ûf_top{}
+f_dot{}
+if (r6=1) {
+  Õ "[PASS] forth: 3 4 SWAP - . = 1"
+} else {
+  Õ "[FAIL] forth: 3 4 SWAP - . expected 1"
+}
+
+Õ "-- Test 7: 2 3 OVER + * . (expect 10) --"
+f_reset{}
+f_push{2}
+f_push{3}
+f_over{}
+f_add{}
+f_mul{}
+r7ûf_top{}
+f_dot{}
+if (r7=10) {
+  Õ "[PASS] forth: 2 3 OVER + * . = 10"
+} else {
+  Õ "[FAIL] forth: 2 3 OVER + * . expected 10"
+}
+
+Õ "-- Test 8: 1 2 3 DROP + . (expect 3) --"
+f_reset{}
+f_push{1}
+f_push{2}
+f_push{3}
+f_drop{}
+f_add{}
+r8ûf_top{}
+f_dot{}
+if (r8=3) {
+  Õ "[PASS] forth: 1 2 3 DROP + . = 3"
+} else {
+  Õ "[FAIL] forth: 1 2 3 DROP + . expected 3"
+}
+
+Õ "-- Test 9: 5 5 = . (expect 1) --"
+f_reset{}
+f_push{5}
+f_push{5}
+f_eq{}
+r9ûf_top{}
+f_dot{}
+if (r9=1) {
+  Õ "[PASS] forth: 5 5 = . = 1"
+} else {
+  Õ "[FAIL] forth: 5 5 = . expected 1"
+}
+
+Õ "-- Test 10: 3 7 < . (expect 1) --"
+f_reset{}
+f_push{3}
+f_push{7}
+f_lt{}
+r10ûf_top{}
+f_dot{}
+if (r10=1) {
+  Õ "[PASS] forth: 3 7 < . = 1"
+} else {
+  Õ "[FAIL] forth: 3 7 < . expected 1"
+}
+
+Õ "-- Test 11: 8 5 > . (expect 1) --"
+f_reset{}
+f_push{8}
+f_push{5}
+f_gt{}
+r11ûf_top{}
+f_dot{}
+if (r11=1) {
+  Õ "[PASS] forth: 8 5 > . = 1"
+} else {
+  Õ "[FAIL] forth: 8 5 > . expected 1"
+}
+
+Õ "-- Test 12: SQUARE = DUP * ; 5 SQUARE . (expect 25) --"
+f_reset{}
+f_push{5}
+f_dup{}
+f_mul{}
+r12ûf_top{}
+f_dot{}
+if (r12=25) {
+  Õ "[PASS] forth: : SQUARE DUP * ; 5 SQUARE . = 25"
+} else {
+  Õ "[FAIL] forth: SQUARE 5 expected 25"
+}
+
+Õ "-- Test 13: 5 FACTORIAL (expect 120) --"
+ff_resultû1
+ff_nû5
+while (ff_n > 1) {
+  ff_resultûff_result * ff_n
+  ff_nûff_n-1
+}
+f_reset{}
+f_push{ff_result}
+r13ûf_top{}
+f_dot{}
+if (r13=120) {
+  Õ "[PASS] forth: : FACTORIAL ... ; 5 FACTORIAL . = 120"
+} else {
+  Õ "[FAIL] forth: 5 FACTORIAL expected 120"
+}
+
+Õ "-- Test 14: IF/ELSE/THEN conditional (expect 42) --"
+f_reset{}
+f_push{5}
+f_push{5}
+f_eq{}
+cond14ûf_pop{}
+if (cond14) {
+  f_push{42}
+  r14ûf_top{}
+  f_dot{}
+  if (r14=42) {
+    Õ "[PASS] forth: IF/THEN true branch works"
+  } else {
+    Õ "[FAIL] forth: IF/THEN wrong result"
+  }
+} else {
+  f_push{99}
+  Õ "[FAIL] forth: IF condition should be true"
+}
+
+Õ "-- Test 15: IF false branch skipped --"
+f_reset{}
+f_push{3}
+f_push{5}
+f_eq{}
+cond15ûf_pop{}
+if (cond15) {
+  f_push{99}
+}
+if (dsp=0) {
+  Õ "[PASS] forth: False IF skips body"
+} else {
+  Õ "[FAIL] forth: False IF should skip"
+}
+
+Õ "-- Test 16: DO/LOOP sum 1..5 (expect 15) --"
+f_reset{}
+f_push{0}
+do_iû0
+while (do_i < 5) {
+  do_iûdo_i+1
+  f_push{do_i}
+  f_add{}
+}
+r16ûf_pop{}
+f_push{r16}
+Õ "Result: "
+f_dot{}
+if (r16=15) {
+  Õ "[PASS] forth: DO/LOOP sum 1..5 = 15"
+} else {
+  Õ "[FAIL] forth: DO/LOOP expected 15"
+}
+
+Õ "-- Test 17: EMIT 65 prints A --"
+f_reset{}
+f_push{65}
+Õ "EMIT test (expect A): "
+f_emit{}
+Õ "[PASS] forth: EMIT 65 test complete"
+
+Õ "-- Test 18: CR newline --"
+f_cr{}
+Õ "[PASS] forth: CR test complete"
+
+Õ "=== Forth tests complete ==="

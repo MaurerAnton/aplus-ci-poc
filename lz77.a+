@@ -1,0 +1,221 @@
+ã lz77.a+ ßßß LZ77 Sliding Window Compression ßßß
+ã
+ã Implements LZ77 compression with sliding window.
+ã Window size = 64, lookahead = 16.
+ã Encodes as (offset, length, next_char) triplets.
+ã
+
+ã === Constants ===
+WINû64
+LOOKû16
+SENTINELû0  ã sentinel value for end-of-data
+NOCHARû-1     ã marker: no next character after match
+
+ã === LZ77 Encode: input text (array of char codes) -> encoded triplets ===
+ã Output format: flat array [off0, len0, next0, ..., -1, 0, -1]
+lz77_encode{text}: {
+  nûÎ text
+  ã Preallocate output (up to n*3 entries + sentinel)
+  outputû(n*Á3 + 3)Î0
+  opû0
+  posû0
+  while (pos < n) {
+    ã Determine window start (pos - WIN, but not before 0)
+    win_startû0
+    if (pos > WIN) { win_startûpos - WIN }
+    ã Find longest match in window for current position
+    best_offû0
+    best_lenû0
+    ã Try each possible match start in window
+    wûwin_start
+    while (w < pos) {
+      ã Compute match length at this window position
+      match_lenû0
+      kmû0
+      while (((pos+km) < n) & ((w+km) < pos) & (km < LOOK)) {
+        if (text[pos+km] = text[w+km]) {
+          match_lenûmatch_len+1
+          kmûkm+1
+        } else {
+          kmûLOOK
+        }
+      }
+      ã Update best match (prefer longer)
+      if (match_len > best_len) {
+        best_lenûmatch_len
+        best_offûpos - w
+      }
+      wûw+1
+    }
+    ã Determine next char after match
+    next_idûpos + best_len
+    next_chûNOCHAR
+    if (next_id < n) { next_chûtext[next_id] }
+    ã Write triplet to output
+    output[op]ûbest_off
+    output[op+1]ûbest_len
+    output[op+2]ûnext_ch
+    opûop+3
+    ã Advance past matched characters plus the next char
+    posûpos + best_len + 1
+    ã Clamp to prevent overshoot
+    if (pos > n) { posûn }
+  }
+  ã Terminate with sentinel triplet (-1, 0, -1)
+  output[op]û-1
+  output[op+1]û0
+  output[op+2]û-1
+  output
+}
+
+ã === LZ77 Decode: encoded triplets -> original text ===
+ã Input: encoded array [off, len, next, ..., -1, 0, -1]
+ã Sentinels: off=-1 marks end. next=NOCHAR(-1) means no following char.
+ã Output: decompressed array of char codes (terminated with SENTINEL)
+lz77_decode{encoded}: {
+  enûÎ encoded
+  ã Preallocate output (generous size)
+  outputû(en*ÁLOOK)Î0
+  op2û0
+  eiû0
+  doneû0
+  while ((ei+2 < en) & (done=0)) {
+    offûencoded[ei]
+    lnûencoded[ei+1]
+    nxtûencoded[ei+2]
+    ã Check for end-of-data sentinel (off=-1 marks end)
+    if (off = -1) { doneû1 }
+    if (done=0) {
+      ã Copy match from already-decoded output
+      if ((off > 0) & (ln > 0)) {
+        src_posûop2 - off
+        kdû0
+        while (kd < ln) {
+          output[op2]ûoutput[src_pos + kd]
+          op2ûop2+1
+          kdûkd+1
+        }
+      }
+      ã Append next character (skip if NOCHAR marker)
+      if (nxt != NOCHAR) {
+        output[op2]ûnxt
+        op2ûop2+1
+      }
+      eiûei+3
+    }
+  }
+  ã Terminate with SENTINEL
+  output[op2]ûSENTINEL
+  output
+}
+
+ã ==========================================================
+ã === SELF-TESTS ===
+ã ==========================================================
+
+ã --- Test 1: Compress 'AAAA' - should find at least one match (length > 0) ---
+ã ASCII 'A' = 65
+test1û65 65 65 65
+enc1ûlz77_encode{test1}
+Õ"lz77: encoding of 'AAAA':"
+Õenc1
+ã First triplet should be (0, 0, 65) - literal 'A'
+if ((enc1[0]=0) & (enc1[1]=0) & (enc1[2]=65)) {
+  Õ"lz77: [PASS] first triplet is literal (0,0,'A')"
+} else {
+  Õ"lz77: [FAIL] first triplet not literal"
+}
+ã There should be at least one match (a triplet with length > 0)
+has_matchû0
+ei2û0
+while (enc1[ei2] != -1) {
+  if (enc1[ei2+1] > 0) { has_matchû1 }
+  ei2ûei2+3
+}
+if (has_match = 1) {
+  Õ"lz77: [PASS] 'AAAA' has at least one back-reference match"
+} else {
+  Õ"lz77: [FAIL] no matches found in 'AAAA'"
+}
+
+ã --- Test 2: Compress unique text 'ABCD' - all literals (length=0) ---
+ã ASCII: A=65, B=66, C=67, D=68
+test2û65 66 67 68
+enc2ûlz77_encode{test2}
+all_litû1
+ei3û0
+lit_countû0
+while (enc2[ei3] != -1) {
+  if (enc2[ei3+1] > 0) { all_litû0 }
+  lit_countûlit_count+1
+  ei3ûei3+3
+}
+if ((all_lit = 1) & (lit_count = 4)) {
+  Õ"lz77: [PASS] 'ABCD' produces 4 literal triplets (all length=0)"
+} else {
+  Õ"lz77: [FAIL] 'ABCD' should have all literal triplets, got:"
+  Õlit_count
+}
+
+ã --- Test 3: Decompress 'AAAA' and verify round-trip ---
+dec1ûlz77_decode{enc1}
+dec_okû1
+i4û0
+while ((i4 < 4) & dec_ok) {
+  if (dec1[i4] != test1[i4]) { dec_okû0 }
+  i4ûi4+1
+}
+if (dec_ok = 1) {
+  Õ"lz77: [PASS] decompress 'AAAA' matches original"
+} else {
+  Õ"lz77: [FAIL] decompress 'AAAA' does not match original"
+}
+
+ã --- Test 4: Compress and decompress 'ABABAB' (repeating pattern) ---
+ã ASCII: A=65, B=66
+test4û65 66 65 66 65 66
+enc4ûlz77_encode{test4}
+dec4ûlz77_decode{enc4}
+dec4_okû1
+i5û0
+while ((i5 < 6) & dec4_ok) {
+  if (dec4[i5] != test4[i5]) { dec4_okû0 }
+  i5ûi5+1
+}
+if (dec4_ok = 1) {
+  Õ"lz77: [PASS] decompress 'ABABAB' matches original"
+} else {
+  Õ"lz77: [FAIL] decompress 'ABABAB' does not match original"
+}
+
+ã --- Test 5: Long repeating string 'AAAAAAAAAAAA' (12 A's) ---
+test5û65 65 65 65 65 65 65 65 65 65 65 65
+enc5ûlz77_encode{test5}
+dec5ûlz77_decode{enc5}
+dec5_okû1
+i6û0
+while ((i6 < 12) & dec5_ok) {
+  if (dec5[i6] != test5[i6]) { dec5_okû0 }
+  i6ûi6+1
+}
+if (dec5_ok = 1) {
+  Õ"lz77: [PASS] decompress 12 A's matches original"
+} else {
+  Õ"lz77: [FAIL] decompress 12 A's does not match original"
+}
+
+ã --- Test 6: Check compression ratio for 12 A's ---
+ã Encoded should be shorter than 12*3=36 (3 ints per literal * 12)
+enc5_countû0
+ei5û0
+while (enc5[ei5] != -1) {
+  enc5_countûenc5_count+3
+  ei5ûei5+3
+}
+if (enc5_count < 36) {
+  Õ"lz77: [PASS] compression reduced size for repetitive data"
+} else {
+  Õ"lz77: [FAIL] no compression for repetitive data"
+}
+
+Õ"lz77: all tests done"

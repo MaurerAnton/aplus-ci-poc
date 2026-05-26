@@ -1,0 +1,224 @@
+ã graph_algorithms.a+ ßßß Graph Algorithms Suite ßßß
+ã
+ã Implements Dijkstra, Prim, and Floyd-Warshall on adjacency matrices.
+ã Hardcoded 5-node undirected test graph.
+ã
+ã Graph edges (undirected, weights):
+ã   0--1=2, 0--3=6, 1--2=3, 1--3=8, 1--4=5, 2--4=7, 3--4=9
+ã
+ã Adjacency matrix (row-major, 0=no edge):
+ã   row0: 0 2 0 6 0
+ã   row1: 2 0 3 8 5
+ã   row2: 0 3 0 0 7
+ã   row3: 6 8 0 0 9
+ã   row4: 0 5 7 9 0
+ã
+
+Nû5
+ã 5x5 adjacency matrix, flat, row-major
+graphû0 2 0 6 0 2 0 3 8 5 0 3 0 0 7 6 8 0 0 9 0 5 7 9 0
+
+ã ==========================================================
+ã === Dijkstra's Algorithm: Shortest path from source to all nodes ===
+ã ==========================================================
+ã Parameters: g=flat adjacency matrix, n=node count, src=source node
+ã Returns: distance array (dist[i] = shortest distance from src to i)
+dijkstra{g;n;src}: {
+  ã Initialize distances and visited set
+  INFû999999
+  distûnÎINF
+  visitedûnÎ0
+  dist[src]û0
+  ã Main loop: find n closest nodes
+  iterû0
+  while (iter < n) {
+    ã Find unvisited node with minimum distance
+    uû-1
+    min_dûINF
+    iû0
+    while (i < n) {
+      if ((visited[i]=0) & (dist[i] < min_d)) {
+        min_dûdist[i]
+        uûi
+      }
+      iûi+1
+    }
+    ã If no reachable unvisited node, we are done
+    if (u = -1) { iterûn }
+    ã Otherwise, relax edges from u
+    if (u >= 0) {
+      visited[u]û1
+      vû0
+      while (v < n) {
+        wûg[u*Án + v]
+        if ((w > 0) & (visited[v]=0)) {
+          ndûdist[u] + w
+          if (nd < dist[v]) { dist[v]ûnd }
+        }
+        vûv+1
+      }
+    }
+    iterûiter+1
+  }
+  dist
+}
+
+ã ==========================================================
+ã === Prim's Algorithm: Minimum Spanning Tree ===
+ã ==========================================================
+ã Parameters: g=flat adjacency matrix, n=node count
+ã Returns: total MST weight (sum of edge weights in MST)
+prim{g;n}: {
+  INFû999999
+  keyûnÎINF
+  parentûnÎ-1
+  in_mstûnÎ0
+  key[0]û0
+  ã Build MST by adding n nodes
+  iterû0
+  while (iter < n) {
+    ã Pick node with minimum key not yet in MST
+    uû-1
+    min_kûINF
+    iû0
+    while (i < n) {
+      if ((in_mst[i]=0) & (key[i] < min_k)) {
+        min_kûkey[i]
+        uûi
+      }
+      iûi+1
+    }
+    ã If we found a valid node, add it to MST
+    if (u >= 0) {
+      in_mst[u]û1
+      ã Update keys of neighbors not yet in MST
+      vû0
+      while (v < n) {
+        wûg[u*Án + v]
+        if ((w > 0) & (in_mst[v]=0) & (w < key[v])) {
+          key[v]ûw
+          parent[v]ûu
+        }
+        vûv+1
+      }
+    }
+    iterûiter+1
+  }
+  ã Sum MST edges (skip root node 0)
+  totalû0
+  iû1
+  while (i < n) {
+    totalûtotal + g[i*Án + parent[i]]
+    iûi+1
+  }
+  total
+}
+
+ã ==========================================================
+ã === Floyd-Warshall: All-Pairs Shortest Paths ===
+ã ==========================================================
+ã Parameters: g=flat adjacency matrix, n=node count
+ã Returns: flat n*n distance matrix (dist[i*n+j] = shortest i->j)
+floyd{g;n}: {
+  INFû999999
+  ã Initialize distance matrix
+  ndistû(n*Án)Î0
+  iû0
+  while (i < n) {
+    jû0
+    while (j < n) {
+      if (i = j) {
+        ndist[i*Án + j]û0
+      }
+      wûg[i*Án + j]
+      if (w > 0) { ndist[i*Án + j]ûw }
+      if ((i != j) & (w = 0)) { ndist[i*Án + j]ûINF }
+      jûj+1
+    }
+    iûi+1
+  }
+  ã Floyd-Warshall: dynamic programming
+  kû0
+  while (k < n) {
+    iû0
+    while (i < n) {
+      jû0
+      while (j < n) {
+        ndûndist[i*Án + k] + ndist[k*Án + j]
+        if (nd < ndist[i*Án + j]) {
+          ndist[i*Án + j]ûnd
+        }
+        jûj+1
+      }
+      iûi+1
+    }
+    kûk+1
+  }
+  ndist
+}
+
+ã ==========================================================
+ã === SELF-TESTS ===
+ã ==========================================================
+
+ã --- Test 1: Dijkstra from source 0 ---
+d_distûdijkstra{graph;N;0}
+ã Expected distances: [0, 2, 5, 6, 7]
+if ((d_dist[0]=0) & (d_dist[1]=2) & (d_dist[2]=5) & (d_dist[3]=6) & (d_dist[4]=7)) {
+  Õ"graph: [PASS] Dijkstra finds correct shortest paths from node 0"
+} else {
+  Õ"graph: [FAIL] Dijkstra incorrect"
+  Õ"graph: dijkstra result:"
+  Õd_dist
+}
+
+ã --- Test 2: Prim finds correct MST total weight ---
+p_totalûprim{graph;N}
+ã Expected MST weight: 2+3+5+6 = 16
+if (p_total = 16) {
+  Õ"graph: [PASS] Prim MST total weight is 16"
+} else {
+  Õ"graph: [FAIL] Prim incorrect, got:"
+  Õp_total
+}
+
+ã --- Test 3: Floyd-Warshall result is symmetric for undirected graph ---
+fwûfloyd{graph;N}
+symû1
+i2û0
+while ((i2 < N) & sym) {
+  j2û0
+  while ((j2 < N) & sym) {
+    if (fw[i2*ÁN + j2] != fw[j2*ÁN + i2]) { symû0 }
+    j2ûj2+1
+  }
+  i2ûi2+1
+}
+if (sym = 1) {
+  Õ"graph: [PASS] Floyd-Warshall result is symmetric"
+} else {
+  Õ"graph: [FAIL] Floyd-Warshall not symmetric"
+}
+
+ã --- Test 4: Floyd-Warshall distance 0->4 equals 7 ---
+if (fw[0*ÁN + 4] = 7) {
+  Õ"graph: [PASS] Floyd-Warshall shortest path 0->4 is 7"
+} else {
+  Õ"graph: [FAIL] Floyd-Warshall distance 0->4 incorrect, got:"
+  Õfw[0*ÁN + 4]
+}
+
+ã --- Test 5: Floyd-Warshall all diagonal entries are 0 ---
+diag_okû1
+i3û0
+while ((i3 < N) & diag_ok) {
+  if (fw[i3*ÁN + i3] != 0) { diag_okû0 }
+  i3ûi3+1
+}
+if (diag_ok = 1) {
+  Õ"graph: [PASS] Floyd-Warshall diagonal all zeros"
+} else {
+  Õ"graph: [FAIL] Floyd-Warshall diagonal non-zero"
+}
+
+Õ"graph: all tests done"

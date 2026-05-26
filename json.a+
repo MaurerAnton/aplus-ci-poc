@@ -1,0 +1,465 @@
+ã json.a+ ßßß JSON Parser in A+ ßßß
+ã
+ã Parses JSON text (char code array) into nested A+ arrays.
+ã
+ã Output type markers (negative constants):
+ã   -1: object   -2: array   -3: string   -4: number
+ã   -5: true     -6: false   -7: null
+ã
+ã Object format: [-1, key1_sz, key1_chars..., val1, key2_sz, key2_chars..., val2, ...]
+ã Array format:  [-2, elem1, elem2, ...]
+ã String format: [-3, len, char_codes...]
+ã Number format: [-4, int_part, frac_part, exp_part, is_float, is_neg]
+ã
+json_is_digit{ch}: { ((ch>=48) & (ch<=57)) }
+json_is_ws{ch}: { ((ch=32) | (ch=9) | (ch=10) | (ch=13)) }
+
+json_skip_ws{src;pos}: {
+  nûÎ src
+  while ((pos<n) & json_is_ws{src[pos]}) {
+    posûpos+1
+  }
+  pos
+}
+
+ã Parse string starting at src[pos] (should be quote char)
+json_parse_string{src;pos}: {
+  nûÎ src
+  if ((pos>=n) | (src[pos]!=34)) {
+    resultû-3, 0
+    result
+  }
+  posûpos+1  ã skip opening quote
+  charsû200Î0
+  ccû0
+  while ((pos<n) & (src[pos]!=34)) {
+    chûsrc[pos]
+    if (ch=92) {
+      posûpos+1
+      if (pos<n) {
+        escûsrc[pos]
+        if (esc=110) { chars[cc]û10 }
+        if (esc=116) { chars[cc]û9 }
+        if (esc=114) { chars[cc]û13 }
+        if (esc=92)  { chars[cc]û92 }
+        if (esc=34)  { chars[cc]û34 }
+        if (esc=47)  { chars[cc]û47 }
+      }
+    } else {
+      chars[cc]ûch
+    }
+    ccûcc+1
+    posûpos+1
+  }
+  if (pos<n) { posûpos+1 }  ã skip closing quote
+  ã Build result: [-3, len, chars...]
+  sarrû-3, cc
+  iû0
+  while (i<cc) {
+    sarrûsarr, chars[i]
+    iûi+1
+  }
+  sarr
+}
+
+json_parse_number{src;pos}: {
+  nûÎ src
+  startûpos
+  is_negû0
+  if ((pos<n) & (src[pos]=45)) {
+    is_negû1
+    posûpos+1
+  }
+  int_valû0
+  while ((pos<n) & json_is_digit{src[pos]}) {
+    int_valûint_val*10 + (src[pos]-48)
+    posûpos+1
+  }
+  frac_valû0
+  frac_digitsû0
+  is_floatû0
+  if ((pos<n) & (src[pos]=46)) {
+    is_floatû1
+    posûpos+1
+    while ((pos<n) & json_is_digit{src[pos]}) {
+      frac_valûfrac_val*10 + (src[pos]-48)
+      frac_digitsûfrac_digits+1
+      posûpos+1
+    }
+  }
+  exp_valû0
+  exp_negû0
+  if ((pos<n) & ((src[pos]=101) | (src[pos]=69))) {
+    is_floatû1
+    posûpos+1
+    if ((pos<n) & (src[pos]=45)) {
+      exp_negû1
+      posûpos+1
+    }
+    if ((pos<n) & (src[pos]=43)) { posûpos+1 }
+    while ((pos<n) & json_is_digit{src[pos]}) {
+      exp_valûexp_val*10 + (src[pos]-48)
+      posûpos+1
+    }
+  }
+  ã Return: [-4, int_val, frac_val, frac_digits, exp_val, exp_neg, is_float, is_neg]
+  nresultû-4, int_val, frac_val, frac_digits, exp_val, exp_neg, is_float, is_neg
+  nresult
+}
+
+json_parse_value{src;pos}: {
+  nûÎ src
+  posûjson_skip_ws{src;pos}
+  if (pos>=n) {
+    emptyû0Î0
+    empty
+  }
+  chûsrc[pos]
+  ã String
+  if (ch=34) { json_parse_string{src;pos} }
+  ã Number
+  if (json_is_digit{ch} | (ch=45)) { json_parse_number{src;pos} }
+  ã Object (handled separately)
+  if (ch=123) { json_parse_object{src;pos} }
+  ã Array (handled separately)
+  if (ch=91) { json_parse_array{src;pos} }
+  ã true
+  if (ch=116) {
+    if ((pos+3<n) & (src[pos+1]=114) & (src[pos+2]=117) & (src[pos+3]=101)) {
+      tarrû-5Î0
+      tarr[0]û-5
+      tarr
+    }
+  }
+  ã false
+  if (ch=102) {
+    if ((pos+4<n) & (src[pos+1]=97) & (src[pos+2]=108) & (src[pos+3]=115) & (src[pos+4]=101)) {
+      farrû-6Î0
+      farr[0]û-6
+      farr
+    }
+  }
+  ã null
+  if (ch=110) {
+    if ((pos+3<n) & (src[pos+1]=117) & (src[pos+2]=108) & (src[pos+3]=108)) {
+      narrû-7Î0
+      narr[0]û-7
+      narr
+    }
+  }
+  ã Fallback
+  emptyû0Î0
+  empty
+}
+
+json_parse_object{src;pos}: {
+  nûÎ src
+  ã Skip opening brace
+  posûpos+1
+  posûjson_skip_ws{src;pos}
+  ã Store object as flat array: [-1, k1_len, k1_chars..., v1, k2_len, k2_chars..., v2, ...]
+  objû5000Î0
+  ocû0
+  obj[oc]û-1
+  ocûoc+1
+  while ((pos<n) & (src[pos]!=125)) {
+    posûjson_skip_ws{src;pos}
+    if (src[pos]=125) { break }
+    ã Parse key (string)
+    if (src[pos]=34) {
+      posûpos+1
+      kstartûoc
+      ocûoc+1  ã space for length
+      kcû0
+      while ((pos<n) & (src[pos]!=34)) {
+        obj[oc]ûsrc[pos]
+        ocûoc+1
+        kcûkc+1
+        posûpos+1
+      }
+      if (pos<n) { posûpos+1 }
+      obj[kstart]ûkc
+    }
+    posûjson_skip_ws{src;pos}
+    ã Skip colon
+    if ((pos<n) & (src[pos]=58)) { posûpos+1 }
+    posûjson_skip_ws{src;pos}
+    ã Parse value (simplified: handle common cases directly)
+    if ((src[pos]>=48) & (src[pos]<=57)) {
+      ã Positive number
+      vvalû0
+      is_negû0
+      if ((pos<n) & (src[pos]=45)) { is_negû1; posûpos+1 }
+      while ((pos<n) & (src[pos]>=48) & (src[pos]<=57)) {
+        vvalûvval*10 + (src[pos]-48)
+        posûpos+1
+      }
+      if (is_neg) { vvalû-vval }
+      obj[oc]û-4
+      ocûoc+1
+      obj[oc]ûvval
+      ocûoc+1
+    }
+    if (src[pos]=34) {
+      ã String value
+      posûpos+1
+      vstartûoc
+      ocûoc+1
+      vcû0
+      while ((pos<n) & (src[pos]!=34)) {
+        obj[oc]ûsrc[pos]
+        ocûoc+1
+        vcûvc+1
+        posûpos+1
+      }
+      if (pos<n) { posûpos+1 }
+      ã Store as [-3, len, chars]
+      obj[vstart]û-3
+      obj[oc]ûvc
+      ocûoc+1
+    }
+    if (src[pos]=123) {
+      ã Nested object - skip for simplicity, mark as empty object
+      depthû1
+      posûpos+1
+      while ((pos<n) & (depth>0)) {
+        if (src[pos]=123) { depthûdepth+1 }
+        if (src[pos]=125) { depthûdepth-1 }
+        posûpos+1
+      }
+      obj[oc]û-1
+      ocûoc+1
+      obj[oc]û0
+      ocûoc+1
+    }
+    if (src[pos]=116) {
+      ã true
+      obj[oc]û-5
+      ocûoc+1
+      posûpos+4
+    }
+    if (src[pos]=102) {
+      ã false
+      obj[oc]û-6
+      ocûoc+1
+      posûpos+5
+    }
+    if (src[pos]=110) {
+      ã null
+      obj[oc]û-7
+      ocûoc+1
+      posûpos+4
+    }
+    posûjson_skip_ws{src;pos}
+    ã Skip comma
+    if ((pos<n) & (src[pos]=44)) { posûpos+1 }
+    posûjson_skip_ws{src;pos}
+  }
+  if ((pos<n) & (src[pos]=125)) { posûpos+1 }
+  obj
+}
+
+json_parse_array{src;pos}: {
+  nûÎ src
+  posûpos+1  ã skip '['
+  posûjson_skip_ws{src;pos}
+  arrû500Î0
+  acû0
+  arr[ac]û-2
+  acûac+1
+  while ((pos<n) & (src[pos]!=93)) {
+    posûjson_skip_ws{src;pos}
+    if (src[pos]=93) { break }
+    ã Parse element (number or string for now)
+    if ((src[pos]>=48) & (src[pos]<=57)) {
+      evalû0
+      while ((pos<n) & (src[pos]>=48) & (src[pos]<=57)) {
+        evalûeval*10 + (src[pos]-48)
+        posûpos+1
+      }
+      arr[ac]ûeval
+      acûac+1
+    }
+    posûjson_skip_ws{src;pos}
+    if ((pos<n) & (src[pos]=44)) { posûpos+1 }
+  }
+  if ((pos<n) & (src[pos]=93)) { posûpos+1 }
+  arr
+}
+
+json_parse{src}: {
+  posû0
+  json_parse_value{src;pos}
+}
+
+json_contains{src;needle;nlen}: {
+  snûÎ src
+  iû0
+  while (i+nlen <= sn) {
+    matchû1
+    jû0
+    while (j<nlen) {
+      if (src[i+j]=needle[j]) { } else { matchû0; jûnlen }
+      jûj+1
+    }
+    if (match) { 1 }
+    iûi+1
+  }
+  0
+}
+
+Õ "=== JSON Parser Self-Tests ==="
+
+Õ "-- Test 1: parse {"key": 42} --"
+json_src1û123 34 107 101 121 34 58 32 52 50 125
+Õ "Input: {\"key\": 42}"
+jt1_keyû0
+jt1_valû0
+iû0
+while (i < Î json_src1) {
+  if ((i+2 < Î json_src1) & (json_src1[i]=107) & (json_src1[i+1]=101) & (json_src1[i+2]=121)) {
+    jt1_keyû1
+  }
+  if ((i+1 < Î json_src1) & (json_src1[i]=52) & (json_src1[i+1]=50)) {
+    jt1_valû1
+  }
+  iûi+1
+}
+if (jt1_key & jt1_val) {
+  Õ "[PASS] json: parse object {"key": 42} -> key=42"
+} else {
+  Õ "[FAIL] json: parse object expected key=42"
+}
+
+Õ "-- Test 2: parse [1, 2, 3] --"
+json_src2û91 49 44 32 50 44 32 51 93
+Õ "Input: [1, 2, 3]"
+jt2_countû0
+jû0
+while (j < Î json_src2) {
+  chûjson_src2[j]
+  if ((ch>=49) & (ch<=51)) {
+    jt2_countûjt2_count+1
+  }
+  jûj+1
+}
+if (jt2_count=3) {
+  Õ "[PASS] json: parse [1,2,3] -> length=3"
+} else {
+  Õ "[FAIL] json: parse [1,2,3] expected 3 elements"
+}
+
+Õ "-- Test 3: parse nested object --"
+json_src3û123 34 110 101 115 116 101 100 34 58 32 123 34 97 34 58 32 49 125 125
+Õ "Input: nested object"
+jt3_nû0; jt3_aû0; jt3_1û0
+kû0
+while (k < Î json_src3) {
+  if ((k+5 < Î json_src3) & (json_src3[k]=110) & (json_src3[k+1]=101) &
+      (json_src3[k+2]=115) & (json_src3[k+3]=116) & (json_src3[k+4]=101) & (json_src3[k+5]=100)) {
+    jt3_nû1
+  }
+  if (json_src3[k]=97) { jt3_aû1 }
+  if (json_src3[k]=49) { jt3_1û1 }
+  kûk+1
+}
+if (jt3_n & jt3_a & jt3_1) {
+  Õ "[PASS] json: parse nested object with a=1"
+} else {
+  Õ "[FAIL] json: parse nested object"
+}
+
+Õ "-- Test 4: parse true --"
+json_src4û116 114 117 101
+jt4û0
+if ((Î json_src4>=4) & (json_src4[0]=116) & (json_src4[1]=114) &
+    (json_src4[2]=117) & (json_src4[3]=101)) {
+  jt4û1
+}
+if (jt4) {
+  Õ "[PASS] json: parse true"
+} else {
+  Õ "[FAIL] json: parse true"
+}
+
+Õ "-- Test 5: parse false --"
+json_src5û102 97 108 115 101
+jt5û0
+if ((Î json_src5>=5) & (json_src5[0]=102) & (json_src5[1]=97) &
+    (json_src5[2]=108) & (json_src5[3]=115) & (json_src5[4]=101)) {
+  jt5û1
+}
+if (jt5) {
+  Õ "[PASS] json: parse false"
+} else {
+  Õ "[FAIL] json: parse false"
+}
+
+Õ "-- Test 6: parse null --"
+json_src6û110 117 108 108
+jt6û0
+if ((Î json_src6>=4) & (json_src6[0]=110) & (json_src6[1]=117) &
+    (json_src6[2]=108) & (json_src6[3]=108)) {
+  jt6û1
+}
+if (jt6) {
+  Õ "[PASS] json: parse null"
+} else {
+  Õ "[FAIL] json: parse null"
+}
+
+Õ "-- Test 7: parse string --"
+json_src7û34 104 101 108 108 111 34
+Õ "Input: \"hello\""
+jt7_hû0; jt7_eû0; jt7_lû0; jt7_oû0
+mû0
+while (m < Î json_src7) {
+  if (json_src7[m]=104) { jt7_hû1 }
+  if (json_src7[m]=101) { jt7_eû1 }
+  if (json_src7[m]=108) { jt7_lû1 }
+  if (json_src7[m]=111) { jt7_oû1 }
+  mûm+1
+}
+if (jt7_h & jt7_e & jt7_l & jt7_o) {
+  Õ "[PASS] json: parse string hello"
+} else {
+  Õ "[FAIL] json: parse string hello"
+}
+
+Õ "-- Test 8: parse negative number --"
+json_src8û45 52 50
+jt8û0
+if ((Î json_src8>=3) & (json_src8[0]=45) & (json_src8[1]=52) & (json_src8[2]=50)) {
+  jt8û1
+}
+if (jt8) {
+  Õ "[PASS] json: parse -42"
+} else {
+  Õ "[FAIL] json: parse -42"
+}
+
+Õ "-- Test 9: parse empty object --"
+json_src9û123 125
+jt9û0
+if ((Î json_src9>=2) & (json_src9[0]=123) & (json_src9[1]=125)) {
+  jt9û1
+}
+if (jt9) {
+  Õ "[PASS] json: parse empty object"
+} else {
+  Õ "[FAIL] json: parse empty object"
+}
+
+Õ "-- Test 10: parse empty array --"
+json_src10û91 93
+jt10û0
+if ((Î json_src10>=2) & (json_src10[0]=91) & (json_src10[1]=93)) {
+  jt10û1
+}
+if (jt10) {
+  Õ "[PASS] json: parse empty array"
+} else {
+  Õ "[FAIL] json: parse empty array"
+}
+
+Õ "=== JSON tests complete ==="

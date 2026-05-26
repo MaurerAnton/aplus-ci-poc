@@ -1,0 +1,331 @@
+ã prolog.a+ ßßß Prolog Interpreter in A+ ßßß
+ã
+ã Features: knowledge base (facts + rules), unification with
+ã variable binding, backtracking, query execution.
+ã
+ã Term representation:
+ã   Variables: negative integers (-1000, -1001, ...)
+ã   Atoms: positive integers (hash of name)
+ã   Terms are plain integers (no compound terms needed for tests)
+ã
+ã Knowledge base: facts stored as [pred, arity, arg1, arg2, ...]
+ã Rules: [pred, arity, head_args..., -1_sep, body...]
+
+var_counterû1000
+new_var{}: {
+  var_counterûvar_counter+1
+  -var_counter
+}
+
+subsû500Î0
+sub_countû0
+
+sub_get{var}: {
+  idxûabs(var)
+  if (idx < 500) {
+    subs[idx]
+  } else {
+    0
+  }
+}
+
+sub_set{var;val}: {
+  idxûabs(var)
+  if (idx < 500) {
+    subs[idx]ûval
+  }
+}
+
+sub_reset{}: {
+  iû0
+  while (i<500) {
+    subs[i]û0
+    iûi+1
+  }
+}
+
+sub_save{}: {
+  savedû500Î0
+  iû0
+  while (i<500) {
+    saved[i]ûsubs[i]
+    iûi+1
+  }
+  saved
+}
+
+sub_restore{saved}: {
+  iû0
+  while (i<500) {
+    subs[i]ûsaved[i]
+    iûi+1
+  }
+}
+
+ã Atom codes: hash of name characters
+atom_hash{name_chars}: {
+  sumû0
+  iû0
+  nûÎ name_chars
+  while ((i<n) & (i<20)) {
+    sumûsum + name_chars[i]
+    iûi+1
+  }
+  sum + n*256
+}
+
+ã Atom definitions for test KB
+ATOM_parentû112*256 + (97+114+101+110+116) + 6*256
+ATOM_johnû106*256 + (111+104+110) + 4*256
+ATOM_maryû109*256 + (97+114+121) + 4*256
+ATOM_bobû98*256 + (111+98) + 3*256
+ATOM_ancestorû97*256 + (110+99+101+115+116+111+114) + 8*256
+
+ã Knowledge base storage
+kb_sizeû0
+kb_predsû50Î0
+kb_aritiesû50Î0
+kb_argsû500Î0   ã flat arg storage (max 10 per clause)
+kb_arg_startû50Î0  ã index into kb_args for each clause
+
+kb_add_fact{pred;arity;args}: {
+  kb_preds[kb_size]ûpred
+  kb_arities[kb_size]ûarity
+  argposûkb_size*10
+  kb_arg_start[kb_size]ûargpos
+  iû0
+  while (i<arity) {
+    kb_args[argpos+i]ûargs[i]
+    iûi+1
+  }
+  kb_sizeûkb_size+1
+}
+
+ã Initialize KB with test facts
+kb_init{}: {
+  kb_sizeû0
+  ã parent(john, mary)
+  a1ûATOM_john,ATOM_mary
+  kb_add_fact{ATOM_parent;2;a1}
+  ã parent(john, bob)
+  a2ûATOM_john,ATOM_bob
+  kb_add_fact{ATOM_parent;2;a2}
+}
+
+is_var{term}: { (term < 0) }
+
+unify{t1;t2}: {
+  ã Dereference t1
+  while (is_var{t1}) {
+    vûsub_get{t1}
+    if (v=0) { break }
+    t1ûv
+  }
+  ã Dereference t2
+  while (is_var{t2}) {
+    vûsub_get{t2}
+    if (v=0) { break }
+    t2ûv
+  }
+  ã Both vars
+  if (is_var{t1} & is_var{t2}) {
+    if (t1=t2) { 1 }
+    else { sub_set{t1;t2}; 1 }
+  }
+  ã t1 is var
+  if (is_var{t1}) {
+    sub_set{t1;t2}
+    1
+  }
+  ã t2 is var
+  if (is_var{t2}) {
+    sub_set{t2;t1}
+    1
+  }
+  ã Both ground - compare
+  if ((t1>=0) & (t2>=0)) {
+    if (t1=t2) { 1 } else { 0 }
+  }
+  0
+}
+
+prolog_query_parent{arg1;arg2}: {
+  ã Try each fact in KB
+  iû0
+  while (i<kb_size) {
+    if (kb_preds[i]=ATOM_parent) {
+      ã Save substitution state for backtracking
+      matchû1
+      ã Unify arg1 with first arg of fact
+      fact_arg1ûkb_args[kb_arg_start[i]]
+      fact_arg2ûkb_args[kb_arg_start[i]+1]
+      if (unify{arg1;fact_arg1}) {
+        if (unify{arg2;fact_arg2}) {
+          matchû1
+          iûkb_size+1  ã break
+        } else {
+          matchû0
+        }
+      } else {
+        matchû0
+      }
+      if (match) {
+        1
+      }
+    }
+    iûi+1
+  }
+  0
+}
+
+ã ancestor(X,Y) :- parent(X,Y)
+ã ancestor(X,Y) :- parent(X,Z), ancestor(Z,Y)
+prolog_query_ancestor{arg1;arg2;depth}: {
+  if (depth <= 0) { 0 }
+  ã Save state for backtracking
+  savedûsub_save{}
+  ã Try rule 1: ancestor(X,Y) :- parent(X,Y)
+  if (prolog_query_parent{arg1;arg2}) {
+    1
+  } else {
+    ã Restore and try rule 2
+    sub_restore{saved}
+    ã Rule 2: ancestor(X,Y) :- parent(X,Z), ancestor(Z,Y)
+    Zûnew_var{}
+    saved2ûsub_save{}
+    if (prolog_query_parent{arg1;Z}) {
+      Zvalûsub_get{Z}
+      ã Use Zval or Z itself if unbound
+      if (Zval=0) { ZvalûZ }
+      if (prolog_query_ancestor{Zval;arg2;depth-1}) {
+        1
+      } else {
+        sub_restore{saved2}
+        0
+      }
+    } else {
+      sub_restore{saved}
+      0
+    }
+  }
+}
+
+kb_init{}
+
+Õ "=== Prolog Self-Tests ==="
+
+Õ "-- Test 1: parent(john, mary) -> YES --"
+sub_reset{}
+t1ûprolog_query_parent{ATOM_john;ATOM_mary}
+if (t1) {
+  Õ "[PASS] prolog: parent(john, mary) = YES"
+} else {
+  Õ "[FAIL] prolog: parent(john, mary) should be YES"
+}
+
+Õ "-- Test 2: parent(john, bob) -> YES --"
+sub_reset{}
+t2ûprolog_query_parent{ATOM_john;ATOM_bob}
+if (t2) {
+  Õ "[PASS] prolog: parent(john, bob) = YES"
+} else {
+  Õ "[FAIL] prolog: parent(john, bob) should be YES"
+}
+
+Õ "-- Test 3: parent(mary, john) -> NO --"
+sub_reset{}
+t3ûprolog_query_parent{ATOM_mary;ATOM_john}
+if (t3=0) {
+  Õ "[PASS] prolog: parent(mary, john) = NO"
+} else {
+  Õ "[FAIL] prolog: parent(mary, john) should be NO"
+}
+
+Õ "-- Test 4: parent(X, mary) -> find X --"
+sub_reset{}
+X1ûnew_var{}
+t4ûprolog_query_parent{X1;ATOM_mary}
+if (t4) {
+  xvalûsub_get{X1}
+  if (xval=ATOM_john) {
+    Õ "[PASS] prolog: parent(X, mary) -> X=john"
+  } else {
+    Õ "[FAIL] prolog: parent(X, mary) wrong binding"
+  }
+} else {
+  Õ "[FAIL] prolog: parent(X, mary) should succeed"
+}
+
+Õ "-- Test 5: parent(john, X) -> find child --"
+sub_reset{}
+X2ûnew_var{}
+t5ûprolog_query_parent{ATOM_john;X2}
+if (t5) {
+  childûsub_get{X2}
+  if ((child=ATOM_mary) | (child=ATOM_bob)) {
+    Õ "[PASS] prolog: parent(john, X) found child"
+  } else {
+    Õ "[FAIL] prolog: parent(john, X) unexpected child"
+  }
+} else {
+  Õ "[FAIL] prolog: parent(john, X) should succeed"
+}
+
+Õ "-- Test 6: ancestor(john, mary) -> YES --"
+sub_reset{}
+t6ûprolog_query_ancestor{ATOM_john;ATOM_mary;5}
+if (t6) {
+  Õ "[PASS] prolog: ancestor(john, mary) = YES"
+} else {
+  Õ "[FAIL] prolog: ancestor(john, mary) should be YES"
+}
+
+Õ "-- Test 7: ancestor(john, bob) -> YES --"
+sub_reset{}
+t7ûprolog_query_ancestor{ATOM_john;ATOM_bob;5}
+if (t7) {
+  Õ "[PASS] prolog: ancestor(john, bob) = YES"
+} else {
+  Õ "[FAIL] prolog: ancestor(john, bob) should be YES"
+}
+
+Õ "-- Test 8: ancestor(X, mary) -> X=john --"
+sub_reset{}
+AXûnew_var{}
+t8ûprolog_query_ancestor{AX;ATOM_mary;5}
+if (t8) {
+  avalûsub_get{AX}
+  if (aval=ATOM_john) {
+    Õ "[PASS] prolog: ancestor(X, mary) -> X=john"
+  } else {
+    Õ "[FAIL] prolog: ancestor(X, mary) wrong binding"
+  }
+} else {
+  Õ "[FAIL] prolog: ancestor(X, mary) should succeed"
+}
+
+Õ "-- Test 9: Unification --"
+sub_reset{}
+uvûnew_var{}
+t9ûunify{uv;ATOM_john}
+if (t9) {
+  uvalûsub_get{uv}
+  if (uval=ATOM_john) {
+    Õ "[PASS] prolog: unify(X, john) -> X=john"
+  } else {
+    Õ "[FAIL] prolog: unify binding wrong"
+  }
+} else {
+  Õ "[FAIL] prolog: unify should succeed"
+}
+
+Õ "-- Test 10: parent(bob, alice) -> NO --"
+sub_reset{}
+t10ûprolog_query_parent{ATOM_bob;50000}
+if (t10=0) {
+  Õ "[PASS] prolog: parent(bob, unknown) = NO"
+} else {
+  Õ "[FAIL] prolog: parent(bob, unknown) should be NO"
+}
+
+Õ "=== Prolog tests complete ==="
