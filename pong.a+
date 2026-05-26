@@ -1,0 +1,362 @@
+ã pong.a+ ßßß ASCII Pong Game ßßß
+ã
+ã 40x20 playing field with two paddles and a bouncing ball.
+ã Player 1 (left paddle) vs Player 2 (right paddle).
+ã First to 5 points wins.
+ã
+ã Field layout:
+ã   Top/bottom walls: '=' characters
+ã   Left paddle: '|' characters (height 4)
+ã   Right paddle: '|' characters (height 4)
+ã   Ball: '*' character
+ã
+ã Coordinate system: (x,y) where (0,0) is top-left
+ã   x: 0..39 (column), y: 0..19 (row)
+ã   Paddles move vertically (y-axis)
+ã   Ball bounces off top/bottom walls and paddles
+ã
+ã ====== Constants ======
+FIELD_Wû40
+FIELD_Hû20
+PADDLE_Hû4
+PADDLE_LXû1
+PADDLE_RXû38
+WIN_SCOREû5
+DEMO_FRAMESû30
+
+ã ====== Game State ======
+ball_xû0
+ball_yû0
+ball_dxû0
+ball_dyû0
+p1_yû0
+p2_yû0
+score1û0
+score2û0
+frameû0
+
+ã ====== Pre-programmed moves for demo ======
+ã p1_moves[frame] = desired paddle top y for player 1
+ã p2_moves[frame] = desired paddle top y for player 2
+ã 30 frames of moves
+p1_movesû8 8 8 7 6 5 5 5 6 7 8 9 10 10 10 9 8 7 6 5 5 6 7 8 9 10 11 11 10 9
+p2_movesû10 9 8 8 8 8 9 10 10 10 9 8 7 6 5 5 6 7 8 9 10 10 9 8 7 6 5 5 6 7
+
+ã ====== Initialize game state ======
+pong_init{}: {
+  ã Center ball, moving right-down
+  ball_xû20
+  ball_yû10
+  ball_dxû1
+  ball_dyû1
+  ã Paddles at middle of field
+  p1_yû8
+  p2_yû8
+  score1û0
+  score2û0
+  frameû0
+}
+
+ã ====== Print the playing field as ASCII ======
+pong_print{}: {
+  Õ \"\"
+  Õ \"========================================\"
+  Õ \"  PONG - Player 1 vs Player 2\"
+  Õ \"  Score: \", score1, \" - \", score2
+  Õ \"========================================\"
+  ã Build and print each row
+  rowû0
+  while (row<FIELD_H) {
+    ã Top/bottom walls
+    if ((row=0) | (row=FIELD_H-1)) {
+      Õ \"========================================\"
+    } else {
+      ã Row with paddles and ball: print char by char
+      ã Build row string in a buffer
+      row_bufû42Î32
+      ã Walls at column 0 and 39
+      row_buf[0]û61
+      row_buf[41]û61
+      ã Left paddle '|' = ASCII 124
+      if ((row>p1_y) & (row<=p1_y+PADDLE_H)) {
+        row_buf[PADDLE_LX]û124
+      }
+      ã Right paddle '|' = ASCII 124
+      if ((row>p2_y) & (row<=p2_y+PADDLE_H)) {
+        row_buf[PADDLE_RX]û124
+      }
+      ã Ball '*' = ASCII 42
+      if ((ball_y=row) & (ball_x>=0) & (ball_x<FIELD_W)) {
+        row_buf[ball_x]û42
+      }
+      ã Print row_buf as string
+      ã Build string from row_buf
+      stridxû0
+      while (stridx<42) {
+        Õ row_buf[stridx]
+        stridxûstridx+1
+      }
+      Õ \"\"
+    }
+    rowûrow+1
+  }
+  Õ \"\"
+}
+
+ã ====== Move paddles for current frame ======
+pong_move_paddles{}: {
+  ã Player 1: move toward target position
+  t1ûp1_moves[frame]
+  if (t1 < p1_y) {
+    p1_yûp1_y-1
+  }
+  if (t1 > p1_y) {
+    p1_yûp1_y+1
+  }
+  ã Clamp paddle in bounds (0 to FIELD_H-1-PADDLE_H)
+  if (p1_y<1) { p1_yû1 }
+  if (p1_y>FIELD_H-2-PADDLE_H) { p1_yûFIELD_H-2-PADDLE_H }
+  ã Player 2: move toward target position
+  t2ûp2_moves[frame]
+  if (t2 < p2_y) {
+    p2_yûp2_y-1
+  }
+  if (t2 > p2_y) {
+    p2_yûp2_y+1
+  }
+  ã Clamp paddle in bounds
+  if (p2_y<1) { p2_yû1 }
+  if (p2_y>FIELD_H-2-PADDLE_H) { p2_yûFIELD_H-2-PADDLE_H }
+}
+
+ã ====== Move ball, handle collisions and scoring ======
+ã Returns: 0=continue, 1=point for P1, 2=point for P2
+pong_move_ball{}: {
+  resultû0
+  ã Calculate new position
+  new_xûball_x+ball_dx
+  new_yûball_y+ball_dy
+  ã Check top/bottom wall bounce
+  if (new_y<=0) {
+    new_yû1-new_y
+    ball_dyû-ball_dy
+  }
+  if (new_y>=FIELD_H-1) {
+    new_yû(FIELD_H-2)-(new_y-(FIELD_H-1))
+    ball_dyû-ball_dy
+  }
+  ã Check left paddle collision
+  if ((new_x<=PADDLE_LX) & (ball_dx<0)) {
+    if ((new_y>p1_y) & (new_y<=p1_y+PADDLE_H)) {
+      new_xûPADDLE_LX+1
+      ball_dxû-ball_dx
+    }
+  }
+  ã Check right paddle collision
+  if ((new_x>=PADDLE_RX) & (ball_dx>0)) {
+    if ((new_y>p2_y) & (new_y<=p2_y+PADDLE_H)) {
+      new_xûPADDLE_RX-1
+      ball_dxû-ball_dx
+    }
+  }
+  ã Check scoring (ball past paddles)
+  if (new_x<0) {
+    resultû2
+    ã Reset ball
+    new_xû20
+    new_yû10
+    ball_dxû1
+    ball_dyû1
+  }
+  if (new_x>=FIELD_W) {
+    resultû1
+    ã Reset ball
+    new_xû20
+    new_yû10
+    ball_dxû-1
+    ball_dyû1
+  }
+  ã Update ball position
+  ball_xûnew_x
+  ball_yûnew_y
+  result
+}
+
+ã ====== Update score from ball result ======
+pong_update_score{result}: {
+  if (result=1) {
+    score1ûscore1+1
+    Õ \"pong: POINT! Player 1 scores!\"
+  }
+  if (result=2) {
+    score2ûscore2+1
+    Õ \"pong: POINT! Player 2 scores!\"
+  }
+}
+
+ã ====== Check for win condition ======
+pong_check_win{}: {
+  if (score1>=WIN_SCORE) {
+    Õ \"pong: Player 1 WINS!\"
+    1
+  }
+  if (score2>=WIN_SCORE) {
+    Õ \"pong: Player 2 WINS!\"
+    1
+  }
+  0
+}
+
+ã ========================
+ã === 30-FRAME DEMO ===
+ã ========================
+
+pong_init{}
+  Õ \"pong: Starting Pong demo (30 frames)\"
+  Õ \"\"
+
+doneû0
+while ((frame<DEMO_FRAMES) & (done=0)) {
+  ã Move paddles
+  pong_move_paddles{}
+  ã Move ball and get result
+  brûpong_move_ball{}
+  ã Update score if point scored
+  if (br>0) {
+    pong_update_score{br}
+  }
+  ã Print field
+  pong_print{}
+  ã Check win
+  wûpong_check_win{}
+  if (w=1) { doneû1 }
+  frameûframe+1
+}
+
+if (done=0) {
+  Õ \"pong: Demo complete after 30 frames\"
+}
+  Õ \"Final score: \", score1, \" - \", score2
+
+ã ========================
+ã === SELF-TESTS ===
+ã ========================
+
+  Õ \"\"
+  Õ \"pong: === Self-tests ===\"
+
+ã --- Test 1: Paddle stays in bounds ---
+pong_init{}
+ã Manually set paddle below field and check clamping
+p1_yû100
+pong_move_paddles{}
+ã After clamping, p1_y should be <= FIELD_H-2-PADDLE_H = 20-2-4 = 14
+max_pad_yûFIELD_H-2-PADDLE_H
+if (p1_y<=max_pad_y) {
+  Õ \"pong: [PASS] paddle clamped to valid range\"
+} else {
+  Õ \"pong: [FAIL] paddle out of bounds\"
+}
+
+ã --- Test 2: Paddle stays above top wall ---
+pong_init{}
+p1_yû-10
+pong_move_paddles{}
+if (p1_y>=1) {
+  Õ \"pong: [PASS] paddle clamped above top wall\"
+} else {
+  Õ \"pong: [FAIL] paddle went above top\"
+}
+
+ã --- Test 3: Ball bounces off top wall ---
+pong_init{}
+ball_yû2
+ball_dyû-1
+pong_move_ball{}
+if (ball_dy=1) {
+  Õ \"pong: [PASS] ball bounced off top wall\"
+} else {
+  Õ \"pong: [FAIL] ball did not bounce off top wall\"
+}
+
+ã --- Test 4: Ball bounces off bottom wall ---
+pong_init{}
+ball_yû17
+ball_dyû1
+pong_move_ball{}
+if (ball_dy=-1) {
+  Õ \"pong: [PASS] ball bounced off bottom wall\"
+} else {
+  Õ \"pong: [FAIL] ball did not bounce off bottom wall\"
+}
+
+ã --- Test 5: Ball bounces off left paddle ---
+pong_init{}
+ball_xû3
+ball_yû10
+ball_dxû-1
+ball_dyû0
+p1_yû8
+ã Ball should hit left paddle and bounce right
+pong_move_ball{}
+if (ball_dx=1) {
+  Õ \"pong: [PASS] ball bounced off left paddle\"
+} else {
+  Õ \"pong: [FAIL] ball did not bounce off left paddle\"
+}
+
+ã --- Test 6: Ball bounces off right paddle ---
+pong_init{}
+ball_xû36
+ball_yû10
+ball_dxû1
+ball_dyû0
+p2_yû8
+pong_move_ball{}
+if (ball_dx=-1) {
+  Õ \"pong: [PASS] ball bounced off right paddle\"
+} else {
+  Õ \"pong: [FAIL] ball did not bounce off right paddle\"
+}
+
+ã --- Test 7: Verify scoring (ball past left wall) ---
+pong_init{}
+ball_xû1
+ball_yû10
+ball_dxû-1
+ball_dyû0
+p1_yû20
+ã Move paddle out of the way so ball passes
+br2ûpong_move_ball{}
+if (br2=2) {
+  Õ \"pong: [PASS] point awarded to P2 when ball passes left wall\"
+} else {
+  Õ \"pong: [FAIL] no point awarded when ball passes left wall\"
+}
+
+ã --- Test 8: Verify scoring (ball past right wall) ---
+pong_init{}
+ball_xû37
+ball_yû10
+ball_dxû1
+ball_dyû0
+p2_yû20
+br3ûpong_move_ball{}
+if (br3=1) {
+  Õ \"pong: [PASS] point awarded to P1 when ball passes right wall\"
+} else {
+  Õ \"pong: [FAIL] no point awarded when ball passes right wall\"
+}
+
+ã --- Test 9: Win condition at score 5 ---
+pong_init{}
+score1û5
+w2ûpong_check_win{}
+if (w2=1) {
+  Õ \"pong: [PASS] win detected at score 5\"
+} else {
+  Õ \"pong: [FAIL] win not detected\"
+}
+
+  Õ \"pong: all tests done\"
+

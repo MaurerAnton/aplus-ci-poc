@@ -1,0 +1,300 @@
+ã ed25519.a+ ßßß Ed25519 Simplified in A+ ßßß
+ã
+ã Edwards curve: x^2 + y^2 = 1 + d*x^2*y^2 (mod p)
+ã Uses small prime p=97 for A+ integer compatibility.
+ã d=2 is a valid non-square for the Edwards curve over F_97.
+ã
+ã Implements: modular arithmetic, point addition, scalar mult,
+ã EdDSA-style sign and verify.
+ã
+ã --- Curve parameters ---
+ed_pû97          ã Field prime (small for A+)
+ed_dû2           ã Edwards curve parameter d
+ed_Lû13          ã Subgroup order (simplified, for nonce/scalar bounds)
+ed_Bxû1          ã Base point x-coordinate
+ed_Byû0          ã Base point y-coordinate (1^2+0^2=1, works for d=2)
+
+ã --- Modular arithmetic ---
+ed_mod_add{a;b}: {
+  sûa+b
+  if (s >= ed_p) { sûs-ed_p }
+  s
+}
+
+ed_mod_sub{a;b}: {
+  if (a >= b) { a-b } else { a + ed_p - b }
+}
+
+ed_mod_mul{a;b}: {
+  ã (a*b) mod p using repeated subtraction
+  prodûa*b
+  while (prod >= ed_p) {
+    prodûprod - ed_p
+  }
+  prod
+}
+
+ed_mod_sqr{a}: { ed_mod_mul{a;a} }
+
+ã Extended Euclidean algorithm for modular inverse
+ed_mod_inv{a}: {
+  if (a = 0) { 0 }
+  ã Compute a^(p-2) mod p (Fermat's little theorem)
+  resultû1
+  baseûa - ((aßed_p)*ed_p)  ã a mod p
+  expûed_p-2
+  while (exp > 0) {
+    if (exp - (expß2)*2) {
+      ã exp is odd
+      resultûed_mod_mul{result;base}
+    }
+    baseûed_mod_mul{base;base}
+    expûexpß2
+  }
+  result
+}
+
+ã Modular division: a / b mod p = a * b^(p-2) mod p
+ed_mod_div{a;b}: {
+  ed_mod_mul{a;ed_mod_inv{b}}
+}
+
+ã --- Point operations ---
+ã Point is array [x, y]
+ed_point{x;y}: {
+  pûx, y
+  p
+}
+
+ã Point addition on Edwards curve: (x1,y1) + (x2,y2)
+ã Formula: x3 = (x1*y2 + y1*x2) / (1 + d*x1*x2*y1*y2)
+ã         y3 = (y1*y2 - x1*x2) / (1 - d*x1*x2*y1*y2)
+ed_point_add{p1;p2}: {
+  x1ûp1[0]
+  y1ûp1[1]
+  x2ûp2[0]
+  y2ûp2[1]
+
+  x1y2ûed_mod_mul{x1;y2}
+  y1x2ûed_mod_mul{y1;x2}
+  x1x2ûed_mod_mul{x1;x2}
+  y1y2ûed_mod_mul{y1;y2}
+  dx1x2y1y2ûed_mod_mul{ed_d;ed_mod_mul{x1x2;y1y2}}
+
+  num_xûed_mod_add{x1y2;y1x2}
+  den_xûed_mod_add{1;dx1x2y1y2}
+  num_yûed_mod_sub{y1y2;x1x2}
+  den_yûed_mod_sub{1;dx1x2y1y2}
+
+  x3ûed_mod_div{num_x;den_x}
+  y3ûed_mod_div{num_y;den_y}
+
+  ed_point{x3;y3}
+}
+
+ã Point doubling (special case of addition)
+ed_point_dbl{p}: {
+  ed_point_add{p;p}
+}
+
+ã Identity point (neutral element) = (0, 1)
+ed_identity{}: {
+  ed_point{0;1}
+}
+
+ã Is point the identity?
+ed_is_identity{p}: {
+  ((p[0]=0) & (p[1]=1))
+}
+
+ã Scalar multiplication: k * P using double-and-add
+ed_scalar_mul{k;p}: {
+  resultûed_identity{}
+  if (k = 0) { result }
+  tempûp
+  while (k > 0) {
+    if (k - (kß2)*2) {
+      ã k is odd: add temp to result
+      resultûed_point_add{result;temp}
+    }
+    kûkß2
+    if (k > 0) {
+      tempûed_point_dbl{temp}
+    }
+  }
+  result
+}
+
+ã Simple hash: (a+b+c) mod L for demo purposes
+ã In real Ed25519 this would be SHA-512
+ed_hash2{a;b}: {
+  (a*31 + b*17 + 7) - (((a*31 + b*17 + 7)ßed_L)*ed_L)
+}
+
+ed_hash3{a;b;c}: {
+  (a*47 + b*31 + c*17 + 13) - (((a*47 + b*31 + c*17 + 13)ßed_L)*ed_L)
+}
+
+ã --- Key generation ---
+ã Generate keypair: private_key scalar, public_key = priv * G
+ed_keygen{}: {
+  ed_privû5             ã Hardcoded private key for demo
+  ed_baseûed_point{ed_Bx;ed_By}
+  ed_pubûed_scalar_mul{ed_priv;ed_base}
+  ed_pub
+}
+
+ã --- EdDSA Sign ---
+ã Input: private_key, message (as integer), public_key
+ã Output: [R_x, R_y, S] signature
+ã
+ã Algorithm:
+ã   r = hash(private_key, message)  -- deterministic nonce
+ã   R = r * G
+ã   h = hash(R_x, R_y, public_key_x, public_key_y, message)
+ã   S = (r + h * private_key) mod L
+ã   Signature = (R, S)
+ed_sign{priv;msg}: {
+  ã Compute deterministic nonce r
+  r_valûed_hash2{priv;msg}
+  if (r_val = 0) { r_valû1 }  ã Ensure non-zero
+
+  ã R = r * G
+  ed_baseûed_point{ed_Bx;ed_By}
+  Rûed_scalar_mul{r_val;ed_base}
+
+  ã Compute public key
+  pubûed_scalar_mul{priv;ed_base}
+
+  ã h = hash(R_x, pub_x, msg)
+  h_valûed_hash3{R[0];pub[0];msg}
+
+  ã S = (r + h * priv) mod L
+  Sûr_val + h_val*priv
+  SûS - ((Sßed_L)*ed_L)  ã mod L
+
+  ã Return signature [R_x, R_y, S]
+  sigûR[0], R[1], S
+  sig
+}
+
+ã --- EdDSA Verify ---
+ã Input: public_key, message, signature [R_x, R_y, S]
+ã Output: 1 if valid, 0 if invalid
+ã
+ã Check: S*G == R + h*pub  where h = hash(R, pub, msg)
+ed_verify{pub;msg;sig}: {
+  R_xûsig[0]
+  R_yûsig[1]
+  Sûsig[2]
+
+  ed_baseûed_point{ed_Bx;ed_By}
+
+  ã Compute h = hash(R_x, pub[0], msg)
+  h_valûed_hash3{R_x;pub[0];msg}
+
+  ã Compute S*G
+  SGûed_scalar_mul{S;ed_base}
+
+  ã Compute h*pub
+  hPubûed_scalar_mul{h_val;pub}
+
+  ã Compute R + h*pub
+  Rûed_point{R_x;R_y}
+  RhPubûed_point_add{R;hPub}
+
+  ã Check equality
+  if ((SG[0] = RhPub[0]) & (SG[1] = RhPub[1])) {
+    1
+  } else {
+    0
+  }
+}
+
+Õ "=== Ed25519 Simplified Self-Tests ==="
+
+Õ "-- Test 1: Modular arithmetic basics --"
+t1aûed_mod_add{50;60}
+if (t1a = 13) {
+  Õ "[PASS] ed25519: (50+60) mod 97 = 13"
+} else {
+  Õ "[FAIL] ed25519: (50+60) mod 97 expected 13, got " + t1a
+}
+
+t1bûed_mod_mul{10;20}
+if (t1b = 6) {
+  Õ "[PASS] ed25519: (10*20) mod 97 = 6 (200-97-97=6)"
+} else {
+  Õ "[FAIL] ed25519: (10*20) mod 97 expected 6, got " + t1b
+}
+
+Õ "-- Test 2: Point addition with identity --"
+id_pointûed_identity{}
+base_ptûed_point{ed_Bx;ed_By}
+t2_resultûed_point_add{base_pt;id_point}
+if ((t2_result[0] = ed_Bx) & (t2_result[1] = ed_By)) {
+  Õ "[PASS] ed25519: P + identity = P"
+} else {
+  Õ "[FAIL] ed25519: P + identity != P"
+}
+
+Õ "-- Test 3: Scalar multiplication 2*G = G+G --"
+G_dblûed_point_dbl{base_pt}
+G_2mulûed_scalar_mul{2;base_pt}
+if ((G_dbl[0] = G_2mul[0]) & (G_dbl[1] = G_2mul[1])) {
+  Õ "[PASS] ed25519: 2*G = G+G"
+} else {
+  Õ "[FAIL] ed25519: 2*G != G+G"
+}
+
+Õ "-- Test 4: Sign and verify message --"
+ed_privû5
+ed_pubûed_scalar_mul{ed_priv;base_pt}
+msg_testû42
+sig_testûed_sign{ed_priv;msg_test}
+Õ "Signed message 42 with private key 5"
+verify_resultûed_verify{ed_pub;msg_test;sig_test}
+if (verify_result) {
+  Õ "[PASS] ed25519: signature verified successfully"
+} else {
+  Õ "[FAIL] ed25519: signature verification failed"
+}
+
+Õ "-- Test 5: Verification fails with wrong message --"
+wrong_msgû99
+verify_wrongûed_verify{ed_pub;wrong_msg;sig_test}
+if (verify_wrong = 0) {
+  Õ "[PASS] ed25519: verification correctly rejected wrong message"
+} else {
+  Õ "[FAIL] ed25519: verification should have failed for wrong message"
+}
+
+Õ "-- Test 6: Verification fails with wrong public key --"
+wrong_privû7
+wrong_pubûed_scalar_mul{wrong_priv;base_pt}
+verify_wrongkeyûed_verify{wrong_pub;msg_test;sig_test}
+if (verify_wrongkey = 0) {
+  Õ "[PASS] ed25519: verification correctly rejected wrong public key"
+} else {
+  Õ "[FAIL] ed25519: verification should have failed for wrong key"
+}
+
+Õ "-- Test 7: Different messages produce different signatures --"
+sig2ûed_sign{ed_priv;7}
+sig3ûed_sign{ed_priv;99}
+if ((sig2[2] = sig3[2]) & (sig2[0] = sig3[0])) {
+  Õ "[FAIL] ed25519: different messages should produce different sigs"
+} else {
+  Õ "[PASS] ed25519: different messages produce different signatures"
+}
+
+Õ "-- Test 8: Modular inverse --"
+inv5ûed_mod_inv{5}
+prod_checkûed_mod_mul{5;inv5}
+if (prod_check = 1) {
+  Õ "[PASS] ed25519: 5 * inv(5) = 1 mod 97"
+} else {
+  Õ "[FAIL] ed25519: modular inverse failed, 5*inv(5)=" + prod_check
+}
+
+Õ "=== Ed25519 tests complete ==="

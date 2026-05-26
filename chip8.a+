@@ -1,0 +1,314 @@
+ã chip8.a+ ßßß CHIP-8 Emulator in A+ ßßß
+ã
+ã 4KB memory (4096 bytes), 16 registers V0-VF, index I, PC, stack
+ã 64x32 pixel display, delay timer DT, sound timer ST
+ã Implements: 00E0, 00EE, 1nnn, 2nnn, 3xkk, 6xkk, 7xkk, Annn, Dxyn
+ã
+ã --- Initialize CHIP-8 state ---
+memû4096Î0
+vû16Î0       ã V0..VF registers
+i_regû0        ã I register
+pcû0x200       ã Program counter starts at 0x200
+spû0           ã Stack pointer
+stackû16Î0   ã Return address stack
+dtû0           ã Delay timer
+stû0           ã Sound timer
+dispû2048Î0  ã 64*32 = 2048 pixels
+
+ã Extract nibbles from a 16-bit opcode
+c8_n0{w}: { (wß4096) }                                    ã top nibble
+c8_n1{w}: { (wß256) - (wß4096)*16 }                       ã nibble 1
+c8_n2{w}: { (wß16) - (wß256)*16 }                         ã nibble 2
+c8_n3{w}: { w - (wß16)*16 }                                 ã nibble 3
+c8_kk{w}:  { w - (wß256)*256 }                              ã low byte
+c8_nnn{w}: { w - (wß4096)*4096 }                             ã 12-bit address
+c8_x{w}:   { c8_n1{w} }                                      ã register x
+c8_y{w}:   { c8_n2{w} }                                      ã register y
+c8_n{w}:   { c8_n3{w} }                                      ã nibble n
+
+ã Fetch current opcode (2 bytes big-endian)
+c8_fetch{}: {
+  mem[pc]*256 + mem[pc+1]
+}
+
+ã Draw sprite at (vx, vy) from I, height=n; sets VF on collision
+c8_draw{vx;vy;n}: {
+  v[0xF]û0  ã VF = no collision yet
+  rowû0
+  while (row < n) {
+    sprite_byteûmem[i_reg+row]
+    colû0
+    while (col < 8) {
+      if ((sprite_byte ß (128ßcol)) ß 128) {
+        ã Extract bit 7-col
+        bitû(sprite_byte ß (128ßcol)) ß 128
+      } else {
+        bitû0
+      }
+      if (bit) {
+        pxû(vx+col) - ((vx+col)ß64)*64
+        pyû(vy+row) - ((vy+row)ß32)*32
+        idxûpx + py*64
+        if (disp[idx]) {
+          v[0xF]û1  ã collision detected
+        }
+        disp[idx]ûdisp[idx] ^ 1  ã XOR pixel
+      }
+      colûcol+1
+    }
+    rowûrow+1
+  }
+}
+
+ã Execute a single CHIP-8 instruction, returns 1 on success
+c8_step{}: {
+  if ((pc < 0x200) | (pc >= 4094)) { 0 }
+  opûc8_fetch{}
+  topûc8_n0{op}
+  pc_advû1  ã flag: did PC advance?
+
+  ã 00E0: clear display
+  if (op=0x00E0) {
+    jû0
+    while (j < 2048) { disp[j]û0; jûj+1 }
+    pcûpc+2
+  }
+
+  ã 00EE: return from subroutine
+  if (op=0x00EE) {
+    spûsp-1
+    pcûstack[sp] + 2
+  }
+
+  ã 1nnn: jump to nnn
+  if (top=1) {
+    pcûc8_nnn{op}
+    pc_advû0
+  }
+
+  ã 2nnn: call subroutine
+  if (top=2) {
+    stack[sp]ûpc
+    spûsp+1
+    pcûc8_nnn{op}
+    pc_advû0
+  }
+
+  ã 3xkk: skip next if Vx == kk
+  if (top=3) {
+    xûc8_x{op}
+    kkûc8_kk{op}
+    if (v[x] = kk) { pcûpc+4 }
+    else { pcûpc+2 }
+  }
+
+  ã 6xkk: set Vx = kk
+  if (top=6) {
+    xûc8_x{op}
+    v[x]ûc8_kk{op}
+    pcûpc+2
+  }
+
+  ã 7xkk: add kk to Vx (no carry)
+  if (top=7) {
+    xûc8_x{op}
+    kkûc8_kk{op}
+    v[x]û(v[x] + kk) - ((v[x] + kk)ß256)*256
+    pcûpc+2
+  }
+
+  ã Annn: set I = nnn
+  if (top=0xA) {
+    i_regûc8_nnn{op}
+    pcûpc+2
+  }
+
+  ã Dxyn: draw sprite
+  if (top=0xD) {
+    xûc8_x{op}
+    yûc8_y{op}
+    nûc8_n{op}
+    c8_draw{v[x]; v[y]; n}
+    pcûpc+2
+  }
+
+  pc_adv
+}
+
+ã --- Load a hardcoded CHIP-8 program ---
+ã
+ã IBM Logo program:
+ã This program draws the IBM logo on screen
+ã Address 0x200: 6000 6100 A208 D125   (set V0=0, V1=0, I=0x208, draw)
+ã Address 0x208: sprite data (IBM logo)
+
+ã Font data at 0x000 (standard CHIP-8 font, but we put program at 0x200)
+ã Program: set V0=0, V1=0, I=0x208, draw 5-row sprite (IBM logo)
+ã Then move right: V0=V0+8, draw again, etc.
+
+ã 0x200: A2 08    I = 0x208
+mem[0x200]û0xA2
+mem[0x201]û0x08
+
+ã 0x202: 60 00    V0 = 0
+mem[0x202]û0x60
+mem[0x203]û0x00
+
+ã 0x204: 61 00    V1 = 0
+mem[0x204]û0x61
+mem[0x205]û0x00
+
+ã 0x206: D0 15    draw(V0, V1, 5)
+mem[0x206]û0xD0
+mem[0x207]û0x15
+
+ã 0x208: sprite data - 5 rows of 8 bits each (IBM logo style)
+ã Row 0: 11111100 = 0xFC  (bar + gap)
+mem[0x208]û0xFC
+ã Row 1: 10000100 = 0x84  (I shape)
+mem[0x209]û0x84
+ã Row 2: 11111100 = 0xFC  (H shape)
+mem[0x20A]û0xFC
+ã Row 3: 00100100 = 0x24  (center bar)
+mem[0x20B]û0x24
+ã Row 4: 11111100 = 0xFC  (bottom bar)
+mem[0x20C]û0xFC
+
+ã 0x20D: 70 08    V0 += 8 (move right)
+mem[0x20D]û0x70
+mem[0x20E]û0x08
+
+ã 0x20F: D0 15    draw(V0, V1, 5) again
+mem[0x20F]û0xD0
+mem[0x210]û0x15
+
+ã 0x211: 70 08    V0 += 8 (move right)
+mem[0x211]û0x70
+mem[0x212]û0x08
+
+ã 0x213: D0 15    draw(V0, V1, 5) again (3rd letter)
+mem[0x213]û0xD0
+mem[0x214]û0x15
+
+ã 0x215: 12 00    jump to 0x200 (loop)
+mem[0x215]û0x12
+mem[0x216]û0x00
+
+ã --- Execute ~15-20 instructions ---
+ã
+stepsû0
+while (steps < 18) {
+  c8_step{}
+  stepsûsteps+1
+}
+
+ã --- Print display state as ASCII ---
+Õ "CHIP-8 Display (32x64, . = off, # = on):"
+ã Show top-left 32x16 region (first half of display)
+dyû0
+while (dy < 16) {
+  lineû""
+  dxû0
+  while (dx < 32) {
+    idxûdx + dy*64
+    if (disp[idx]) {
+      lineûline + "#"
+    } else {
+      lineûline + "."
+    }
+    dxûdx+1
+  }
+  Õ line
+  dyûdy+1
+}
+
+Õ ""
+Õ "=== CHIP-8 Self-Tests ==="
+
+Õ "-- Test 1: PC advanced past 0x200 --"
+if (pc > 0x200) {
+  Õ "[PASS] chip8: PC advanced to " + pc
+} else {
+  Õ "[FAIL] chip8: PC did not advance beyond 0x200"
+}
+
+Õ "-- Test 2: Display has pixels set after draw --"
+pixel_countû0
+k2û0
+while (k2 < 2048) {
+  if (disp[k2]) { pixel_countûpixel_count+1 }
+  k2ûk2+1
+}
+if (pixel_count > 0) {
+  Õ "[PASS] chip8: display has " + pixel_count + " pixels ON"
+} else {
+  Õ "[FAIL] chip8: display has no pixels set"
+}
+
+Õ "-- Test 3: VF flag set on collision --"
+ã Set up a simple draw: I=0x300, draw at (0,0), 2 rows
+i_regû0x300
+mem[0x300]û0xFF  ã solid row
+mem[0x301]û0xFF  ã solid row
+v[0x0]û0
+v[0x1]û0
+v[0xF]û0
+c8_draw{0; 0; 2}
+if (v[0xF] = 0) {
+  Õ "[PASS] chip8: VF=0 on first draw (no collision)"
+  ã Draw again at same position - should collide
+  c8_draw{0; 0; 2}
+  if (v[0xF] = 1) {
+    Õ "[PASS] chip8: VF=1 on second draw (collision detected)"
+  } else {
+    Õ "[FAIL] chip8: VF should be 1 on collision"
+  }
+} else {
+  Õ "[FAIL] chip8: VF should be 0 on first draw"
+}
+
+Õ "-- Test 4: Opcode 6xkk sets Vx correctly --"
+v[0]û0
+mem[0x220]û0x60  ã 6=Vx, 0=V0
+mem[0x221]û0x42  ã kk=0x42=66
+mem[0x222]û0x00
+mem[0x223]û0x00
+pcû0x220
+c8_step{}
+if (v[0] = 0x42) {
+  Õ "[PASS] chip8: opcode 6x00 set V0=0x42 (66)"
+} else {
+  Õ "[FAIL] chip8: opcode 6x00 expected V0=66, got " + v[0]
+}
+
+Õ "-- Test 5: Opcode 7xkk adds to Vx --"
+v[1]û10
+mem[0x224]û0x71  ã 7=add, 1=V1
+mem[0x225]û0x05  ã kk=5
+pcû0x224
+c8_step{}
+if (v[1] = 15) {
+  Õ "[PASS] chip8: opcode 7x01 added 5 to V1=10 -> 15"
+} else {
+  Õ "[FAIL] chip8: opcode 7x01 expected V1=15, got " + v[1]
+}
+
+Õ "-- Test 6: Opcode 3xkk skip if equal --"
+v[2]û42
+mem[0x228]û0x32  ã 3=skip, 2=V2
+mem[0x229]û0x2A  ã kk=42
+mem[0x22A]û0x00
+mem[0x22B]û0x00
+pcû0x228
+c8_step{}
+if (pc = 0x22C) {
+  Õ "[PASS] chip8: opcode 3xkk skipped (V2=42, kk=42)"
+} else {
+  if (pc = 0x22A) {
+    Õ "[FAIL] chip8: opcode 3xkk did not skip when Vx=kk"
+  } else {
+    Õ "[FAIL] chip8: unexpected PC after skip test"
+  }
+}
+
+Õ "=== CHIP-8 tests complete ==="

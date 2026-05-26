@@ -1,0 +1,274 @@
+ã btree.a+ ßßß B-Tree (Order 3) in A+ ßßß
+ã
+ã Order 3 B-tree: max 5 keys, max 6 children per node
+ã Node structure (flat array): [num_keys, key0..key4, child0..child5]
+ã Each node uses 12 slots: [nk, k0,k1,k2,k3,k4, c0,c1,c2,c3,c4,c5]
+ã
+ã To simulate a tree, we use a single flat array of node-arrays.
+ã Each node is an array of 12 elements allocated in a pool.
+ã Root index is 0.
+ã
+ã Node pool: index = node_id * 12, each node occupies 12 slots
+node_poolû240Î0  ã 20 nodes max (20*12=240)
+node_countû0     ã how many nodes allocated
+
+ã Allocate a new node (all zeros), returns node_id
+bt_alloc_node{}: {
+  nidûnode_count
+  node_countûnode_count+1
+  nid
+}
+
+ã Get field from node nid at offset (0=nk, 1-5=keys, 6-11=children)
+bt_get{nid;off}: {
+  node_pool[nid*12 + off]
+}
+
+ã Set field in node nid at offset
+bt_set{nid;off;val}: {
+  node_pool[nid*12 + off]ûval
+}
+
+ã Get number of keys in node
+bt_nkeys{nid}: { bt_get{nid;0} }
+
+ã Set number of keys in node
+bt_set_nkeys{nid;nk}: { bt_set{nid;0;nk} }
+
+ã Get key at position pos (0-indexed) in node nid
+bt_key{nid;pos}: { bt_get{nid;pos+1} }
+
+ã Set key at position pos
+bt_set_key{nid;pos;val}: { bt_set{nid;pos+1;val} }
+
+ã Get child at position pos (0-indexed)
+bt_child{nid;pos}: { bt_get{nid;pos+6} }
+
+ã Set child at position pos
+bt_set_child{nid;pos;val}: { bt_set{nid;pos+6;val} }
+
+ã Insert key k into leaf node nid. Assumes room exists.
+ã Returns 1 if split needed, else 0
+bt_insert_into_node{nid;k}: {
+  nkûbt_nkeys{nid}
+  ã Find insertion position
+  posû0
+  while ((pos < nk) & (bt_key{nid;pos} < k)) {
+    posûpos+1
+  }
+  ã Shift keys right
+  iûnk
+  while (i > pos) {
+    bt_set_key{nid;i;bt_key{nid;i-1}}
+    iûi-1
+  }
+  bt_set_key{nid;pos;k}
+  bt_set_nkeys{nid;nk+1}
+  ã Check if overflow (max 5 keys)
+  if (nk+1 > 5) { 1 } else { 0 }
+}
+
+ã Split node nid. Returns array [median_key, new_node_id]
+bt_split_node{nid}: {
+  rnidûbt_alloc_node{}
+  ã Median is at position 2 (middle key of 5 = 0,1,2,3,4)
+  medianûbt_key{nid;2}
+  ã Move keys 3,4 to new node
+  bt_set_key{rnid;0;bt_key{nid;3}}
+  bt_set_key{rnid;1;bt_key{nid;4}}
+  bt_set_nkeys{rnid;2}
+  ã Left node keeps keys 0,1 (2 keys)
+  bt_set_nkeys{nid;2}
+  ã Move children 3,4,5 to new node
+  bt_set_child{rnid;0;bt_child{nid;3}}
+  bt_set_child{rnid;1;bt_child{nid;4}}
+  bt_set_child{rnid;2;bt_child{nid;5}}
+  ã Return [median, rnid]
+  resultûmedian, rnid
+  result
+}
+
+ã Insert key k into subtree rooted at nid. Returns array:
+ã   [-1] if no split, or [0, median, right_child] if split at root
+bt_insert_tree{nid;k}: {
+  nkûbt_nkeys{nid}
+  ã Check if this is a leaf (no children = child 0 is 0)
+  is_leafû(bt_child{nid;0} = 0)
+  if (is_leaf) {
+    overflowûbt_insert_into_node{nid;k}
+    if (overflow) {
+      spûbt_split_node{nid}
+      ã Return [0, sp[0], sp[1]] = [flag, median, right_child]
+      split_resultû0, sp[0], sp[1]
+      split_result
+    } else {
+      no_splitû-1
+      no_split
+    }
+  } else {
+    ã Internal node: find child to recurse into
+    posû0
+    while ((pos < nk) & (bt_key{nid;pos} < k)) {
+      posûpos+1
+    }
+    childûbt_child{nid;pos}
+    child_resultûbt_insert_tree{child;k}
+    ã Check if child split
+    if (child_result[0] >= 0) {
+      ã Child split, insert median and right_child into this node
+      c_medianûchild_result[1]
+      c_rightûchild_result[2]
+      ã Insert c_median and c_right at position pos
+      ã Shift keys from pos rightward
+      iûnk
+      while (i > pos) {
+        bt_set_key{nid;i;bt_key{nid;i-1}}
+        iûi-1
+      }
+      bt_set_key{nid;pos;c_median}
+      ã Shift children from pos+1 rightward
+      jûnk+1
+      while (j > pos+1) {
+        bt_set_child{nid;j;bt_child{nid;j-1}}
+        jûj-1
+      }
+      bt_set_child{nid;pos+1;c_right}
+      bt_set_nkeys{nid;nk+1}
+      ã Check overflow
+      if (nk+1 > 5) {
+        sp2ûbt_split_node{nid}
+        result2û0, sp2[0], sp2[1]
+        result2
+      } else {
+        no2û-1
+        no2
+      }
+    } else {
+      no3û-1
+      no3
+    }
+  }
+}
+
+ã Insert key k into B-tree. Returns new root.
+bt_insert{root;k}: {
+  resultûbt_insert_tree{root;k}
+  if (result[0] >= 0) {
+    ã Root split: create new root
+    new_rootûbt_alloc_node{}
+    bt_set_key{new_root;0;result[1]}
+    bt_set_child{new_root;0;root}
+    bt_set_child{new_root;1;result[2]}
+    bt_set_nkeys{new_root;1}
+    new_root
+  } else {
+    root
+  }
+}
+
+ã Search for key k in subtree nid. Returns 1 if found, 0 if not.
+bt_search_node{nid;k}: {
+  if (nid = -1) { 0 }
+  nkûbt_nkeys{nid}
+  posû0
+  while ((pos < nk) & (bt_key{nid;pos} < k)) {
+    posûpos+1
+  }
+  if ((pos < nk) & (bt_key{nid;pos} = k)) {
+    1
+  } else {
+    ã Go to child[pos]
+    childûbt_child{nid;pos}
+    if (child = 0) {
+      0
+    } else {
+      bt_search_node{child;k}
+    }
+  }
+}
+
+bt_search{k}: { bt_search_node{bt_root;k} }
+
+ã --- Build B-tree with values 10..100 ---
+bt_rootûbt_alloc_node{}
+ã Insert initial values
+bt_rootûbt_insert{bt_root;10}
+bt_rootûbt_insert{bt_root;20}
+bt_rootûbt_insert{bt_root;30}
+bt_rootûbt_insert{bt_root;40}
+bt_rootûbt_insert{bt_root;50}
+bt_rootûbt_insert{bt_root;60}
+bt_rootûbt_insert{bt_root;70}
+bt_rootûbt_insert{bt_root;80}
+bt_rootûbt_insert{bt_root;90}
+bt_rootûbt_insert{bt_root;100}
+
+Õ "=== B-Tree Self-Tests ==="
+
+Õ "-- Test 1: Search for 50 -> found --"
+if (bt_search{50}) {
+  Õ "[PASS] btree: found 50"
+} else {
+  Õ "[FAIL] btree: 50 not found"
+}
+
+Õ "-- Test 2: Search for 99 -> not found --"
+if (bt_search{99}) {
+  Õ "[FAIL] btree: 99 should not be found"
+} else {
+  Õ "[PASS] btree: 99 not found (correct)"
+}
+
+Õ "-- Test 3: Search for 10 -> found --"
+if (bt_search{10}) {
+  Õ "[PASS] btree: found 10"
+} else {
+  Õ "[FAIL] btree: 10 not found"
+}
+
+Õ "-- Test 4: Search for 100 -> found --"
+if (bt_search{100}) {
+  Õ "[PASS] btree: found 100"
+} else {
+  Õ "[FAIL] btree: 100 not found"
+}
+
+Õ "-- Test 5: Verify root key count > 0 --"
+nkûbt_nkeys{bt_root}
+Õ "Root has " + nk + " keys, " + (nk+1) + " children"
+if (nk > 0) {
+  Õ "[PASS] btree: root has keys"
+} else {
+  Õ "[FAIL] btree: root empty"
+}
+
+Õ "-- Test 6: Verify all inserted values found --"
+all_foundû1
+test_valsû10 20 30 40 50 60 70 80 90 100
+tvû0
+while (tv < 10) {
+  if (bt_search{test_vals[tv]}) { } else { all_foundû0 }
+  tvûtv+1
+}
+if (all_found) {
+  Õ "[PASS] btree: all 10 inserted values found"
+} else {
+  Õ "[FAIL] btree: some values missing"
+}
+
+Õ "-- Test 7: Verify nonexistent values return false --"
+if (bt_search{5}) {
+  Õ "[FAIL] btree: 5 should not be found"
+} else {
+  if (bt_search{55}) {
+    Õ "[FAIL] btree: 55 should not be found"
+  } else {
+    if (bt_search{105}) {
+      Õ "[FAIL] btree: 105 should not be found"
+    } else {
+      Õ "[PASS] btree: nonexistent values correctly not found"
+    }
+  }
+}
+
+Õ "=== B-Tree tests complete ==="
