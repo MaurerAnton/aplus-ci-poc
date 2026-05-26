@@ -1,0 +1,193 @@
+ã sudoku.a+ - Backtracking Sudoku Solver
+ã 9x9 grid, backtracking with constraints
+ã
+ã Puzzle: 0 = empty cell
+ã Known solvable puzzle (from Wikipedia "Sudoku" - first example)
+ã . 5 3 . . 7 . . .
+ã 6 . . 1 9 5 . . .
+ã . 9 8 . . . . 6 .
+ã 8 . . . 6 . . . 3
+ã 4 . . 8 . 3 . . 1
+ã 7 . . . 2 . . . 6
+ã . 6 . . . . 2 8 .
+ã . . . 4 1 9 . . 5
+ã . . . . 8 . . 7 9
+
+ã Initialize puzzle (0=empty, row-major)
+puzzleû0 5 3 0 0 7 0 0 0 6 0 0 1 9 5 0 0 0 0 9 8 0 0 0 0 6 0 8 0 0 0 6 0 0 0 3 4 0 0 8 0 3 0 0 1 7 0 0 0 2 0 0 0 6 0 6 0 0 0 0 2 8 0 0 0 0 4 1 9 0 0 5 0 0 0 0 8 0 0 7 9
+
+Õ"Sudoku puzzle:"
+row_pû0
+while (row_p<9) {
+  out_pû""
+  col_pû0
+  while (col_p<9) {
+    valûpuzzle[row_p*9+col_p]
+    if (val=0) { out_pûout_p,"." } else { out_pûout_p,val }
+    col_pûcol_p+1
+  }
+  Õ out_p
+  row_pûrow_p+1
+}
+
+ã Check if placing digit d at row r, col c is valid
+is_valid{grid;r;c;d}: {
+  okû1
+  ã Check row
+  jû0
+  while ((j<9) & ok) {
+    if (grid[r*9+j]=d) { okû0 }
+    jûj+1
+  }
+  ã Check column
+  jû0
+  while ((j<9) & ok) {
+    if (grid[j*9+c]=d) { okû0 }
+    jûj+1
+  }
+  ã Check 3x3 box
+  brû(rß3)*3
+  bcû(cß3)*3
+  iû0
+  while ((i<3) & ok) {
+    jû0
+    while ((j<3) & ok) {
+      if (grid[(br+i)*9+(bc+j)]=d) { okû0 }
+      jûj+1
+    }
+    iûi+1
+  }
+  ok
+}
+
+ã Solve using backtracking
+ã Returns 1 if solved, 0 if no solution
+ã Modifies grid in place
+solve{grid;pos}: {
+  ã Find next empty cell
+  while ((pos<81) & (grid[pos]!=0)) {
+    posûpos+1
+  }
+  ã Track result - A+ has no early return, so use variable
+  resultû0
+  if (pos>=81) { resultû1 }
+  if (result=0) {
+    rûposß9
+    cûpos-(r*9)
+    dû1
+    while ((d<=9) & (result=0)) {
+      if (is_valid{grid;r;c;d}=1) {
+        grid[pos]ûd
+        if (solve{grid;pos+1}=1) { resultû1 }
+        if (result=0) { grid[pos]û0 }
+      }
+      dûd+1
+    }
+  }
+  result
+}
+
+ã Work on a copy for solving
+gridû81Î0
+kû0
+while (k<81) {
+  grid[k]ûpuzzle[k]
+  kûk+1
+}
+
+solvedûsolve{grid;0}
+
+if (solved=1) {
+  Õ""
+  Õ"Solved Sudoku:"
+  r2û0
+  while (r2<9) {
+    out2û""
+    c2û0
+    while (c2<9) {
+      out2ûout2,grid[r2*9+c2]
+      c2ûc2+1
+    }
+    Õ out2
+    r2ûr2+1
+  }
+} else {
+  Õ"sudoku: [FAIL] No solution found"
+}
+
+ã ====== Self-tests ======
+
+ã Test: all rows have digits 1-9 (no zeros, no duplicates)
+row_okû1
+r3û0
+while ((r3<9) & row_ok) {
+  ã Check each row has exactly digits 1-9
+  seenû10Î0
+  c3û0
+  while (c3<9) {
+    vûgrid[r3*9+c3]
+    if ((v<1) | (v>9)) { row_okû0 }
+    seen[v]ûseen[v]+1
+    c3ûc3+1
+  }
+  d2û1
+  while (d2<=9) {
+    if (seen[d2]!=1) { row_okû0 }
+    d2ûd2+1
+  }
+  r3ûr3+1
+}
+if (row_ok) { Õ"sudoku: [PASS] all rows have digits 1-9" }
+else { Õ"sudoku: [FAIL] row constraint violated" }
+
+ã Test: all columns have digits 1-9
+col_okû1
+c4û0
+while ((c4<9) & col_ok) {
+  seen2û10Î0
+  r4û0
+  while (r4<9) {
+    v2ûgrid[r4*9+c4]
+    if ((v2<1) | (v2>9)) { col_okû0 }
+    seen2[v2]ûseen2[v2]+1
+    r4ûr4+1
+  }
+  d3û1
+  while (d3<=9) {
+    if (seen2[d3]!=1) { col_okû0 }
+    d3ûd3+1
+  }
+  c4ûc4+1
+}
+if (col_ok) { Õ"sudoku: [PASS] all columns have digits 1-9" }
+else { Õ"sudoku: [FAIL] column constraint violated" }
+
+ã Test: all 3x3 boxes have digits 1-9
+box_okû1
+br2û0
+while ((br2<9) & box_ok) {
+  seen3û10Î0
+  r5û0
+  while (r5<3) {
+    c5û0
+    while (c5<3) {
+      br_rowû(br2ß3)*3+r5
+      br_colû(br2-(br2ß3)*3)*3+c5
+      v3ûgrid[br_row*9+br_col]
+      if ((v3<1) | (v3>9)) { box_okû0 }
+      seen3[v3]ûseen3[v3]+1
+      c5ûc5+1
+    }
+    r5ûr5+1
+  }
+  d4û1
+  while (d4<=9) {
+    if (seen3[d4]!=1) { box_okû0 }
+    d4ûd4+1
+  }
+  br2ûbr2+1
+}
+if (box_ok) { Õ"sudoku: [PASS] all 3x3 boxes have digits 1-9" }
+else { Õ"sudoku: [FAIL] box constraint violated" }
+
+Õ"sudoku: all tests done"

@@ -1,0 +1,334 @@
+ã markov.a+ ßßß 1st-Order Markov Chain Text Generator ßßß
+ã
+ã Builds a transition table from hardcoded training text,
+ã then generates new text by walking the chain.
+ã
+ã Training text: "the cat sat on the mat. the dog sat on the log."
+ã
+ã Data representation:
+ã   Words are stored as arrays of character codes.
+ã   Each unique word gets an integer ID.
+ã   Transition table: flat array [word_id, num_followers, f1, f2, ...]
+ã   Word table: flat array [word_id, word_len, c1, c2, ...]
+
+ã === Training text as character codes ===
+ã "the cat sat on the mat. the dog sat on the log."
+txtû116 104 101 32 99 97 116 32 115 97 116 32 111 110 32 116 104 101 32 109 97 116 46 32 116 104 101 32 100 111 103 32 115 97 116 32 111 110 32 116 104 101 32 108 111 103 46
+txtlenûÎ txt
+
+ã === Helper: compare two strings in the text array ===
+ã Compare txt[a..a+n-1] with txt[b..b+n-1]
+streq{a;b;n}: {
+  okû1
+  kû0
+  while ((k<n) & ok) {
+    if (txt[a+k]=txt[b+k]) { } else { okû0 }
+    kûk+1
+  }
+  ok
+}
+
+ã === Helper: copy word from text to word storage ===
+ã Copy txt[start..end-1] into words[wp..]
+copy_word{start;end;words;wp}: {
+  iûstart
+  while (i<end) {
+    words[wp]ûtxt[i]
+    wpûwp+1
+    iûi+1
+  }
+  wp
+}
+
+ã === Tokenize: extract words from text ===
+ã Returns: [num_unique, word_table_flat, transition_table_flat]
+ã word_table_flat: every word stored as [len, c1, c2, ..., -1]
+ã   where -1 marks end of word data
+ã transition_table_flat: [word_id, num_followers, f1, f2, ..., -1]
+ã   where -1 marks end of transition data for that word
+tokenize{}: {
+  ã Allocate storage
+  wordsû200Î0
+  wpû0           ã write position in words array
+  transû200Î0
+  tpû0           ã write position in transition array
+  ã Track word starts in text: [start_pos, end_pos, word_id]
+  wstartsû50Î0
+  wscû0          ã word-start counter
+  num_wordsû0
+  ã
+  ã Pass 1: Find all word boundaries
+  posû0
+  while (pos<txtlen) {
+    ã Skip spaces (consecutive)
+    while ((pos<txtlen) & (txt[pos]=32)) { posûpos+1 }
+    ã Check if we hit end after skipping spaces
+    if (pos<txtlen) {
+      startûpos
+      ã Scan until space or end
+      while ((pos<txtlen) & (txt[pos]!=32)) { posûpos+1 }
+      endûpos
+      ã Only record non-empty words
+      if (end>start) {
+        wstarts[wsc]ûstart
+        wstarts[wsc+1]ûend
+        wstarts[wsc+2]û0  ã word_id placeholder
+        wscûwsc+3
+        num_wordsûnum_words+1
+      }
+    }
+  }
+  ã
+  ã Pass 2: Assign unique IDs to words (contiguous)
+  next_uidû0
+  widxû0
+  while (widx<num_words) {
+    sûwstarts[widx*3]
+    eûwstarts[widx*3+1]
+    wlenûe-s
+    ã Check if this word already has an ID
+    foundû0
+    widû0
+    while (wid<widx) {
+      psûwstarts[wid*3]
+      peûwstarts[wid*3+1]
+      plenûpe-ps
+      if (wlen=plen) {
+        if (streq{s;ps;wlen}=1) {
+          foundû1
+          wstarts[widx*3+2]ûwstarts[wid*3+2]
+        }
+      }
+      widûwid+1
+    }
+    if (found=0) {
+      ã New unique word - assign next contiguous ID
+      wstarts[widx*3+2]ûnext_uid
+      next_uidûnext_uid+1
+      ã Store word data: [len, chars...]
+      words[wp]ûwlen
+      wpûwp+1
+      wpûcopy_word{s;e;words;wp}
+    }
+    widxûwidx+1
+  }
+  num_uniqueûnext_uid
+  ã
+  ã Pass 3: Build transition table
+  ã For each word i, record word i+1 as follower
+  widxû0
+  while ((widx+1)<num_words) {
+    cur_idûwstarts[widx*3+2]
+    nxt_idûwstarts[(widx+1)*3+2]
+    ã Find or create entry for cur_id in transition table
+    ã Transition table format: [word_id, count, f1, f2, ..., -1]
+    ã Search for existing entry
+    tiû0
+    found_tû0
+    while (ti<tp) {
+      if (trans[ti]=cur_id) {
+        ã Found entry at ti. count is at ti+1, followers start at ti+2
+        cntûtrans[ti+1]
+        ã Add nxt_id as follower
+        trans[ti+2+cnt]ûnxt_id
+        trans[ti+1]ûcnt+1
+        found_tû1
+      }
+      ã Skip past this entry
+      if (found_t=0) {
+        cntûtrans[ti+1]
+        tiûti + 2 + cnt + 1  ã skip past word_id, count, followers, -1
+      } else {
+        tiûtp  ã exit loop
+      }
+    }
+    if (found_t=0) {
+      ã Create new entry
+      trans[tp]ûcur_id
+      trans[tp+1]û1
+      trans[tp+2]ûnxt_id
+      trans[tp+3]û-1
+      tpûtp+4
+    }
+    widxûwidx+1
+  }
+  ã Return unique word count and tables
+  num_unique
+}
+
+ã === Generate text by walking the Markov chain ===
+ã Start from a given word_id, walk nsteps, produce output text
+generate{start_id;nsteps}: {
+  ã Allocate output buffer
+  outputû500Î0
+  opû0
+  cur_idûstart_id
+  stepû0
+  while (step<nsteps) {
+    ã Find cur_id in word table and copy to output
+    ã Search word table for cur_id
+    ã Word table: [len, chars..., len, chars..., ...]
+    wp2û0
+    wid2û0
+    while (wid2<=cur_id) {
+      wlen2ûwords[wp2]
+      if (wid2=cur_id) {
+        ã Copy characters
+        kû0
+        while (k<wlen2) {
+          output[op]ûwords[wp2+1+k]
+          opûop+1
+          kûk+1
+        }
+        ã Add space
+        output[op]û32
+        opûop+1
+      }
+      wp2ûwp2 + 1 + wlen2
+      wid2ûwid2+1
+    }
+    ã Find next word from transition table
+    ã Transition table: [word_id, count, f1, f2, ..., -1, word_id, ...]
+    ti2û0
+    found_nextû0
+    while (ti2<tp) {
+      if (trans[ti2]=cur_id) {
+        cnt2ûtrans[ti2+1]
+        ã Pick follower deterministically: (step mod count)
+        pickûstep
+        while (pick >= cnt2) { pickûpick - cnt2 }
+        cur_idûtrans[ti2+2+pick]
+        found_nextû1
+      }
+      ã Skip past this entry
+      if (found_next=0) {
+        cnt2ûtrans[ti2+1]
+        ti2ûti2 + 2 + cnt2 + 1
+      } else {
+        ti2ûtp  ã exit
+      }
+    }
+    if (found_next=0) {
+      ã Dead end: restart from start_id
+      cur_idûstart_id
+    }
+    stepûstep+1
+  }
+  ã Terminate output with 0 marker
+  output[op]û0
+  output
+}
+
+ã ========================
+ã === SELF-TESTS ===
+ã ========================
+
+ã --- Run tokenization ---
+nwûtokenize{}
+
+ã --- Test 1: Verify unique word count (7 unique: the,cat,sat,on,mat.,dog,log.) ---
+if (nw=7) {
+  Õ"markov: [PASS] 7 unique words in training text"
+} else {
+  Õ"markov: [FAIL] expected 7 unique words"
+}
+
+ã --- Test 2: Verify transition: 'the' (word 0) -> 'cat' or 'dog' or 'mat.' or 'log.' ---
+ã We need to find word_id for 'the' first.
+ã Word 'the' has character codes: 116 104 101
+ã Search word table for 'the'
+the_idû0
+wp3û0
+wid3û0
+while (wid3<nw) {
+  wlen3ûwords[wp3]
+  if (wlen3=3) {
+    if ((words[wp3+1]=116) & (words[wp3+2]=104) & (words[wp3+3]=101)) {
+      the_idûwid3
+    }
+  }
+  wp3ûwp3 + 1 + wlen3
+  wid3ûwid3+1
+}
+Õ"markov: the_id="
+Õthe_id
+
+ã Now check transitions from 'the'
+ti3û0
+the_countû0
+while (ti3<tp) {
+  if (trans[ti3]=the_id) {
+    the_countûtrans[ti3+1]
+  }
+  cnt3ûtrans[ti3+1]
+  ti3ûti3 + 2 + cnt3 + 1
+}
+if (the_count>=1) {
+  Õ"markov: [PASS] 'the' has transitions"
+} else {
+  Õ"markov: [FAIL] 'the' has no transitions"
+}
+
+ã --- Test 3: Generate text and verify it starts with a known start word ---
+genûgenerate{the_id;20}
+Õ"markov: generated text:"
+Õgen
+ã Check generated text starts with 't' 'h' 'e' (116 104 101)
+if ((gen[0]=116) & (gen[1]=104) & (gen[2]=101)) {
+  Õ"markov: [PASS] generated text starts with 'the'"
+} else {
+  Õ"markov: [FAIL] generated text does not start with 'the'"
+}
+
+ã --- Test 4: Verify chain integrity ---
+ã Check that 'cat' is followed by 'sat'
+cat_idû0
+wp4û0
+wid4û0
+while (wid4<nw) {
+  wlen4ûwords[wp4]
+  if (wlen4=3) {
+    if ((words[wp4+1]=99) & (words[wp4+2]=97) & (words[wp4+3]=116)) {
+      cat_idûwid4
+    }
+  }
+  wp4ûwp4 + 1 + wlen4
+  wid4ûwid4+1
+}
+
+sat_idû0
+wp5û0
+wid5û0
+while (wid5<nw) {
+  wlen5ûwords[wp5]
+  if (wlen5=3) {
+    if ((words[wp5+1]=115) & (words[wp5+2]=97) & (words[wp5+3]=116)) {
+      sat_idûwid5
+    }
+  }
+  wp5ûwp5 + 1 + wlen5
+  wid5ûwid5+1
+}
+
+ã Check transition: cat -> sat
+ti4û0
+cat_has_satû0
+while (ti4<tp) {
+  if (trans[ti4]=cat_id) {
+    cnt4ûtrans[ti4+1]
+    fû0
+    while (f<cnt4) {
+      if (trans[ti4+2+f]=sat_id) { cat_has_satû1 }
+      fûf+1
+    }
+  }
+  cnt4ûtrans[ti4+1]
+  ti4ûti4 + 2 + cnt4 + 1
+}
+if (cat_has_sat=1) {
+  Õ"markov: [PASS] 'cat' transitions to 'sat'"
+} else {
+  Õ"markov: [FAIL] 'cat' does not transition to 'sat'"
+}
+
+Õ"markov: all tests done"

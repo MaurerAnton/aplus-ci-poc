@@ -1,0 +1,209 @@
+ã fft.a+ ßßß Cooley-Tukey Radix-2 FFT ßßß
+ã
+ã Implements 8-point FFT with bit-reversal and butterfly operations.
+ã Complex numbers stored as separate real and imaginary arrays.
+ã Scaled-integer arithmetic (scale=1000) for twiddle factor precision.
+ã
+ã Twiddle factors for N=8 (forward FFT):
+ã   W0 = 1.000 + j*0.000  ->  wr=1000, wi=0
+ã   W1 = 0.707 - j*0.707  ->  wr=707,  wi=-707
+ã   W2 = 0.000 - j*1.000  ->  wr=0,    wi=-1000
+ã   W3 =-0.707 - j*0.707  ->  wr=-707, wi=-707
+ã
+
+ã === Square root via Newton's method ===
+sqrt{x}: {
+  gûxß2
+  kû0
+  while (k<12) {
+    gû(g + xßg)ß2
+    kûk+1
+  }
+  g
+}
+
+ã === Bit-reversal permutation for N=8 ===
+ã bitrev[0..7] = bit-reversed 3-bit indices
+bitrevû0 4 2 6 1 5 3 7
+
+ã === Precomputed twiddle factors (scaled by 1000) ===
+ã Forward twiddle: W_re[k] = cos(2*pi*k/8)*1000, W_im[k] = -sin(2*pi*k/8)*1000
+ã All values precomputed as integers
+tw_reû1000 707 0 -707
+tw_im_negû0 -707 -1000 -707  ã negative imaginary for forward FFT
+
+ã === Radix-2 Cooley-Tukey FFT (in-place) ===
+ã Parameters: re (real array), im (imag array), inv (0=forward, 1=inverse)
+ã Modifies re and im in-place, returns magnitudes
+fft{re;im;inv}: {
+  nûÎ re
+  ã
+  ã Step 1: Bit-reversal permutation
+  iû0
+  while (i<n) {
+    jûbitrev[i]
+    if (i<j) {
+      tmpûre[i]; re[i]ûre[j]; re[j]ûtmp
+      tmpûim[i]; im[i]ûim[j]; im[j]ûtmp
+    }
+    iûi+1
+  }
+  ã
+  ã Step 2: Butterfly stages (log2(8)=3 stages)
+  lenû2
+  while (len<=n) {
+    halfûlenß2
+    strideûnßlen
+    ã
+    jû0
+    while (j<half) {
+      ã Get twiddle factor for this butterfly
+      ã k = j * n/len  mapped to twiddle table index
+      ã For N=8: stage sizes 2,4,8 -> n/len = 4,2,1 -> k = j*stride
+      k_idxûj * stride
+      ã W = cos(2*pi*k/N) - j*sin(2*pi*k/N) for forward
+      ã   = cos(2*pi*k/N) + j*sin(2*pi*k/N) for inverse (conjugate)
+      ã Use k_idx mod 4 since twiddle repeats for N<=8
+      tidxûk_idx
+      ã Reduce to 0..3 range for our precomputed table
+      while (tidx>=4) { tidxûtidx-4 }
+      wrûtw_re[tidx]
+      if (inv=0) {
+        wiûtw_im_neg[tidx]
+      } else {
+        wiû0 - tw_im_neg[tidx]  ã conjugate: negate imag part
+      }
+      ã
+      ã Apply butterfly to all pairs at this stage
+      pûj
+      while (p<n) {
+        qûp + half
+        ã Even and odd parts
+        even_reûre[p]
+        even_imûim[p]
+        odd_reûre[q]
+        odd_imûim[q]
+        ã Complex multiply: W * odd
+        ã temp_re = wr*odd_re - wi*odd_im
+        ã temp_im = wr*odd_im + wi*odd_re
+        trûwr*odd_re - wi*odd_im
+        tiûwr*odd_im + wi*odd_re
+        ã Upper output = even + temp
+        re[p]ûeven_re + tr
+        im[p]ûeven_im + ti
+        ã Lower output = even - temp
+        re[q]ûeven_re - tr
+        im[q]ûeven_im - ti
+        pûp + len
+      }
+      jûj+1
+    }
+    lenûlen*2
+  }
+  ã
+  ã Step 3: For inverse FFT, divide by n
+  if (inv=1) {
+    iû0
+    while (i<n) {
+      re[i]ûre[i]ßn
+      im[i]ûim[i]ßn
+      iûi+1
+    }
+  }
+  ã
+  ã Step 4: Compute magnitudes = sqrt(re^2 + im^2)
+  magûnÎ0
+  iû0
+  while (i<n) {
+    mag[i]ûsqrt{re[i]*re[i] + im[i]*im[i]}
+    iûi+1
+  }
+  mag
+}
+
+ã === 8-point IFFT (inverse, returns real part) ===
+ifft{re;im}: {
+  magsûfft{re;im;1}
+  ã Return reconstructed real array (re was modified in-place)
+  re
+}
+
+ã ========================
+ã === SELF-TESTS ===
+ã ========================
+
+ã --- Test 1: Forward FFT of pure 1Hz sine wave ---
+ã 8 samples of sin(2*pi*t/8), amplitude=1000
+ã Expected: peak at bin 1 (1Hz) and bin 7 (symmetric for real input)
+t1_reû0 707 1000 707 0 -707 -1000 -707
+t1_imû8Î0
+t1_magûfft{t1_re;t1_im;0}
+
+ã Verify: magnitude at bin 1 should be largest non-DC component
+ã N * amp / 2 = 8 * 1000 / 2 = 4000 (approx due to fixed-point)
+if ((t1_mag[1] > t1_mag[0]) & (t1_mag[1] > t1_mag[2]) & (t1_mag[1] > 3000)) {
+  Õ"fft: [PASS] 1Hz sine peak at bin 1"
+} else {
+  Õ"fft: [FAIL] 1Hz sine peak not at bin 1"
+}
+
+ã Verify: DC bin (bin 0) should be near 0 (sine is zero-mean)
+if (t1_mag[0] < 500) {
+  Õ"fft: [PASS] DC component near zero"
+} else {
+  Õ"fft: [FAIL] DC component too large"
+}
+
+ã --- Test 2: Inverse FFT recovers original signal ---
+t2_reû0 707 1000 707 0 -707 -1000 -707
+t2_imû8Î0
+ã Forward then inverse
+t2_fwd_magûfft{t2_re;t2_im;0}
+ã Now t2_re and t2_im contain the forward FFT result
+ã Do inverse on that result
+t2_im2û8Î0
+iû0
+while (i<8) { t2_im2[i]ût2_im[i]; iûi+1 }
+ã Reset re to forward result (it was modified)
+t2_re_copyû8Î0
+iû0
+while (i<8) { t2_re_copy[i]ût2_re[i]; iûi+1 }
+ã Inverse
+t2_inv_magûfft{t2_re_copy;t2_im2;1}
+ã t2_re_copy now has reconstructed signal
+ã Check: should be close to original [0, 707, 1000, 707, 0, -707, -1000, -707]
+ã Allow tolerance of +/-200 due to fixed-point scaling
+iû0
+okû1
+while (i<8) {
+  diffût2_re_copy[i] - 0
+  if (i=0) { diffût2_re_copy[0] - 0 }
+  if (i=1) { diffût2_re_copy[1] - 707 }
+  if (i=2) { diffût2_re_copy[2] - 1000 }
+  if (i=3) { diffût2_re_copy[3] - 707 }
+  if (i=4) { diffût2_re_copy[4] - 0 }
+  if (i=5) { diffût2_re_copy[5] - (-707) }
+  if (i=6) { diffût2_re_copy[6] - (-1000) }
+  if (i=7) { diffût2_re_copy[7] - (-707) }
+  if (diff<0) { diffû0 - diff }
+  if (diff>300) { okû0 }
+  iûi+1
+}
+if (ok=1) {
+  Õ"fft: [PASS] inverse FFT recovers original signal"
+} else {
+  Õ"fft: [FAIL] inverse FFT does not recover original signal"
+}
+
+ã --- Test 3: FFT of constant signal ---
+t3_reû5 5 5 5 5 5 5 5
+t3_imû8Î0
+t3_magûfft{t3_re;t3_im;0}
+ã Only DC bin should be non-zero (bin 0 = N*val = 40)
+if ((t3_mag[0] > 100) & (t3_mag[1] < 10) & (t3_mag[2] < 10)) {
+  Õ"fft: [PASS] constant signal only has DC"
+} else {
+  Õ"fft: [FAIL] constant signal has non-DC components"
+}
+
+Õ"fft: all tests done"

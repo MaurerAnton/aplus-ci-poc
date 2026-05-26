@@ -1,0 +1,246 @@
+ã snake.a+ - ASCII Snake Game
+ã 20x15 grid, snake starts center moving right
+ã Food at pseudo-random positions
+ã Pre-programmed moves for demo
+
+Wû20     ã grid width
+Hû15     ã grid height
+STEPSû30 ã demo steps
+
+ã Snake body: array of positions [x1,y1,x2,y2,...,xN,yN]
+ã Max length 100
+snake_xû100Î0
+snake_yû100Î0
+snake_lenû0
+food_xû0
+food_yû0
+dir_xû1     ã 1=right, -1=left, 0=no movement
+dir_yû0     ã 0=no movement, -1=up, 1=down
+
+ã Pseudo-random seed
+seedû12345
+
+ã Simple LCG pseudo-random: seed = (seed * 1103515245 + 12345) mod 2^31
+ã Return seed mod n
+rand_mod{n}: {
+  seedûseed*11035+seed*15245+12345
+  seedûseed - ((seedß2147483648)*2147483648)
+  seed - ((seedßn)*n)
+}
+
+ã Place food at random position not occupied by snake
+place_food{}: {
+  placedû0
+  while (placed=0) {
+    fxûrand_mod{W}
+    fyûrand_mod{H}
+    ã Check if position is occupied by snake
+    collisionû0
+    iû0
+    while (i<snake_len) {
+      if ((snake_x[i]=fx) & (snake_y[i]=fy)) { collisionû1 }
+      iûi+1
+    }
+    if (collision=0) {
+      food_xûfx
+      food_yûfy
+      placedû1
+    }
+  }
+}
+
+ã Initialize snake at center, length 3, moving right
+init_snake{}: {
+  snake_lenû3
+  start_xûWß2
+  start_yûHß2
+  snake_x[0]ûstart_x
+  snake_y[0]ûstart_y
+  snake_x[1]ûstart_x-1
+  snake_y[1]ûstart_y
+  snake_x[2]ûstart_x-2
+  snake_y[2]ûstart_y
+  dir_xû1
+  dir_yû0
+  place_food{}
+}
+
+ã Check if position (x,y) is part of snake body
+is_snake{x;y}: {
+  foundû0
+  iû0
+  while ((i<snake_len) & (found=0)) {
+    if ((snake_x[i]=x) & (snake_y[i]=y)) { foundû1 }
+    iûi+1
+  }
+  found
+}
+
+ã Print current grid
+print_grid{}: {
+  yû0
+  while (y<H) {
+    outû""
+    xû0
+    while (x<W) {
+      if (is_snake{x;y}=1) { outûout,"#" }
+      if ((food_x=x) & (food_y=y)) { outûout,"@" }
+      if ((is_snake{x;y}=0) & ((food_x!=x) | (food_y!=y))) { outûout,"." }
+      xûx+1
+    }
+    Õ out
+    yûy+1
+  }
+}
+
+ã Move snake one step, return 0 if game over, 1 if ok
+move_snake{}: {
+  aliveû1
+
+  ã Calculate new head position
+  new_xûsnake_x[0]+dir_x
+  new_yûsnake_y[0]+dir_y
+
+  ã Check wall collision
+  if ((new_x<0) | (new_x>=W) | (new_y<0) | (new_y>=H)) { aliveû0 }
+
+  ã Check self collision
+  growingû0
+  if ((new_x=food_x) & (new_y=food_y)) { growingû1 }
+
+  ã Check collision with body
+  iû0
+  if (growing=1) { limitûsnake_len } else { limitûsnake_len-1 }
+  while ((i<limit) & alive) {
+    if ((snake_x[i]=new_x) & (snake_y[i]=new_y)) { aliveû0 }
+    iûi+1
+  }
+
+  ã Only move if still alive
+  if (alive=1) {
+    ã Shift body
+    iûsnake_len-1
+    while (i>0) {
+      snake_x[i]ûsnake_x[i-1]
+      snake_y[i]ûsnake_y[i-1]
+      iûi-1
+    }
+
+    ã Place new head
+    snake_x[0]ûnew_x
+    snake_y[0]ûnew_y
+
+    ã Check food
+    if (growing=1) {
+      snake_x[snake_len]ûsnake_x[snake_len-1]
+      snake_y[snake_len]ûsnake_y[snake_len-1]
+      snake_lenûsnake_len+1
+      place_food{}
+    }
+  }
+
+  alive
+}
+
+ã Set direction from pre-programmed move char
+ã w=up, a=left, s=down, d=right
+set_dir{ch}: {
+  if (ch=119) { dir_xû0; dir_yû-1 }     ã w = up
+  if (ch=97)  { dir_xû-1; dir_yû0 }     ã a = left
+  if (ch=115) { dir_xû0; dir_yû1 }      ã s = down
+  if (ch=100) { dir_xû1; dir_yû0 }      ã d = right
+}
+
+ã ====== Demo: pre-programmed moves ======
+ã Sequence: right, right, right, down, down, down, left, etc.
+ã Moves as char codes: d d d d d s s s s s a a a a a w w w w w
+movesû100 100 100 100 100 115 115 115 115 115 97 97 97 97 97 119 119 119 119 119 100 100 100 100 100 115 115 115 115 115
+moves_lenû30
+
+init_snake{}
+
+Õ""
+Õ"=== Snake Game Demo ==="
+Õ"Grid: 20x15, #=snake, @=food, .=empty"
+Õ""
+
+print_grid{}
+Õ"Initial state - snake length: "
+Õ snake_len
+
+stepû0
+aliveû1
+while ((step<STEPS) & alive) {
+  set_dir{moves[step]}
+  aliveûmove_snake{}
+  if (alive) {
+    Õ""
+    Õ"Step: "
+    Õ step+1
+    print_grid{}
+    Õ"Length: "
+    Õ snake_len
+  }
+  stepûstep+1
+}
+
+if (alive=0) {
+  Õ"snake: GAME OVER - hit wall or self"
+} else {
+  Õ"snake: Demo complete"
+}
+
+ã ====== Self-tests ======
+Õ""
+Õ"=== Snake Self-tests ==="
+
+ã Re-init for tests
+init_snake{}
+
+ã Test: verify snake moves right correctly
+init_xûsnake_x[0]
+init_yûsnake_y[0]
+set_dir{100}   ã d = right
+move_snake{}
+if ((snake_x[0]=init_x+1) & (snake_y[0]=init_y)) {
+  Õ"snake: [PASS] snake moves right correctly"
+} else {
+  Õ"snake: [FAIL] snake movement wrong"
+}
+
+ã Test: verify snake grows after eating food
+ã Place food right in front (manually) and move into it
+init_snake{}
+food_xûsnake_x[0]+1
+food_yûsnake_y[0]
+old_lenûsnake_len
+set_dir{100}   ã d = right
+move_snake{}
+if (snake_len>old_len) {
+  Õ"snake: [PASS] snake grows after eating food"
+} else {
+  Õ"snake: [FAIL] snake did not grow"
+}
+
+ã Test: verify self-collision detection
+ã Snake of length 1 can never collide with self
+init_snake{}
+snake_lenû1
+snake_x[0]û10
+snake_y[0]û7
+set_dir{100}   ã right
+rûmove_snake{}
+if (r=1) { Õ"snake: [PASS] no self-collision with length=1" }
+else { Õ"snake: [FAIL] false self-collision" }
+
+ã Test: verify wall collision (move into left wall)
+init_snake{}
+snake_lenû1
+snake_x[0]û0
+snake_y[0]û7
+set_dir{97}    ã a = left
+r2ûmove_snake{}
+if (r2=0) { Õ"snake: [PASS] wall collision detected" }
+else { Õ"snake: [FAIL] wall collision missed" }
+
+Õ"snake: all tests done"

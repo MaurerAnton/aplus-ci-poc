@@ -1,0 +1,325 @@
+ã regex.a+ - NFA Regular Expression Engine
+ã Thompson construction for NFA from regex patterns
+ã Supports: concatenation (ab), alternation (a|b), Kleene star (a*), literals
+ã
+ã NFA representation: flat transition array [from,char,to,...]
+ã Epsilon transitions use char code 0 (null)
+ã
+
+ã ====== NFA Builder ======
+ã Each fragment has: start_state, accept_state
+ã Global counter for next state id
+next_idû0
+nfa_transû5000Î0    ã transition storage
+nfa_tcû0               ã transition count (triples)
+
+ã Add a transition: from --char--> to
+add_trans{f;ch;t}: {
+  nfa_trans[nfa_tc]ûf
+  nfa_trans[nfa_tc+1]ûch
+  nfa_trans[nfa_tc+2]ût
+  nfa_tcûnfa_tc+3
+}
+
+ã Create a new state and return its id
+new_state{}: {
+  sûnext_id
+  next_idûnext_id+1
+  s
+}
+
+ã Build NFA for a single literal character
+build_literal{ch}: {
+  sûnew_state{}
+  aûnew_state{}
+  add_trans{s;ch;a}
+  ã Return start and accept as 2-element result
+  s,a
+}
+
+ã Build NFA for concatenation of two fragments
+build_concat{s1;a1;s2;a2}: {
+  add_trans{a1;0;s2}     ã epsilon from a1 to s2
+  s1,a2
+}
+
+ã Build NFA for alternation of two fragments
+build_alt{s1;a1;s2;a2}: {
+  sûnew_state{}
+  aûnew_state{}
+  add_trans{s;0;s1}      ã epsilon from new start to s1
+  add_trans{s;0;s2}      ã epsilon from new start to s2
+  add_trans{a1;0;a}      ã epsilon from a1 to new accept
+  add_trans{a2;0;a}      ã epsilon from a2 to new accept
+  s,a
+}
+
+ã Build NFA for Kleene star of a fragment
+build_star{s1;a1}: {
+  sûnew_state{}
+  aûnew_state{}
+  add_trans{s;0;s1}      ã epsilon from new start to s1
+  add_trans{s;0;a}       ã epsilon bypass (zero repetitions)
+  add_trans{a1;0;s1}     ã loop back: epsilon from a1 to s1
+  add_trans{a1;0;a}      ã epsilon from a1 to new accept
+  s,a
+}
+
+ã ====== Regex Parser ======
+ã Parses regex pattern (array of char codes)
+ã Returns: start_state, accept_state (NFA fragment for entire pattern)
+
+ã Pattern and position globals
+patû0Î0
+pat_posû0
+pat_lenû0
+
+ã Initialize parser with a pattern
+regex_init{pattern}: {
+  patûpattern
+  pat_posû0
+  pat_lenûÎ pattern
+  next_idû0
+  nfa_tcû0
+  nfa_transû5000Î0
+}
+
+ã Get current char, 0 if at end
+peek{}: {
+  if (pat_pos<pat_len) { pat[pat_pos] } else { 0 }
+}
+
+ã Advance and return current char
+advance{}: {
+  chûpeek{}
+  pat_posûpat_pos+1
+  ch
+}
+
+ã Forward declaration: parse_expr
+ã Actually A+ doesn't have forward decl. We reorder.
+
+ã Parse a single unit: literal char, or parenthesized group
+parse_unit{}: {
+  chûpeek{}
+  ã Parenthesized group
+  if (ch=40) {
+    advance{}           ã skip (
+    resultûparse_alt{}  ã parse alternation inside
+    advance{}           ã skip )
+    result
+  }
+  ã Literal character
+  build_literal{advance{}}
+}
+
+ã Parse Kleene star: unit*
+parse_star{}: {
+  s1a1ûparse_unit{}
+  s1ûs1a1[0]
+  a1ûs1a1[1]
+  while (peek{}=42) {
+    advance{}           ã skip *
+    s1a1ûbuild_star{s1;a1}
+    s1ûs1a1[0]
+    a1ûs1a1[1]
+  }
+  s1,a1
+}
+
+ã Parse concatenation: unit* unit* ...
+parse_concat{}: {
+  s1a1ûparse_star{}
+  s1ûs1a1[0]
+  a1ûs1a1[1]
+  while ((peek{}!=41) & (peek{}!=124) & (peek{}!=0)) {
+    s2a2ûparse_star{}
+    s2ûs2a2[0]
+    a2ûs2a2[1]
+    s1a1ûbuild_concat{s1;a1;s2;a2}
+    s1ûs1a1[0]
+    a1ûs1a1[1]
+  }
+  s1,a1
+}
+
+ã Parse alternation: concat | concat | ...
+parse_alt{}: {
+  s1a1ûparse_concat{}
+  s1ûs1a1[0]
+  a1ûs1a1[1]
+  while (peek{}=124) {
+    advance{}           ã skip |
+    s2a2ûparse_concat{}
+    s2ûs2a2[0]
+    a2ûs2a2[1]
+    s1a1ûbuild_alt{s1;a1;s2;a2}
+    s1ûs1a1[0]
+    a1ûs1a1[1]
+  }
+  s1,a1
+}
+
+ã Parse full regex pattern
+regex_parse{pattern}: {
+  regex_init{pattern}
+  parse_alt{}
+}
+
+ã ====== NFA Simulation ======
+ã Simulate NFA on an input string (array of char codes)
+ã Returns 1 if match, 0 if no match
+
+ã Compute epsilon closure of a set of states
+ã cur_states: array where cur_states[state_id]=1 if active
+ã We use a fixed-size boolean array
+epsilon_closure{states;nstates}: {
+  ã Iterative fixed-point: while changes happen
+  changedû1
+  while (changed) {
+    changedû0
+    iû0
+    while (i<nstates) {
+      if (states[i]=1) {
+        ã Follow epsilon transitions from state i
+        jû0
+        while (j<nfa_tc) {
+          if ((nfa_trans[j]=i) & (nfa_trans[j+1]=0)) {
+            toûnfa_trans[j+2]
+            if (states[to]=0) {
+              states[to]û1
+              changedû1
+            }
+          }
+          jûj+3
+        }
+      }
+      iûi+1
+    }
+  }
+}
+
+ã NFA simulation on input string
+nfa_match{start;accept;input_str}: {
+  inlenûÎ input_str
+  nstatesûnext_id
+
+  ã Allocate state arrays (max 200 states should be enough)
+  curûnstatesÎ0
+  nxtûnstatesÎ0
+
+  ã Start with epsilon closure of start state
+  cur[start]û1
+  epsilon_closure{cur;nstates}
+
+  ã Process each input character
+  posû0
+  while (pos<inlen) {
+    chûinput_str[pos]
+
+    ã Clear next states
+    kû0
+    while (k<nstates) {
+      nxt[k]û0
+      kûk+1
+    }
+
+    ã For each current state, follow matching transitions
+    iû0
+    while (i<nstates) {
+      if (cur[i]=1) {
+        jû0
+        while (j<nfa_tc) {
+          if ((nfa_trans[j]=i) & (nfa_trans[j+1]=ch)) {
+            nxt[nfa_trans[j+2]]û1
+          }
+          jûj+3
+        }
+      }
+      iûi+1
+    }
+
+    ã Epsilon closure on next states
+    epsilon_closure{nxt;nstates}
+
+    ã Copy nxt to cur
+    iû0
+    while (i<nstates) {
+      cur[i]ûnxt[i]
+      iûi+1
+    }
+
+    posûpos+1
+  }
+
+  ã Check if accept state is in current set
+  cur[accept]
+}
+
+ã ====== Helper: string to char code array ======
+ã str_to_codes uses a literal array of char codes
+ã ASCII: a=97 b=98 c=99
+
+ã ====== Self-tests ======
+
+ã Test 1: match "ab" against pattern "ab" -> should PASS
+pat1û97 98                    ã "ab"
+str1û97 98                    ã "ab"
+result1ûregex_parse{pat1}
+start1ûresult1[0]
+accept1ûresult1[1]
+match1ûnfa_match{start1;accept1;str1}
+if (match1=1) { Õ"regex: [PASS] literal 'ab' matches 'ab'" }
+else { Õ"regex: [FAIL] literal 'ab' should match 'ab'" }
+
+ã Test 2: match "aaab" against pattern "a*b" -> should PASS
+pat2û97 42 98                 ã "a*b"
+str2û97 97 97 98              ã "aaab"
+result2ûregex_parse{pat2}
+start2ûresult2[0]
+accept2ûresult2[1]
+match2ûnfa_match{start2;accept2;str2}
+if (match2=1) { Õ"regex: [PASS] 'a*b' matches 'aaab'" }
+else { Õ"regex: [FAIL] 'a*b' should match 'aaab'" }
+
+ã Test 3: match "ac" against pattern "a(b|c)" -> should PASS
+pat3û97 40 98 124 99 41       ã "a(b|c)"
+str3û97 99                    ã "ac"
+result3ûregex_parse{pat3}
+start3ûresult3[0]
+accept3ûresult3[1]
+match3ûnfa_match{start3;accept3;str3}
+if (match3=1) { Õ"regex: [PASS] 'a(b|c)' matches 'ac'" }
+else { Õ"regex: [FAIL] 'a(b|c)' should match 'ac'" }
+
+ã Test 4: reject "ab" against pattern "a(b|c)" -> should FAIL
+pat4û97 40 98 124 99 41       ã "a(b|c)"
+str4û97 98                    ã "ab"
+result4ûregex_parse{pat4}
+start4ûresult4[0]
+accept4ûresult4[1]
+match4ûnfa_match{start4;accept4;str4}
+if (match4=0) { Õ"regex: [PASS] 'a(b|c)' rejects 'ab'" }
+else { Õ"regex: [FAIL] 'a(b|c)' should reject 'ab'" }
+
+ã Test 5: match empty string against "a*"
+pat5û97 42                    ã "a*"
+str5û0Î0                    ã empty string
+result5ûregex_parse{pat5}
+start5ûresult5[0]
+accept5ûresult5[1]
+match5ûnfa_match{start5;accept5;str5}
+if (match5=1) { Õ"regex: [PASS] 'a*' matches empty string" }
+else { Õ"regex: [FAIL] 'a*' should match empty string" }
+
+ã Test 6: match "abc" against "a*b*c*"
+pat6û97 42 98 42 99 42        ã "a*b*c*"
+str6û97 98 99                 ã "abc"
+result6ûregex_parse{pat6}
+start6ûresult6[0]
+accept6ûresult6[1]
+match6ûnfa_match{start6;accept6;str6}
+if (match6=1) { Õ"regex: [PASS] 'a*b*c*' matches 'abc'" }
+else { Õ"regex: [FAIL] 'a*b*c*' should match 'abc'" }
+
+Õ"regex: all tests done"
