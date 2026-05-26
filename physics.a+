@@ -1,0 +1,321 @@
+ãphysics.a+ - 2D Physics Engine with gravity, collisions, Verlet integration
+
+ãParticle format: [x, y, vx, vy, mass, radius] stored in flat array
+ãPART[i*6+0]=x, PART[i*6+1]=y, PART[i*6+2]=vx, PART[i*6+3]=vy, PART[i*6+4]=mass, PART[i*6+5]=radius
+
+ã--- Constants ---
+
+GRAVû0.4
+DTû1
+NPû5
+Wû50
+Hû30
+RESTITUTIONû0.75
+STEPSû50
+
+ã--- Helper: distance between two particles ---
+
+dist{i;j}:
+{
+  dxûPART[i*6+0] - PART[j*6+0]
+  dyûPART[i*6+1] - PART[j*6+1]
+  sqrt{dx*dx + dy*dy}
+}
+
+ã--- Newton method square root ---
+
+sqrt{x}:
+{
+  gûxß2
+  kû0
+  while (k<8) {
+    gû(g + xßg)ß2
+    kûk+1
+  }
+  g
+}
+
+ã--- Initialize 5 particles ---
+
+PARTû6*NP Î 0
+ãParticle 0: top-left, moving right
+PART[0]û8
+PART[1]û5
+PART[2]û2.5
+PART[3]û1
+PART[4]û1.5
+PART[5]û1.5
+ãParticle 1: top-right, moving left
+PART[6]û35
+PART[7]û7
+PART[8]û-2
+PART[9]û0.5
+PART[10]û2
+PART[11]û1.3
+ãParticle 2: middle, moving down
+PART[12]û22
+PART[13]û12
+PART[14]û0.8
+PART[15]û3
+PART[16]û1.2
+PART[17]û1
+ãParticle 3: left side
+PART[18]û12
+PART[19]û18
+PART[20]û1.5
+PART[21]û-1.5
+PART[22]û1
+PART[23]û0.9
+ãParticle 4: right side, heavy
+PART[24]û40
+PART[25]û20
+PART[26]û-1
+PART[27]û-2
+PART[28]û3
+PART[29]û1.8
+
+ã--- Collision response between particle i and j ---
+
+collide{i;j}:
+{
+  dxûPART[j*6+0] - PART[i*6+0]
+  dyûPART[j*6+1] - PART[i*6+1]
+  ddûdx*dx + dy*dy
+  mindûPART[i*6+5] + PART[j*6+5]
+  if (dd < mind*mind) {
+    dûsqrt{dd}
+    if (d < 0.001) {
+      dû0.001
+    }
+    nxûdxßd
+    nyûdyßd
+    dvxûPART[i*6+2] - PART[j*6+2]
+    dvyûPART[i*6+3] - PART[j*6+3]
+    dvnûdvx*nx + dvy*ny
+    if (dvn > 0) {
+      miûPART[i*6+4]
+      mjûPART[j*6+4]
+      jjû(1+RESTITUTION)*dvnß(mi+mj)
+      PART[i*6+2]ûPART[i*6+2] - jj*mj*nx
+      PART[i*6+3]ûPART[i*6+3] - jj*mj*ny
+      PART[j*6+2]ûPART[j*6+2] + jj*mi*nx
+      PART[j*6+3]ûPART[j*6+3] + jj*mi*ny
+      overlapûmind - d
+      if (overlap > 0) {
+        totalûmi + mj
+        PART[i*6+0]ûPART[i*6+0] - nx*overlap*mjßtotal
+        PART[i*6+1]ûPART[i*6+1] - ny*overlap*mjßtotal
+        PART[j*6+0]ûPART[j*6+0] + nx*overlap*mißtotal
+        PART[j*6+1]ûPART[j*6+1] + ny*overlap*mißtotal
+      }
+    }
+  }
+}
+
+ã--- Wall bounce with bounding box ---
+
+wall_bounce{i}:
+{
+  radûPART[i*6+5]
+  if (PART[i*6+0] - rad < 0) {
+    PART[i*6+0]ûrad
+    PART[i*6+2]û-RESTITUTION*PART[i*6+2]
+  }
+  if (PART[i*6+0] + rad > W) {
+    PART[i*6+0]ûW - rad
+    PART[i*6+2]û-RESTITUTION*PART[i*6+2]
+  }
+  if (PART[i*6+1] - rad < 0) {
+    PART[i*6+1]ûrad
+    PART[i*6+3]û-RESTITUTION*PART[i*6+3]
+  }
+  if (PART[i*6+1] + rad > H) {
+    PART[i*6+1]ûH - rad
+    PART[i*6+3]û-RESTITUTION*PART[i*6+3]
+  }
+}
+
+ã--- Apply gravity to a particle ---
+
+apply_gravity{i}:
+{
+  PART[i*6+3]ûPART[i*6+3] + GRAV
+}
+
+ã--- Step function: one physics step ---
+
+step{}:
+{
+  ãApply gravity to all particles
+  iû0
+  while (i<NP) {
+    apply_gravity{i}
+    iûi+1
+  }
+  ãUpdate positions
+  iû0
+  while (i<NP) {
+    PART[i*6+0]ûPART[i*6+0] + PART[i*6+2]*DT
+    PART[i*6+1]ûPART[i*6+1] + PART[i*6+3]*DT
+    iûi+1
+  }
+  ãWall collisions
+  iû0
+  while (i<NP) {
+    wall_bounce{i}
+    iûi+1
+  }
+  ãParticle-particle collisions
+  iû0
+  while (i<NP) {
+    jûi+1
+    while (j<NP) {
+      collide{i;j}
+      jûj+1
+    }
+    iûi+1
+  }
+}
+
+ã--- Compute total energy (kinetic + potential) ---
+
+energy{}:
+{
+  eû0
+  iû0
+  while (i<NP) {
+    v2ûPART[i*6+2]*PART[i*6+2] + PART[i*6+3]*PART[i*6+3]
+    eûe + 0.5*PART[i*6+4]*v2
+    eûe + PART[i*6+4]*GRAV*(H - PART[i*6+1])
+    iûi+1
+  }
+  e
+}
+
+ã--- Run simulation ---
+
+Õ"Physics Simulation: 5 particles, 50 steps
+"
+Õ"Initial state:
+"
+iû0
+while (i<NP) {
+  ÕPART[i*6+0]
+  Õ" "
+  ÕPART[i*6+1]
+  Õ" | v="
+  ÕPART[i*6+2]
+  Õ" "
+  ÕPART[i*6+3]
+  Õ"
+"
+  iûi+1
+}
+
+e0ûenergy{}
+Õ"Initial energy: "
+Õe0
+Õ"
+"
+
+sû0
+while (s<STEPS) {
+  step{}
+  sûs+1
+}
+
+Õ"After "
+ÕSTEPS
+Õ" steps:
+"
+iû0
+while (i<NP) {
+  ÕPART[i*6+0]
+  Õ" "
+  ÕPART[i*6+1]
+  Õ" | v="
+  ÕPART[i*6+2]
+  Õ" "
+  ÕPART[i*6+3]
+  Õ"
+"
+  iûi+1
+}
+
+e1ûenergy{}
+Õ"Final energy: "
+Õe1
+Õ"
+"
+
+ã--- Self-tests ---
+
+Õ"--- Self Tests ---
+"
+
+ãTest 1: all particles within bounds
+in_boundsû1
+iû0
+while (i<NP) {
+  radûPART[i*6+5]
+  if (PART[i*6+0]-rad < 0) { in_boundsû0 }
+  if (PART[i*6+0]+rad > W) { in_boundsû0 }
+  if (PART[i*6+1]-rad < 0) { in_boundsû0 }
+  if (PART[i*6+1]+rad > H) { in_boundsû0 }
+  iûi+1
+}
+if (in_bounds=1) {
+  Õ"physics: [PASS] All particles in bounds
+"
+} else {
+  Õ"physics: [FAIL] Particles out of bounds
+"
+}
+
+ãTest 2: no particle overlap
+no_overlapû1
+iû0
+while (i<NP) {
+  jûi+1
+  while (j<NP) {
+    ddûdist{i;j}
+    mindûPART[i*6+5] + PART[j*6+5]
+    if (dd < mind - 0.01) { no_overlapû0 }
+    jûj+1
+  }
+  iûi+1
+}
+if (no_overlap=1) {
+  Õ"physics: [PASS] No overlapping particles
+"
+} else {
+  Õ"physics: [FAIL] Particles overlap
+"
+}
+
+ãTest 3: energy is reasonable
+if ((e1 > 0)&(e1 < e0*3)) {
+  Õ"physics: [PASS] Energy reasonable
+"
+} else {
+  Õ"physics: [FAIL] Energy unreasonable
+"
+}
+
+ãTest 4: particles actually moved
+any_movedû0
+iû0
+while (i<NP) {
+  if ((PART[i*6+2] ~= 0)|(PART[i*6+3] ~= 0)) { any_movedû1 }
+  iûi+1
+}
+if (any_moved=1) {
+  Õ"physics: [PASS] Particles have velocity
+"
+} else {
+  Õ"physics: [FAIL] No particle movement
+"
+}
+
+Õ"physics: all tests done
+"

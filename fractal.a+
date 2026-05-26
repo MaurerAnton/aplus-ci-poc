@@ -1,0 +1,315 @@
+ãfractal.a+ - L-system fractals: Plant, Koch Snowflake, Sierpinski Triangle
+
+ãTurtle graphics: convert L-system string to coordinates
+ãSymbols: F=forward, +=turn left, -=turn right, [=push, ]=pop
+ãX,G=no-op (used in axiom/expansion only)
+
+ã--- L-system expansion: iterate production rules N times ---
+ãaxiom = starting string (char codes)
+ãrules = flat array: [num_rules, char1, len1, rep1_0, rep1_1, ..., char2, len2, ...]
+ãN = number of iterations
+
+lsystem{axiom;rules;N}:
+{
+  curûaxiom
+  nrû rules[0]
+  iterû0
+  while (iter<N) {
+    nxtû0Î0
+    ncû0
+    riû0
+    cur_lenûÎ cur
+    while (ri<cur_len) {
+      chûcur[ri]
+      matchedû0
+      rpû1
+      while (rp<nr) {
+        rchûrules[rp]
+        if (ch=rch) {
+          rplenûrules[rp+1]
+          rp2ûrp+2
+          kû0
+          while (k<rplen) {
+            nxt[nc]ûrules[rp2+k]
+            ncûnc+1
+            kûk+1
+          }
+          matchedû1
+          rpûnr
+        } else {
+          rpûrp + 2 + rules[rp+1]
+        }
+      }
+      if (matched=0) {
+        nxt[nc]ûch
+        ncûnc+1
+      }
+      riûri+1
+    }
+    curûnc Î nxt
+    iterûiter+1
+  }
+  cur
+}
+
+ã--- Turtle graphics: convert L-system string to SVG path ---
+ãturn angle in degrees
+ãReturns: array of [x,y] coordinates with count at index 0
+
+turtle{cmd;angle;step}:
+{
+  nûÎ cmd
+  max_ptsûn*4
+  ptsûmax_pts*2 Î 0
+  npû0
+  xû0
+  yû0
+  angû0
+  pts[0]ûx
+  pts[1]ûy
+  npû1
+  stackû0Î0
+  ssû0
+  radûangle*3.14159ß180
+  iû0
+  while (i<n) {
+    chûcmd[i]
+    if (ch=70) {
+      xûx + step*(cos{ang})
+      yûy + step*(sin{ang})
+      pts[np*2]ûx
+      pts[np*2+1]ûy
+      npûnp+1
+    } else {
+      if (ch=43) {
+        angûang + rad
+      } else {
+        if (ch=45) {
+          angûang - rad
+        } else {
+          if (ch=91) {
+            stack[ss*3]ûx
+            stack[ss*3+1]ûy
+            stack[ss*3+2]ûang
+            ssûss+1
+          } else {
+            if (ch=93) {
+              ssûss-1
+              if (ss>=0) {
+                xûstack[ss*3]
+                yûstack[ss*3+1]
+                angûstack[ss*3+2]
+                pts[np*2]ûx
+                pts[np*2+1]ûy
+                npûnp+1
+              }
+            }
+          }
+        }
+      }
+    }
+    iûi+1
+  }
+  pts[0]ûnp
+  pts
+}
+
+ã--- Cosine (Taylor series) ---
+
+cos{x}:
+{
+  xxûx*x
+  termû1
+  sumû1
+  nû2
+  signû-1
+  while (n<=10) {
+    termûterm*xxß(n*(n-1))
+    sumûsum + sign*term
+    signû-sign
+    nûn+2
+  }
+  sum
+}
+
+ã--- Sine via cos(x-pi/2) ---
+
+sin{x}:
+{
+  cos{x - 1.570796}
+}
+
+ã=== PLANT (Fractal Plant) ===
+ãAxiom: X, Rules: X->F+[[X]-X]-F[-FX]+X, F->FF
+
+PLANT_AXIOMû1 Î 88
+ãRule 1: X(88) -> F+[[X]-X]-F[-FX]+X = 18 chars
+ãRule 2: F(70) -> FF = 2 chars
+ãFormat: [num_rules, char, len, chars..., char, len, chars...]
+PLANT_RULESû2, 88, 18, 70,43,91,91,88,93,45,88,93,45,70,91,45,70,88,93,43,88, 70, 2, 70,70
+
+ã=== KOCH SNOWFLAKE ===
+ãAxiom: F++F++F (60 degrees), Rule: F->F-F++F-F
+
+KOCH_AXIOMû6 Î 70,43,43,70,43,43,70
+KOCH_RULESû1, 70, 8, 70,45,70,43,43,70,45,70
+
+ã=== SIERPINSKI TRIANGLE ===
+ãAxiom: F-G-G (120 degrees), Rules: F->F-G+F+G-F, G->GG
+
+SIERP_AXIOMû5 Î 70,45,71,45,71
+SIERP_RULESû2, 70, 9, 70,45,71,43,70,43,71,45,70, 71, 2, 71,71
+
+ã--- Run and print coordinates ---
+
+Õ"=== L-System Fractals ===
+"
+
+ã--- Plant (2 iterations) ---
+
+Õ"Plant (2 iterations):
+"
+plantûlsystem{PLANT_AXIOM;PLANT_RULES;2}
+plant_ptsûturtle{plant;25;1}
+np_plantûplant_pts[0]
+Õ"Points: "
+Õnp_plant
+Õ"
+"
+iû0
+while (i<np_plant) {
+  Õplant_pts[i*2+1]
+  Õ" "
+  Õplant_pts[i*2+2]
+  Õ"
+"
+  iûi+1
+}
+
+ã--- Koch Snowflake (3 iterations) ---
+
+Õ"
+Koch Snowflake (3 iterations):
+"
+kochûlsystem{KOCH_AXIOM;KOCH_RULES;3}
+koch_ptsûturtle{koch;60;1}
+np_kochûkoch_pts[0]
+Õ"Points: "
+Õnp_koch
+Õ"
+"
+iû0
+while (i<np_koch) {
+  Õkoch_pts[i*2+1]
+  Õ" "
+  Õkoch_pts[i*2+2]
+  Õ"
+"
+  iûi+1
+}
+
+ã--- Sierpinski (4 iterations) ---
+
+Õ"
+Sierpinski Triangle (4 iterations):
+"
+sierpûlsystem{SIERP_AXIOM;SIERP_RULES;4}
+sierp_ptsûturtle{sierp;120;1}
+np_sierpûsierp_pts[0]
+Õ"Points: "
+Õnp_sierp
+Õ"
+"
+iû0
+while (i<np_sierp) {
+  Õsierp_pts[i*2+1]
+  Õ" "
+  Õsierp_pts[i*2+2]
+  Õ"
+"
+  iûi+1
+}
+
+ã--- Self-tests ---
+
+Õ"
+--- Self Tests ---
+"
+
+ãTest 1: Plant string length grows
+plant_1ûlsystem{PLANT_AXIOM;PLANT_RULES;1}
+plant_2ûlsystem{PLANT_AXIOM;PLANT_RULES;2}
+len1ûÎ plant_1
+len2ûÎ plant_2
+if (len2 > len1) {
+  Õ"fractal: [PASS] Plant string grows
+"
+} else {
+  Õ"fractal: [FAIL] Plant string does not grow
+"
+}
+
+ãTest 2: Koch iteration check
+koch_0ûlsystem{KOCH_AXIOM;KOCH_RULES;0}
+koch_1ûlsystem{KOCH_AXIOM;KOCH_RULES;1}
+koch_0_lenûÎ koch_0
+koch_1_lenûÎ koch_1
+if (koch_1_len > koch_0_len) {
+  Õ"fractal: [PASS] Koch string grows
+"
+} else {
+  Õ"fractal: [FAIL] Koch string does not grow
+"
+}
+
+ãTest 3: Sierpinski iteration check
+sierp_1ûlsystem{SIERP_AXIOM;SIERP_RULES;1}
+sierp_2ûlsystem{SIERP_AXIOM;SIERP_RULES;2}
+s1_lenûÎ sierp_1
+s2_lenûÎ sierp_2
+if (s2_len > s1_len) {
+  Õ"fractal: [PASS] Sierpinski string grows
+"
+} else {
+  Õ"fractal: [FAIL] Sierpinski string does not grow
+"
+}
+
+ãTest 4: Turtle produces output for Koch
+if (np_koch > 5) {
+  Õ"fractal: [PASS] Koch turtle produces path
+"
+} else {
+  Õ"fractal: [FAIL] Koch turtle path too short
+"
+}
+
+ãTest 5: Turtle produces output for Plant
+if (np_plant > 5) {
+  Õ"fractal: [PASS] Plant turtle produces path
+"
+} else {
+  Õ"fractal: [FAIL] Plant turtle path too short
+"
+}
+
+ãTest 6: Sierpinski path closes (last point near first)
+if (np_sierp > 3) {
+  sx0ûsierp_pts[1]
+  sy0ûsierp_pts[2]
+  sxnûsierp_pts[(np_sierp-1)*2+1]
+  synûsierp_pts[(np_sierp-1)*2+2]
+  sdxûsx0 - sxn
+  sdyûsy0 - syn
+  sdistûsqrt{sdx*sdx + sdy*sdy}
+  if (sdist < 5) {
+    Õ"fractal: [PASS] Sierpinski path closes
+"
+  } else {
+    Õ"fractal: [FAIL] Sierpinski path does not close
+"
+  }
+}
+
+Õ"fractal: all tests done
+"

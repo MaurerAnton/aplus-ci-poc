@@ -1,0 +1,663 @@
+ã ===================================
+ã aoc_more.a+ - Advent of Code 2023 Days 4-10 in A+
+ã All with self-tests on hardcoded example data
+ã ===================================
+
+ã ===================================
+ã Day 4: Scratchcards
+ã Count matching numbers between winning numbers and your numbers.
+ã Points = 2^(matches-1) for matches>0, else 0.
+ã Example expected: Card1=8, Card2=2, Card3=2, Card4=1, Card5=0, Card6=0, total=13
+ã ===================================
+
+ã Card 1: winning 41 48 83 86 17 | yours 83 86 6 31 17 9 48 53
+d4_w1û41 48 83 86 17
+d4_y1û83 86 6 31 17 9 48 53
+d4_m1û0
+d4_iû0
+nw1ûÎ d4_w1
+ny1ûÎ d4_y1
+while (d4_i<nw1) {
+  d4_jû0
+  while (d4_j<ny1) {
+    if (d4_w1[d4_i]=d4_y1[d4_j]) { d4_m1ûd4_m1+1 }
+    d4_jûd4_j+1
+  }
+  d4_iûd4_i+1
+}
+d4_p1û0
+if (d4_m1>0) {
+  d4_p1û1
+  d4_kû1
+  while (d4_k<d4_m1) {
+    d4_p1ûd4_p1ß2
+    d4_kûd4_k+1
+  }
+}
+
+ã Card 2: winning 13 32 20 16 61 | yours 61 30 68 82 17 32 24 19
+d4_w2û13 32 20 16 61
+d4_y2û61 30 68 82 17 32 24 19
+d4_m2û0
+d4_iû0
+nw2ûÎ d4_w2
+ny2ûÎ d4_y2
+while (d4_i<nw2) {
+  d4_jû0
+  while (d4_j<ny2) {
+    if (d4_w2[d4_i]=d4_y2[d4_j]) { d4_m2ûd4_m2+1 }
+    d4_jûd4_j+1
+  }
+  d4_iûd4_i+1
+}
+d4_p2û0
+if (d4_m2>0) {
+  d4_p2û1
+  d4_kû1
+  while (d4_k<d4_m2) {
+    d4_p2ûd4_p2ß2
+    d4_kûd4_k+1
+  }
+}
+
+ã Card 3: winning 1 21 53 59 44 | yours 69 82 63 72 16 21 14 1
+d4_w3û1 21 53 59 44
+d4_y3û69 82 63 72 16 21 14 1
+d4_m3û0
+d4_iû0
+nw3ûÎ d4_w3
+ny3ûÎ d4_y3
+while (d4_i<nw3) {
+  d4_jû0
+  while (d4_j<ny3) {
+    if (d4_w3[d4_i]=d4_y3[d4_j]) { d4_m3ûd4_m3+1 }
+    d4_jûd4_j+1
+  }
+  d4_iûd4_i+1
+}
+d4_p3û0
+if (d4_m3>0) {
+  d4_p3û1
+  d4_kû1
+  while (d4_k<d4_m3) {
+    d4_p3ûd4_p3ß2
+    d4_kûd4_k+1
+  }
+}
+
+ã Card 4: winning 41 92 73 84 69 | yours 59 84 76 51 58 5 54 83
+d4_w4û41 92 73 84 69
+d4_y4û59 84 76 51 58 5 54 83
+d4_m4û0
+d4_iû0
+nw4ûÎ d4_w4
+ny4ûÎ d4_y4
+while (d4_i<nw4) {
+  d4_jû0
+  while (d4_j<ny4) {
+    if (d4_w4[d4_i]=d4_y4[d4_j]) { d4_m4ûd4_m4+1 }
+    d4_jûd4_j+1
+  }
+  d4_iûd4_i+1
+}
+d4_p4û0
+if (d4_m4>0) {
+  d4_p4û1
+  d4_kû1
+  while (d4_k<d4_m4) {
+    d4_p4ûd4_p4ß2
+    d4_kûd4_k+1
+  }
+}
+
+ã Card 5: winning 87 83 26 28 32 | yours 88 30 70 12 93 22 82 36
+d4_w5û87 83 26 28 32
+d4_y5û88 30 70 12 93 22 82 36
+d4_m5û0
+d4_iû0
+nw5ûÎ d4_w5
+ny5ûÎ d4_y5
+while (d4_i<nw5) {
+  d4_jû0
+  while (d4_j<ny5) {
+    if (d4_w5[d4_i]=d4_y5[d4_j]) { d4_m5ûd4_m5+1 }
+    d4_jûd4_j+1
+  }
+  d4_iûd4_i+1
+}
+d4_p5û0
+if (d4_m5>0) {
+  d4_p5û1
+  d4_kû1
+  while (d4_k<d4_m5) {
+    d4_p5ûd4_p5ß2
+    d4_kûd4_k+1
+  }
+}
+
+ã Card 6: winning 31 18 13 56 72 | yours 74 77 10 23 35 67 36 11
+d4_w6û31 18 13 56 72
+d4_y6û74 77 10 23 35 67 36 11
+d4_m6û0
+d4_iû0
+nw6ûÎ d4_w6
+ny6ûÎ d4_y6
+while (d4_i<nw6) {
+  d4_jû0
+  while (d4_j<ny6) {
+    if (d4_w6[d4_i]=d4_y6[d4_j]) { d4_m6ûd4_m6+1 }
+    d4_jûd4_j+1
+  }
+  d4_iûd4_i+1
+}
+d4_p6û0
+if (d4_m6>0) {
+  d4_p6û1
+  d4_kû1
+  while (d4_k<d4_m6) {
+    d4_p6ûd4_p6ß2
+    d4_kûd4_k+1
+  }
+}
+
+ã Day 4 results
+d4_totalûd4_p1+d4_p2+d4_p3+d4_p4+d4_p5+d4_p6
+if (d4_p1=8) { Õ"AoC D4: [PASS] Card1=8" } else { Õ"AoC D4: [FAIL] Card1" }
+if (d4_p2=2) { Õ"AoC D4: [PASS] Card2=2" } else { Õ"AoC D4: [FAIL] Card2" }
+if (d4_p3=2) { Õ"AoC D4: [PASS] Card3=2" } else { Õ"AoC D4: [FAIL] Card3" }
+if (d4_p4=1) { Õ"AoC D4: [PASS] Card4=1" } else { Õ"AoC D4: [FAIL] Card4" }
+if (d4_p5=0) { Õ"AoC D4: [PASS] Card5=0" } else { Õ"AoC D4: [FAIL] Card5" }
+if (d4_p6=0) { Õ"AoC D4: [PASS] Card6=0" } else { Õ"AoC D4: [FAIL] Card6" }
+if (d4_total=13) { Õ"AoC D4: [PASS] total=13" } else { Õ"AoC D4: [FAIL] total" }
+
+ã ===================================
+ã Day 5: If You Give A Seed A Fertilizer
+ã Map seeds through chain: seed->soil->fertilizer->water->light->temp->humidity->location
+ã Example seeds: 79 14 55 13
+ã Maps: each [dst_start src_start len] triple
+ã Expected lowest location: 35
+ã ===================================
+
+ã Map lookup function: given value and map array, return mapped value
+ã map array format: [dst1 src1 len1 dst2 src2 len2 ... 0]
+ã Returns value if not in any range, else mapped value
+d5_lookup{val;map}:
+{
+  resultûval
+  iû0
+  mlenûÎ map
+  while (i<mlen) {
+    dstûmap[i]
+    srcûmap[i+1]
+    lenûmap[i+2]
+    if ((val>=src) & (val<(src+len))) {
+      resultûval-src+dst
+    }
+    iûi+3
+  }
+  result
+}
+
+ã Seed-to-soil map: 50 98 2, 52 50 48
+d5_s2sû50 98 2 52 50 48
+
+ã Soil-to-fertilizer map: 0 15 37, 37 52 2, 39 0 15
+d5_s2fû0 15 37 37 52 2 39 0 15
+
+ã Fertilizer-to-water map: 49 53 8, 0 11 42, 42 0 7, 57 7 4
+d5_f2wû49 53 8 0 11 42 42 0 7 57 7 4
+
+ã Water-to-light map: 88 18 7, 18 25 70
+d5_w2lû88 18 7 18 25 70
+
+ã Light-to-temperature map: 45 77 23, 81 45 19, 68 64 13
+d5_l2tû45 77 23 81 45 19 68 64 13
+
+ã Temperature-to-humidity map: 0 69 1, 1 0 69
+d5_t2hû0 69 1 1 0 69
+
+ã Humidity-to-location map: 60 56 37, 56 93 4
+d5_h2lû60 56 37 56 93 4
+
+ã Seeds: 79 14 55 13
+d5_seedsû79 14 55 13
+
+d5_minlocû999999
+d5_idxû0
+d5_nsûÎ d5_seeds
+while (d5_idx<d5_ns) {
+  seedûd5_seeds[d5_idx]
+  soilûd5_lookup{seed;d5_s2s}
+  fertûd5_lookup{soil;d5_s2f}
+  waterûd5_lookup{fert;d5_f2w}
+  lightûd5_lookup{water;d5_w2l}
+  tempûd5_lookup{light;d5_l2t}
+  humûd5_lookup{temp;d5_t2h}
+  locûd5_lookup{hum;d5_h2l}
+  if (loc<d5_minloc) { d5_minlocûloc }
+  d5_idxûd5_idx+1
+}
+
+if (d5_minloc=35) { Õ"AoC D5: [PASS] lowest location = 35" } else { Õ"AoC D5: [FAIL] location" }
+
+ã ===================================
+ã Day 6: Wait For It
+ã Boat race: distance = (time-hold)*hold
+ã Count ways to beat record for each race, multiply results
+ã Races: time=7 dist=9; time=15 dist=40; time=30 dist=200
+ã Expected product: 4*8*9 = 288
+ã ===================================
+
+d6_w1û0
+d6_holdû1
+while (d6_hold<7) {
+  d6_distû(7-d6_hold)ßd6_hold
+  if (d6_dist>9) { d6_w1ûd6_w1+1 }
+  d6_holdûd6_hold+1
+}
+
+d6_w2û0
+d6_holdû1
+while (d6_hold<15) {
+  d6_distû(15-d6_hold)ßd6_hold
+  if (d6_dist>40) { d6_w2ûd6_w2+1 }
+  d6_holdûd6_hold+1
+}
+
+d6_w3û0
+d6_holdû1
+while (d6_hold<30) {
+  d6_distû(30-d6_hold)ßd6_hold
+  if (d6_dist>200) { d6_w3ûd6_w3+1 }
+  d6_holdûd6_hold+1
+}
+
+d6_resultûd6_w1ßd6_w2ßd6_w3
+
+if (d6_w1=4) { Õ"AoC D6: [PASS] race1=4" } else { Õ"AoC D6: [FAIL] race1" }
+if (d6_w2=8) { Õ"AoC D6: [PASS] race2=8" } else { Õ"AoC D6: [FAIL] race2" }
+if (d6_w3=9) { Õ"AoC D6: [PASS] race3=9" } else { Õ"AoC D6: [FAIL] race3" }
+if (d6_result=288) { Õ"AoC D6: [PASS] product=288" } else { Õ"AoC D6: [FAIL] product" }
+
+ã ===================================
+ã Day 7: Camel Cards
+ã Rank poker hands. With J-as-joker variant, J is weakest card
+ã but acts as wildcard for hand type determination.
+ã Hands: 32T3K 765, T55J5 684, KK677 28, KTJJT 220, QQQJA 483
+ã Expected total winnings: 5905
+ã ===================================
+
+ã Card values: J=0, 2=1, 3=2, 4=3, 5=4, 6=5, 7=6, 8=7, 9=8, T=9, Q=10, K=11, A=12
+ã Hand type values: high-card=0, one-pair=1, two-pair=2, three-kind=3,
+ã   full-house=4, four-kind=5, five-kind=6
+
+ã Function: get card value from character code
+d7_cardval{ch}:
+{
+  valû0
+  if (ch=74) { valû0 }        ã J=74
+  if (ch=50) { valû1 }        ã 2=50
+  if (ch=51) { valû2 }        ã 3=51
+  if (ch=52) { valû3 }        ã 4=52
+  if (ch=53) { valû4 }        ã 5=53
+  if (ch=54) { valû5 }        ã 6=54
+  if (ch=55) { valû6 }        ã 7=55
+  if (ch=56) { valû7 }        ã 8=56
+  if (ch=57) { valû8 }        ã 9=57
+  if (ch=84) { valû9 }        ã T=84
+  if (ch=81) { valû10 }       ã Q=81
+  if (ch=75) { valû11 }       ã K=75
+  if (ch=65) { valû12 }       ã A=65
+  val
+}
+
+ã Function: determine hand type with J as joker
+ã counts[0..12] for cards J..A, jokers=counts[0]
+d7_handtype{hand}:
+{
+  ã Count cards
+  countsû13Î0
+  num_jû0
+  iû0
+  while (i<5) {
+    chûhand[i]
+    cvûd7_cardval{ch}
+    counts[cv]ûcounts[cv]+1
+    iûi+1
+  }
+  jokersûcounts[0]
+  ã Find max non-joker count
+  maxcû0
+  iû1
+  while (i<13) {
+    if (counts[i]>maxc) { maxcûcounts[i] }
+    iûi+1
+  }
+  ã Best hand type with jokers
+  bestûmaxc+jokers
+  ã Check for two-pair: need two distinct pairs
+  pairsû0
+  iû1
+  while (i<13) {
+    if (counts[i]=2) { pairsûpairs+1 }
+    iûi+1
+  }
+  htypeû0
+  if (best=5) { htypeû6 }              ã five of a kind
+  if (best=4) { htypeû5 }              ã four of a kind
+  if (best=3) {
+    ã Could be full house or three of a kind
+    if (pairs=2) { htypeû4 }           ã full house
+    else {
+      if (jokers=0) {
+        if (pairs=1) { htypeû4 }       ã full house (3+2)
+        if (pairs=0) { htypeû3 }       ã three of a kind
+      }
+      if (jokers>0) { htypeû3 }        ã can't be full house with joker making 3
+    }
+  }
+  if (best=2) {
+    if (pairs=2) { htypeû2 }           ã two pair
+    if (pairs=1) { htypeû1 }           ã one pair
+    if (pairs=0) { htypeû1 }           ã one pair from joker+1
+  }
+  if (best=1) { htypeû0 }              ã high card
+  htype
+}
+
+ã Function: compare two hands, return 1 if hand1 < hand2 (weaker), 0 otherwise
+d7_weaker{h1;h2}:
+{
+  t1ûd7_handtype{h1}
+  t2ûd7_handtype{h2}
+  resultû0
+  if (t1<t2) { resultû1 }
+  if (t1=t2) {
+    iû0
+    while ((i<5) & (result=0)) {
+      cv1ûd7_cardval{h1[i]}
+      cv2ûd7_cardval{h2[i]}
+      if (cv1<cv2) { resultû1 }
+      if (cv1>cv2) { resultû0; iû5 }
+      iûi+1
+    }
+  }
+  result
+}
+
+ã Hardcoded hands as strings
+d7_h1û"32T3K"
+d7_h2û"T55J5"
+d7_h3û"KK677"
+d7_h4û"KTJJT"
+d7_h5û"QQQJA"
+
+ã Bids
+d7_b1û765
+d7_b2û684
+d7_b3û28
+d7_b4û220
+d7_b5û483
+
+ã Rank hands by pairwise comparison (bubble sort)
+d7_handsûd7_h1 d7_h2 d7_h3 d7_h4 d7_h5
+d7_bidsûd7_b1 d7_b2 d7_b3 d7_b4 d7_b5
+d7_nû5
+
+ã Compute rank for each hand: rank[i] = number of hands weaker than it + 1
+d7_totalû0
+d7_iû0
+while (d7_i<d7_n) {
+  d7_rankû1
+  d7_jû0
+  while (d7_j<d7_n) {
+    if (d7_i!=d7_j) {
+      if (d7_weaker{d7_hands[d7_j];d7_hands[d7_i]}=1) { d7_rankûd7_rank+1 }
+    }
+    d7_jûd7_j+1
+  }
+  d7_totalûd7_total+d7_rankßd7_bids[d7_i]
+  d7_iûd7_i+1
+}
+
+if (d7_total=5905) { Õ"AoC D7: [PASS] total winnings = 5905" } else { Õ"AoC D7: [FAIL] winnings" }
+
+ã ===================================
+ã Day 8: Haunted Wasteland - Part 1
+ã Follow L/R instructions on node network from AAA to ZZZ.
+ã Example: RL instructions, 7 nodes. Expected steps: 2
+ã ===================================
+
+ã Instructions: R=1, L=0
+d8_instû1 0
+
+ã Node names encoded as 3-char arrays (A=0, B=1, ..., Z=25)
+ã Node map: node_index -> (left_index, right_index)
+ã AAA=0, BBB=1, CCC=2, DDD=3, EEE=4, GGG=5, ZZZ=6
+
+ã AAA->BBB(1) CCC(2); BBB->DDD(3) EEE(4); CCC->ZZZ(6) GGG(5)
+ã DDD->DDD(3) DDD(3); EEE->EEE(4) EEE(4); GGG->GGG(5) GGG(5); ZZZ->ZZZ(6) ZZZ(6)
+d8_leftû1 3 6 3 4 5 6
+d8_rightû2 4 5 3 4 5 6
+
+d8_curû0       ã Start at AAA (index 0)
+d8_stepsû0
+d8_ilenûÎ d8_inst
+d8_foundû0
+
+while (d8_found=0) {
+  d8_dirûd8_inst[d8_steps-(d8_stepsßd8_ilen)ßd8_ilen]
+  if (d8_dir=0) { d8_curûd8_left[d8_cur] }
+  if (d8_dir=1) { d8_curûd8_right[d8_cur] }
+  d8_stepsûd8_steps+1
+  if (d8_cur=6) { d8_foundû1 }
+}
+
+if (d8_steps=2) { Õ"AoC D8: [PASS] steps to ZZZ = 2" } else { Õ"AoC D8: [FAIL] steps" }
+
+ã ===================================
+ã Day 9: Mirage Maintenance
+ã Extrapolate next value in sequences by computing successive differences
+ã until all zeros, then sum the last values.
+ã Example: [0 3 6 9 12 15]->18, [1 3 6 10 15 21]->28, [10 13 16 21 30 45]->68
+ã Expected sum: 114
+ã ===================================
+
+ã Function: extrapolate next value for a sequence
+d9_extrap{seq}:
+{
+  nûÎ seq
+  ã Store the last value of each difference level
+  lastsûseq[n-1]
+  ã Work array - copy of seq
+  workûnÎ0
+  iû0
+  while (i<n) {
+    work[i]ûseq[i]
+    iûi+1
+  }
+  cur_nûn
+  doneû0
+  while (done=0) {
+    ã Compute differences
+    new_nûcur_n-1
+    diffûnew_nÎ0
+    allzeroû1
+    iû0
+    while (i<new_n) {
+      diff[i]ûwork[i+1]-work[i]
+      if (diff[i]!=0) { allzeroû0 }
+      iûi+1
+    }
+    lastsûlasts,diff[new_n-1]
+    if (allzero=1) { doneû1 }
+    ã Copy diff to work
+    workûnew_nÎ0
+    iû0
+    while (i<new_n) {
+      work[i]ûdiff[i]
+      iûi+1
+    }
+    cur_nûnew_n
+  }
+  ã Sum the last values
+  resultû0
+  nlûÎ lasts
+  iû0
+  while (i<nl) {
+    resultûresult+lasts[i]
+    iûi+1
+  }
+  result
+}
+
+d9_s1û0 3 6 9 12 15
+d9_s2û1 3 6 10 15 21
+d9_s3û10 13 16 21 30 45
+
+d9_e1ûd9_extrap{d9_s1}
+d9_e2ûd9_extrap{d9_s2}
+d9_e3ûd9_extrap{d9_s3}
+d9_sumûd9_e1+d9_e2+d9_e3
+
+if (d9_e1=18) { Õ"AoC D9: [PASS] seq1=18" } else { Õ"AoC D9: [FAIL] seq1" }
+if (d9_e2=28) { Õ"AoC D9: [PASS] seq2=28" } else { Õ"AoC D9: [FAIL] seq2" }
+if (d9_e3=68) { Õ"AoC D9: [PASS] seq3=68" } else { Õ"AoC D9: [FAIL] seq3" }
+if (d9_sum=114) { Õ"AoC D9: [PASS] sum=114" } else { Õ"AoC D9: [FAIL] sum" }
+
+ã ===================================
+ã Day 10: Pipe Maze
+ã Find farthest point in loop from start S.
+ã Example grid (5x5):
+ã   .....
+ã   .S-7.
+ã   .|.|.
+ã   .L-J.
+ã   .....
+ã S is at (1,1). Loop: S-(2,1)--(3,1)-7, down to (3,2)|, down to (3,3)J,
+ã left to (2,3)-, left to (1,3)L, up to (1,2)|, back to S.
+ã Loop length = 8, farthest = 4.
+ã Expected: 4
+ã ===================================
+
+ã Grid as flat string (5x5=25 chars)
+d10_gridû"....." ".S-7." ".|.|." ".L-J." "....."
+d10_rowsû5
+d10_colsû5
+d10_flatû0Î25
+d10_iû0
+while (d10_i<5) {
+  d10_rowûd10_grid[d10_i]
+  d10_jû0
+  while (d10_j<5) {
+    d10_flat[d10_iß5+d10_j]ûd10_row[d10_j]
+    d10_jûd10_j+1
+  }
+  d10_iûd10_i+1
+}
+
+ã Find S
+d10_srû0-1
+d10_scû0-1
+d10_rû0
+while (d10_r<d10_rows) {
+  d10_cû0
+  while (d10_c<d10_cols) {
+    if (d10_flat[d10_rß5+d10_c]=83) {
+      d10_srûd10_r
+      d10_scûd10_c
+    }
+    d10_cûd10_c+1
+  }
+  d10_rûd10_r+1
+}
+
+ã Distance array
+d10_distû25Î0-1
+
+ã BFS from S
+d10_queue_rû100Î0
+d10_queue_cû100Î0
+d10_qhû0
+d10_qtû0
+d10_queue_r[0]ûd10_sr
+d10_queue_c[0]ûd10_sc
+d10_qtû1
+d10_dist[d10_srß5+d10_sc]û0
+
+ã Pipe connections: for each pipe char, which directions it connects
+ã Directions: 0=up, 1=right, 2=down, 3=left
+ã | = up+down (0,2); - = left+right (1,3); L = up+right (0,1)
+ã J = up+left (0,3); 7 = down+left (2,3); F = down+right (1,2)
+ã For S, connect to all adjacent pipes
+
+ã Check if two pipes connect
+d10_conn{ch;dir}:
+{
+  rû0
+  if (ch=124) { if ((dir=0)|(dir=2)) { rû1 } }     ã | = 124: up, down
+  if (ch=45)  { if ((dir=1)|(dir=3)) { rû1 } }     ã - = 45: left, right
+  if (ch=76)  { if ((dir=0)|(dir=1)) { rû1 } }     ã L = 76: up, right
+  if (ch=74)  { if ((dir=0)|(dir=3)) { rû1 } }     ã J = 74: up, left
+  if (ch=55)  { if ((dir=2)|(dir=3)) { rû1 } }     ã 7 = 55: down, left
+  if (ch=70)  { if ((dir=1)|(dir=2)) { rû1 } }     ã F = 70: down, right
+  if (ch=83)  { rû1 }                               ã S = 83: all directions
+  r
+}
+
+ã Opposite direction: 0<->2, 1<->3
+d10_opp{d}:
+{
+  oûd
+  if (d=0) { oû2 }
+  if (d=1) { oû3 }
+  if (d=2) { oû0 }
+  if (d=3) { oû1 }
+  o
+}
+
+ã Direction offsets: dr[0]=-1, dc[0]=0; dr[1]=0, dc[1]=1; dr[2]=1, dc[2]=0; dr[3]=0, dc[3]=-1
+d10_drû0-1 0 1 0
+d10_dcû0 1 0 0-1
+
+while (d10_qh<d10_qt) {
+  crûd10_queue_r[d10_qh]
+  ccûd10_queue_c[d10_qh]
+  cdûd10_dist[crß5+cc]
+  d10_qhûd10_qh+1
+  d10_dirû0
+  while (d10_dir<4) {
+    nrûcr+d10_dr[d10_dir]
+    ncûcc+d10_dc[d10_dir]
+    if ((nr>=0) & (nr<d10_rows) & (nc>=0) & (nc<d10_cols)) {
+      nchûd10_flat[nrß5+nc]
+      ã Check if current pipe allows this direction
+      cchûd10_flat[crß5+cc]
+      if (d10_conn{cch;d10_dir}=1) {
+        ã Check if neighbor allows the opposite direction
+        odirûd10_opp{d10_dir}
+        if (d10_conn{nch;odir}=1) {
+          if (d10_dist[nrß5+nc]<0) {
+            d10_dist[nrß5+nc]ûcd+1
+            d10_queue_r[d10_qt]ûnr
+            d10_queue_c[d10_qt]ûnc
+            d10_qtûd10_qt+1
+          }
+        }
+      }
+    }
+    d10_dirûd10_dir+1
+  }
+}
+
+ã Find max distance
+d10_maxû0
+d10_iû0
+while (d10_i<25) {
+  if (d10_dist[d10_i]>d10_max) { d10_maxûd10_dist[d10_i] }
+  d10_iûd10_i+1
+}
+
+if (d10_max=4) { Õ"AoC D10: [PASS] farthest=4" } else { Õ"AoC D10: [FAIL] farthest" }
+
+Õ"aoc_more: all 7 days done"

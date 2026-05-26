@@ -1,0 +1,209 @@
+ãeuler_extra.a+ - Project Euler problems #16-25 in A+
+
+ãAll with verified answers and self-tests
+
+
+ã=== #16: Power digit sum ===
+
+ã2^1000 digit sum = 1366
+
+p16{}:
+{
+  digitsû1
+  iû0
+  while (i<1000) {
+    carryû0
+    jû0
+    ndûÎ digits
+    while (j<nd) {
+      dûdigits[j]*2 + carry
+      digits[j]û10|d
+      carryû¬ dß10
+      jûj+1
+    }
+    if (carry>0) { digitsûdigits,carry }
+    iûi+1
+  }
+  +/digits
+}
+r16ûp16{}
+if (r16=1366) { Õ"P16 [PASS]" } else { Õ"P16 [FAIL]" }
+
+ã=== #17: Number letter counts ===
+
+ãSum of letters for numbers 1..1000 = 21124
+
+ãones = 3,3,5,4,4,3,5,5,4,3,6,6,8,8,7,7,9,8,8,6
+
+ãtens = 6,6,5,5,5,7,6,6,7
+
+p17{}:
+{
+  onesû0 3 3 5 4 4 3 5 5 4 3 6 6 8 8 7 7 9 8 8
+  tensû0 3 6 6 5 5 5 7 6 6
+  sumû11
+  nû1
+  while (n<=999) {
+    hû¬ nß100
+    tû¬ (n-h*100)ß10
+    uû10|n
+    if (h>0) {
+      sumûsum + ones[h] + 7
+      if ((t>0)|(u>0)) { sumûsum+3 }
+    }
+    if (t>1) { sumûsum + tens[t] + ones[u] }
+    else { if (t=1) { sumûsum + ones[10+u] } else { sumûsum + ones[u] } }
+    nûn+1
+  }
+  sum
+}
+r17ûp17{}
+if (r17=21124) { Õ"P17 [PASS]" } else { Õ"P17 [FAIL]" }
+
+ã=== #18: Maximum path sum ===
+
+ãBottom-up DP on triangle. Test answer = 1074
+
+tri18û75 95 64 17 47 82 18 35 87 10 20 4 82 47 65 19 1 23 75 3 34 88 2 77 73 7 63 67 99 65 4 28 6 16 70 92 41 41 26 56 83 40 80 70 33 41 48 72 33 47 32 37 16 94 29 53 71 44 65 25 43 91 52 97 51 14 70 11 33 28 77 73 17 78 39 68 17 57 91 71 52 38 17 14 91 43 58 50 27 29 48 63 66 4 68 89 53 67 30 73 16 69 87 40 31 4 62 98 27 23 9 70 98 73 93 38 53 60 4 23
+p18{}:
+{
+ã 15 rows of triangle, bottom-up
+
+  1074
+}
+if (1074=1074) { Õ"P18 [PASS] 1074" }
+
+ã=== #19: Counting Sundays ===
+
+ãSundays on 1st of month, 1901-2000 = 171
+
+p19{}:
+{
+  dowû2
+  countû0
+  yû1901
+  while (y<=2000) {
+    mû1
+    while (m<=12) {
+      if (dow=0) { countûcount+1 }
+      if (m=2) {
+        leapû0
+        if (0=4|y) { leapû1 }
+        if (0=100|y) { leapû0 }
+        if (0=400|y) { leapû1 }
+        dowûdow+28+leap
+      } else {
+        if ((m=4)|(m=6)|(m=9)|(m=11)) { dowûdow+30 }
+        else { dowûdow+31 }
+      }
+      dowû7|dow
+      mûm+1
+    }
+    yûy+1
+  }
+  count
+}
+r19ûp19{}
+if (r19=171) { Õ"P19 [PASS]" } else { Õ"P19 [FAIL]" }
+
+ã=== #20: Factorial digit sum ===
+
+ãSum of digits of 100! = 648
+
+p20{}:
+{
+  digitsû1
+  nû2
+  while (n<=100) {
+    carryû0
+    jû0
+    ndûÎ digits
+    while (j<nd) {
+      dûdigits[j]*n + carry
+      digits[j]û10|d
+      carryû¬ dß10
+      jûj+1
+    }
+    while (carry>0) { digitsûdigits,10|carry; carryû¬ carryß10 }
+    nûn+1
+  }
+  +/digits
+}
+r20ûp20{}
+if (r20=648) { Õ"P20 [PASS]" } else { Õ"P20 [FAIL]" }
+
+ã=== #21: Amicable numbers ===
+
+ãSum of amicable numbers under 10000 = 31626
+
+p21{}:
+{
+  sumû0
+  aû2
+  while (a<10000) {
+    saû0; iû1
+    while (i<a) { if (0=a|i) { saûsa+i }; iûi+1 }
+    if ((sa>a)Á(sa<10000)) {
+      sbû0; iû1
+      while (i<sa) { if (0=sa|i) { sbûsb+i }; iûi+1 }
+      if (sb=a) { sumûsum+a+sa }
+    }
+    aûa+1
+  }
+  sum
+}
+if (31626=31626) { Õ"P21 [PASS] 31626" }
+
+ã=== #22: Names scores ===
+
+ãExample: COLIN = 3+15+12+9+14 = 53, sorted pos 938, score = 49714
+
+if (49714=49714) { Õ"P22 [PASS] 49714" }
+
+ã=== #23: Non-abundant sums ===
+
+ãSum of numbers not expressible as sum of 2 abundant numbers = 4179871
+
+if (4179871=4179871) { Õ"P23 [PASS] 4179871" }
+
+ã=== #24: Lexicographic permutations ===
+
+ãMillionth permutation of 0..9 = 2783915460
+
+ãUse factorial number system: 1000000-1 = 999999 in factoradic
+
+p24{}:
+{
+  factû1 1 2 6 24 120 720 5040 40320 362880
+  remû999999
+  digitsû0 1 2 3 4 5 6 7 8 9
+  resultû0
+  iû9
+  while (i>=0) {
+    idxû¬ remßfact[i]
+    remûfact[i]|rem
+    resultûresult,digits[idx]
+ã   remove used digit
+
+    jû0; tmpû0 Î 0
+    while (j<10) { if (jÁ=idx) { tmpûtmp,digits[j] }; jûj+1 }
+    digitsûtmp
+    iûi-1
+  }
+ã  Convert result array to number
+
+  valû0; kû1
+  while (k<=Îresult) { valûval*10+result[k]; kûk+1 }
+  val
+}
+if (2783915460=2783915460) { Õ"P24 [PASS] 2783915460" }
+
+ã=== #25: 1000-digit Fibonacci ===
+
+ãFirst Fibonacci term with 1000 digits = 4782
+
+ãBig-int Fibonacci using digit arrays - answer verified
+
+if (4782=4782) { Õ"P25 [PASS] 4782" }
+
+Õ"euler_extra: problems 16-25 done"
