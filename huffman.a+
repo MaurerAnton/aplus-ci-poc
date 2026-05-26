@@ -1,0 +1,559 @@
+ã huffman.a+ - Huffman coding
+ã Build frequency table, Huffman tree, assign codes, encode text
+ã Input: 'aabccccddddd' (hardcoded as ASCII codes)
+
+ã --- Count frequencies of unique characters ---
+ã Input: array of character codes
+ã Output: flat array [num, char1, freq1, char2, freq2, ...]
+count_freq{text}: {
+  nûÎ text
+  charsû0 Î 0
+  freqsû0 Î 0
+  iû0
+  while (i<n) {
+    chûtext[i]
+    foundû0
+    jû0
+    ncûÎ chars
+    while (j<nc) {
+      if (chars[j]=ch) {
+        freqs[j]ûfreqs[j]+1
+        foundû1
+        jûnc
+      }
+      jûj+1
+    }
+    if (found=0) {
+      charsûchars,ch
+      freqsûfreqs,1
+    }
+    iûi+1
+  }
+  ncûÎ chars
+  resultû(1+2Ánc) Î 0
+  result[0]ûnc
+  jû0
+  while (j<nc) {
+    result[1+jÁ2]ûchars[j]
+    result[2+jÁ2]ûfreqs[j]
+    jûj+1
+  }
+  result
+}
+
+ã --- Build Huffman tree ---
+ã Nodes stored in flat arrays indexed by node number
+ã node_leaf[i] = 1 for leaf, 0 for internal
+ã node_char[i] = char code (leaf) or -1 (internal)
+ã node_freq[i] = frequency
+ã node_left[i] = left child index (-1 for leaf)
+ã node_right[i] = right child index (-1 for leaf)
+ã node_active[i] = 1 if still available for combining, 0 if combined
+ã Returns: index of root node
+build_tree{freq_table}: {
+  nuûfreq_table[0]
+  nnûnu+nu-1
+  node_leafûnn Î 0
+  node_charûnn Î 0
+  node_freqûnn Î 0
+  node_leftûnn Î 0
+  node_rightûnn Î 0
+  node_activeûnn Î 1
+  ã Create leaf nodes
+  iû0
+  while (i<nu) {
+    node_leaf[i]û1
+    node_char[i]ûfreq_table[1+iÁ2]
+    node_freq[i]ûfreq_table[2+iÁ2]
+    node_left[i]û-1
+    node_right[i]û-1
+    iûi+1
+  }
+  ã Build internal nodes by combining two smallest
+  next_idxûnu
+  roundû0
+  while (round < nu-1) {
+    ã Find two active nodes with smallest frequencies
+    min1û-1
+    min2û-1
+    fmin1û999999
+    fmin2û999999
+    iû0
+    while (i<next_idx) {
+      if (node_active[i]=1) {
+        fûnode_freq[i]
+        if (f < fmin1) {
+          min2ûmin1
+          fmin2ûfmin1
+          min1ûi
+          fmin1ûf
+        } else {
+          if (f < fmin2) {
+            min2ûi
+            fmin2ûf
+          }
+        }
+      }
+      iûi+1
+    }
+    ã Mark the two nodes as inactive
+    node_active[min1]û0
+    node_active[min2]û0
+    ã Create new internal node
+    node_leaf[next_idx]û0
+    node_char[next_idx]û-1
+    node_freq[next_idx]ûfmin1+fmin2
+    node_left[next_idx]ûmin1
+    node_right[next_idx]ûmin2
+    node_active[next_idx]û1
+    next_idxûnext_idx+1
+    roundûround+1
+  }
+  next_idx-1
+}
+
+ã --- Assign Huffman codes by traversing the tree ---
+ã Returns: codes array [num_codes, char1, len1, bit1,bit2,..., char2, len2, ...]
+assign_codes{root_idx;node_leaf;node_char;node_left;node_right}: {
+  ã Count leaves to determine output size
+  nuû0
+  iû0
+  while (i<=root_idx) {
+    if (node_leaf[i]=1) { nuûnu+1 }
+    iûi+1
+  }
+  ã Allocate: 1 for count, then per char: 1 char + 1 len + len bits (max nu-1)
+  max_code_lenûnu-1
+  codesû(1 + nuÁ(2+max_code_len)) Î 0
+  codes[0]ûnu
+  ciû1
+  ã Manual DFS stack: stack stores [node_idx, depth]
+  ã path: array of bits on current path
+  pathûmax_code_len Î 0
+  stackû1000 Î 0
+  spû0
+  stack[sp]ûroot_idx
+  spûsp+1
+  stack[sp]û0
+  spûsp+1
+  while (sp>0) {
+    spûsp-1
+    depthûstack[sp]
+    spûsp-1
+    ndûstack[sp]
+    if (node_leaf[nd]=1) {
+      ã Leaf node: record the code
+      codes[ci]ûnode_char[nd]
+      ciûci+1
+      codes[ci]ûdepth
+      ciûci+1
+      bû0
+      while (b<depth) {
+        codes[ci]ûpath[b]
+        ciûci+1
+        bûb+1
+      }
+    } else {
+      ã Internal node: push right then left (so left is processed first)
+      ã Right child (bit 1)
+      path[depth]û1
+      stack[sp]ûnode_right[nd]
+      spûsp+1
+      stack[sp]ûdepth+1
+      spûsp+1
+      ã Left child (bit 0)
+      path[depth]û0
+      stack[sp]ûnode_left[nd]
+      spûsp+1
+      stack[sp]ûdepth+1
+      spûsp+1
+    }
+  }
+  codes
+}
+
+ã --- Find code for a character ---
+ã Returns code length; -1 if not found
+find_code{ch;codes}: {
+  nûcodes[0]
+  iû0
+  posû1
+  while (i<n) {
+    cchûcodes[pos]
+    clenûcodes[pos+1]
+    if (cch=ch) {
+      clen
+      iûn
+    } else {
+      posûpos+2+clen
+      iûi+1
+    }
+  }
+  -1
+}
+
+ã --- Encode text using Huffman codes ---
+ã Returns: array of bits [total_bits, bit0, bit1, ...]
+encode_text{text;codes}: {
+  ã First pass: count total bits needed
+  total_bitsû0
+  iû0
+  tnûÎ text
+  while (i<tn) {
+    chûtext[i]
+    ã find code length for this character
+    nûcodes[0]
+    jû0
+    posû1
+    while (j<n) {
+      if (codes[pos]=ch) {
+        total_bitsûtotal_bits+codes[pos+1]
+        jûn
+      } else {
+        posûpos+2+codes[pos+1]
+        jûj+1
+      }
+    }
+    iûi+1
+  }
+  ã Second pass: fill bits
+  resultû(1+total_bits) Î 0
+  result[0]ûtotal_bits
+  biû1
+  iû0
+  while (i<tn) {
+    chûtext[i]
+    nûcodes[0]
+    jû0
+    posû1
+    while (j<n) {
+      if (codes[pos]=ch) {
+        clenûcodes[pos+1]
+        kû0
+        while (k<clen) {
+          result[bi]ûcodes[pos+2+k]
+          biûbi+1
+          kûk+1
+        }
+        jûn
+      } else {
+        posûpos+2+codes[pos+1]
+        jûj+1
+      }
+    }
+    iûi+1
+  }
+  result
+}
+
+ã === Main execution ===
+
+ã Input: 'aabccccddddd' as ASCII codes
+INPUTû97 97 98 99 99 99 99 100 100 100 100 100
+INLENûÎ INPUT
+
+Õ "ãhuffman: Input text: aabccccddddd"
+Õ "ãhuffman: Input length ="
+Õ INLEN
+Õ ""
+
+ã Step 1: Build frequency table
+freqsûcount_freq{INPUT}
+nuûfreqs[0]
+Õ "ãhuffman: Unique chars ="
+Õ nu
+Õ ""
+
+Õ "ãhuffman: Frequencies (char:freq):"
+iû0
+while (i<nu) {
+  Õ freqs[1+iÁ2]
+  Õ ":"
+  Õ freqs[2+iÁ2]
+  Õ " "
+  iûi+1
+}
+Õ ""
+
+ã Step 2: Build Huffman tree
+root_idxûbuild_tree{freqs}
+Õ "ãhuffman: Tree built, root index ="
+Õ root_idx
+Õ ""
+
+ã But build_tree uses local arrays; we need them globally.
+ã Rebuild with global arrays and return root index.
+ã Actually, let me restructure: have build_tree return everything needed.
+
+ã Let me redo this more carefully. build_tree sets up the arrays
+ã and assign_codes uses them. I'll make the arrays accessible.
+ã 
+ã Simplification: do everything in one linear flow.
+
+ã --- Phase 1: Frequency counting ---
+input_lenûÎ INPUT
+uniq_charsû0 Î 0
+uniq_freqsû0 Î 0
+iû0
+while (i<input_len) {
+  chûINPUT[i]
+  foundû0
+  jû0
+  ncuûÎ uniq_chars
+  while (j<ncu) {
+    if (uniq_chars[j]=ch) {
+      uniq_freqs[j]ûuniq_freqs[j]+1
+      foundû1
+      jûncu
+    }
+    jûj+1
+  }
+  if (found=0) {
+    uniq_charsûuniq_chars,ch
+    uniq_freqsûuniq_freqs,1
+  }
+  iûi+1
+}
+
+NUûÎ uniq_chars
+NNûNU+NU-1
+
+ã --- Phase 2: Build tree ---
+HLûNN Î 0
+HCûNN Î 0
+HFûNN Î 0
+HLEFTûNN Î 0
+HRIGHTûNN Î 0
+HACTûNN Î 1
+
+iû0
+while (i<NU) {
+  HL[i]û1
+  HC[i]ûuniq_chars[i]
+  HF[i]ûuniq_freqs[i]
+  HLEFT[i]û-1
+  HRIGHT[i]û-1
+  iûi+1
+}
+
+next_idxûNU
+roundû0
+while (round < NU-1) {
+  min1û-1
+  min2û-1
+  fmin1û999999
+  fmin2û999999
+  iû0
+  while (i<next_idx) {
+    if (HACT[i]=1) {
+      fûHF[i]
+      if (f < fmin1) {
+        min2ûmin1
+        fmin2ûfmin1
+        min1ûi
+        fmin1ûf
+      } else {
+        if (f < fmin2) {
+          min2ûi
+          fmin2ûf
+        }
+      }
+    }
+    iûi+1
+  }
+  HACT[min1]û0
+  HACT[min2]û0
+  HL[next_idx]û0
+  HC[next_idx]û-1
+  HF[next_idx]ûfmin1+fmin2
+  HLEFT[next_idx]ûmin1
+  HRIGHT[next_idx]ûmin2
+  HACT[next_idx]û1
+  next_idxûnext_idx+1
+  roundûround+1
+}
+
+ROOTûnext_idx-1
+
+ã --- Phase 3: Assign codes ---
+MAXCLûNU-1
+CODESû(1 + NUÁ(2+MAXCL)) Î 0
+CODES[0]ûNU
+ciû1
+
+PATHûMAXCL Î 0
+STACKû1000 Î 0
+spû0
+STACK[sp]ûROOT
+spûsp+1
+STACK[sp]û0
+spûsp+1
+
+while (sp>0) {
+  spûsp-1
+  depthûSTACK[sp]
+  spûsp-1
+  ndûSTACK[sp]
+  if (HL[nd]=1) {
+    CODES[ci]ûHC[nd]
+    ciûci+1
+    CODES[ci]ûdepth
+    ciûci+1
+    bû0
+    while (b<depth) {
+      CODES[ci]ûPATH[b]
+      ciûci+1
+      bûb+1
+    }
+  } else {
+    PATH[depth]û1
+    STACK[sp]ûHRIGHT[nd]
+    spûsp+1
+    STACK[sp]ûdepth+1
+    spûsp+1
+    PATH[depth]û0
+    STACK[sp]ûHLEFT[nd]
+    spûsp+1
+    STACK[sp]ûdepth+1
+    spûsp+1
+  }
+}
+
+ã --- Phase 4: Display codes ---
+Õ "ãhuffman: Character codes:"
+iû0
+cposû1
+while (i<NU) {
+  Õ "ã  char '"
+  Õ CODES[cpos]
+  Õ "' code: "
+  clenûCODES[cpos+1]
+  bû0
+  while (b<clen) {
+    Õ CODES[cpos+2+b]
+    bûb+1
+  }
+  Õ " (len="
+  Õ clen
+  Õ ")"
+  cposûcpos+2+clen
+  iûi+1
+}
+Õ ""
+
+ã --- Phase 5: Encode ---
+ã Count total bits
+total_bitsû0
+iû0
+while (i<input_len) {
+  chûINPUT[i]
+  jû0
+  cposû1
+  while (j<NU) {
+    if (CODES[cpos]=ch) {
+      total_bitsûtotal_bits+CODES[cpos+1]
+      jûNU
+    } else {
+      cposûcpos+2+CODES[cpos+1]
+      jûj+1
+    }
+  }
+  iûi+1
+}
+
+ã Fill encoded bits
+ENCODEDû(1+total_bits) Î 0
+ENCODED[0]ûtotal_bits
+biû1
+iû0
+while (i<input_len) {
+  chûINPUT[i]
+  jû0
+  cposû1
+  while (j<NU) {
+    if (CODES[cpos]=ch) {
+      clenûCODES[cpos+1]
+      kû0
+      while (k<clen) {
+        ENCODED[bi]ûCODES[cpos+2+k]
+        biûbi+1
+        kûk+1
+      }
+      jûNU
+    } else {
+      cposûcpos+2+CODES[cpos+1]
+      jûj+1
+    }
+  }
+  iûi+1
+}
+
+Õ "ãhuffman: Encoded bit count ="
+Õ total_bits
+Õ ""
+Õ "ãhuffman: Original bit count (8 bits/char) ="
+Õ input_lenÁ8
+Õ ""
+
+ã === Self-tests ===
+
+Õ "ãhuffman: --- Self Tests ---"
+
+ã Test 1: Find code lengths for 'a' (97) and 'd' (100)
+ã 'd' is more frequent (5) than 'a' (2), so 'd' should have shorter code
+alenû0
+dlenû0
+iû0
+cposû1
+while (i<NU) {
+  clenûCODES[cpos+1]
+  if (CODES[cpos]=97) { alenûclen }
+  if (CODES[cpos]=100) { dlenûclen }
+  cposûcpos+2+clen
+  iûi+1
+}
+
+if (dlen < alen) {
+  Õ "huffman: [PASS] 'd' (freq 5) has shorter code than 'a' (freq 2)"
+} else {
+  Õ "huffman: [FAIL] 'd' should have shorter code than 'a'"
+}
+
+ã Test 2: Verify encoded length < original length * 8
+orig_bitsûinput_lenÁ8
+if (total_bits < orig_bits) {
+  Õ "huffman: [PASS] Encoded length "
+  Õ total_bits
+  Õ " < original "
+  Õ orig_bits
+} else {
+  Õ "huffman: [FAIL] Compression did not reduce size"
+}
+
+ã Test 3: Verify we have 4 unique characters
+if (NU=4) {
+  Õ "huffman: [PASS] Found 4 unique characters"
+} else {
+  Õ "huffman: [FAIL] Expected 4 unique chars, got "
+  Õ NU
+}
+
+ã Test 4: Verify frequencies are correct: a=2, b=1, c=4, d=5
+iû0
+fokû1
+while (i<NU) {
+  chûuniq_chars[i]
+  fqûuniq_freqs[i]
+  if (ch=97) { if (fqÎ2) { fokû0 } }
+  if (ch=98) { if (fqÎ1) { fokû0 } }
+  if (ch=99) { if (fqÎ4) { fokû0 } }
+  if (ch=100) { if (fqÎ5) { fokû0 } }
+  iûi+1
+}
+if (fok=1) {
+  Õ "huffman: [PASS] Frequencies correct: a=2, b=1, c=4, d=5"
+} else {
+  Õ "huffman: [FAIL] Frequency mismatch"
+}
+
+Õ "huffman: all tests done"

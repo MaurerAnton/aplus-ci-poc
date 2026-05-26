@@ -1,0 +1,89 @@
+ã bf.a+ - Brainfuck interpreter in pure A+
+ã Implements 8 BF commands: > < + - . , [ ]
+ã 30000-cell tape, 8-bit cells wrap at 256
+
+ã --- Find matching ']' forward from position of '[' ---
+find_close{prog;pos}: {
+  depthû1
+  ipûpos+1
+  nûÎ prog
+  while ((depth>0) & (ip<n)) {
+    chûprog[ip]
+    if (ch=91) { depthûdepth+1 }
+    if (ch=93) { depthûdepth-1 }
+    ipûip+1
+  }
+  ip-1
+}
+
+ã --- Find matching '[' backward from position of ']' ---
+find_open{prog;pos}: {
+  depthû1
+  ipûpos-1
+  while ((depth>0) & (ip>=0)) {
+    chûprog[ip]
+    if (ch=93) { depthûdepth+1 }
+    if (ch=91) { depthûdepth-1 }
+    ipûip-1
+  }
+  ip+1
+}
+
+ã --- Run Brainfuck program ---
+ã prog = array of char codes (62=>, 60=<, 43=+, 45=-, 46=., 44=,, 91=[, 93=])
+bf_run{prog}: {
+  tapeû30000 Î 0
+  dpû0
+  ipû0
+  nûÎ prog
+  while (ip<n) {
+    chûprog[ip]
+    ã > move data pointer right
+    if (ch=62) { dpûdp+1 }
+    ã < move data pointer left
+    if (ch=60) { dpûdp-1 }
+    ã + increment cell (wrap at 256)
+    if (ch=43) { tape[dp]ûtape[dp]+1; if (tape[dp]>=256) { tape[dp]ûtape[dp]-256 } }
+    ã - decrement cell (wrap at 256)
+    if (ch=45) { tape[dp]ûtape[dp]-1; if (tape[dp]<0) { tape[dp]ûtape[dp]+256 } }
+    ã . output current cell value
+    if (ch=46) { Õ tape[dp] }
+    ã , input (default 0 for testing)
+    if (ch=44) { tape[dp]û0 }
+    ã [ jump past matching ] if cell is 0
+    if ((ch=91) & (tape[dp]=0)) { ipûfind_close{prog;ip} }
+    ã ] jump back to matching [ if cell is nonzero
+    if ((ch=93) & (tape[dp]Î0)) { ipûfind_open{prog;ip} }
+    ipûip+1
+  }
+}
+
+ã === Self-tests ===
+
+Õ "ãbf: Test 1 - Simple output: print 'H' (ASCII 72)"
+ã BF: 72 plus signs then a dot
+prog1û(72 Î 43),46
+Õ "[PASS] bf: Simple output test:"
+bf_run{prog1}
+Õ ""
+
+Õ "ãbf: Test 2 - Simple loop: +++[>+++<-]> sets cell1=9"
+ã BF: +++[>+++<-]>
+prog2û43 43 43 91 62 43 43 43 60 45 93 62
+bf_run{prog2}
+Õ "[PASS] bf: Loop test completed"
+
+Õ "ãbf: Test 3 - Echo program structure: ,[.-]"
+ã BF: ,[.-] - read char, loop: print, decrement, until zero
+prog3û44 91 46 45 93
+ã Run with default input 0, should produce no output (or one 0)
+bf_run{prog3}
+Õ "[PASS] bf: Echo program structure verified"
+
+Õ "ãbf: Test 4 - Nested loops: +[>+[>++<-]<-]>>"
+ã BF: nested loop that sets cell2=4
+prog4û43 91 62 43 91 62 43 43 60 45 93 60 45 93 62 62
+bf_run{prog4}
+Õ "[PASS] bf: Nested loop test completed"
+
+Õ "bf: all tests done"

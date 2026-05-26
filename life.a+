@@ -1,0 +1,142 @@
+ãlife.a+ - Conway's Game of Life
+
+ã40x20 grid, glider pattern, 30 generations
+
+Wû40
+Hû20
+GENSû30
+
+ãInitialize grid with glider
+gridû(W Á H) Î 0
+ãGlider: (1,2), (2,3), (3,1), (3,2), (3,3) - coords (x,y)
+grid[(2 Á W) + 1]û1
+grid[(3 Á W) + 2]û1
+grid[(1 Á W) + 3]û1
+grid[(2 Á W) + 3]û1
+grid[(3 Á W) + 3]û1
+
+next_gridû(W Á H) Î 0
+
+genû0
+gen4_liveû0
+live_countû0
+
+while (gen<GENS) {
+  Õ""
+  Õ"Generation: "
+  Õ gen
+  Õ""
+
+  live_countû0
+  pyû0
+  while (py<H) {
+    pxû0
+    while (px<W) {
+      idxûpy Á W + px
+      if (grid[idx]=1) {
+        Õ"#"
+        live_countûlive_count+1
+      } else {
+        Õ" "
+      }
+      pxûpx+1
+    }
+    Õ""
+    pyûpy+1
+  }
+  Õ"Live cells: "
+  Õ live_count
+  Õ""
+
+  if (gen=4) {
+    gen4_liveûlive_count
+  }
+
+  pyû0
+  while (py<H) {
+    pxû0
+    while (px<W) {
+      idxûpy Á W + px
+      neighborsû0
+      dyû-1
+      while (dy<=1) {
+        dxû-1
+        while (dx<=1) {
+          if ((dy!=0) | (dx!=0)) {
+            nyûpy + dy
+            nxûpx + dx
+            if ((ny>=0) & (ny<H) & (nx>=0) & (nx<W)) {
+              nidxûny Á W + nx
+              neighborsûneighbors + grid[nidx]
+            }
+          }
+          dxûdx+1
+        }
+        dyûdy+1
+      }
+      if (grid[idx]=1) {
+        if ((neighbors=2) | (neighbors=3)) {
+          next_grid[idx]û1
+        } else {
+          next_grid[idx]û0
+        }
+      } else {
+        if (neighbors=3) {
+          next_grid[idx]û1
+        } else {
+          next_grid[idx]û0
+        }
+      }
+      pxûpx+1
+    }
+    pyûpy+1
+  }
+
+  iû0
+  total_cellsûW Á H
+  while (i<total_cells) {
+    grid[i]ûnext_grid[i]
+    iûi+1
+  }
+
+  genûgen+1
+}
+
+Õ""
+Õ"--- Self Tests ---"
+
+if (gen4_live=5) {
+  Õ"life: [PASS] glider has 5 live cells at gen 4"
+} else {
+  Õ"life: [FAIL] glider live count wrong at gen 4"
+}
+
+ãAfter 30 gens on 40x20 grid with one glider, should have live cells
+if (live_count > 0) {
+  Õ"life: [PASS] live cells exist after 30 generations"
+} else {
+  Õ"life: [FAIL] no live cells after 30 generations"
+}
+
+ãVerify glider moves: check cell (4,5) is alive after 4 gens
+ãStarting glider top-left at (1,2), after 4 gens moves (+1,+1) to min x=2,y=3
+ãWe check cells near expected position
+glider_shift_okû0
+py2û0
+while (py2<H) {
+  px2û0
+  while (px2<W) {
+    if (grid[py2 Á W + px2]=1) {
+      if ((px2>=2) & (py2>=3)) { glider_shift_okû1 }
+    }
+    px2ûpx2+1
+  }
+  py2ûpy2+1
+}
+if (glider_shift_ok=1) {
+  Õ"life: [PASS] glider has moved from initial position"
+} else {
+  Õ"life: [FAIL] glider did not move"
+}
+
+Õ"life: all tests done"

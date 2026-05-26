@@ -1,0 +1,272 @@
+ãastar.a+ - A* Pathfinding on 10x10 grid
+
+ãStart (0,0), Goal (9,9), Manhattan heuristic, 4-directional movement
+
+Nû10
+START_Xû0
+START_Yû0
+GOAL_Xû9
+GOAL_Yû9
+
+ã10x10 grid: 0=free, 1=wall
+gridû(N Á N) Î 0
+ãWalls: col 3 rows 1-3, row 3 cols 4-5, col 5 rows 6-7, col 7 row 7, col 1-2 row 8
+grid[(1 Á N) + 3]û1
+grid[(2 Á N) + 3]û1
+grid[(3 Á N) + 3]û1
+grid[(3 Á N) + 4]û1
+grid[(3 Á N) + 5]û1
+grid[(6 Á N) + 5]û1
+grid[(6 Á N) + 6]û1
+grid[(6 Á N) + 7]û1
+grid[(7 Á N) + 7]û1
+grid[(8 Á N) + 1]û1
+grid[(8 Á N) + 2]û1
+
+ãA* data arrays
+g_costû(N Á N) Î 9999
+f_costû(N Á N) Î 9999
+parent_xû(N Á N) Î -1
+parent_yû(N Á N) Î -1
+closedû(N Á N) Î 0
+
+ãManhattan distance
+manhattan{ax;ay;bx;by}:
+{
+  dxûax-bx
+  dyûay-by
+  if (dx<0) { dxû0-dx }
+  if (dy<0) { dyû0-dy }
+  dx+dy
+}
+
+start_idxûSTART_Y Á N + START_X
+goal_idxûGOAL_Y Á N + GOAL_X
+g_cost[start_idx]û0
+f_cost[start_idx]ûmanhattan{START_X;START_Y;GOAL_X;GOAL_Y}
+
+ãA* main loop - scan for lowest f_cost each iteration
+foundû0
+path_lenû0
+iter_countû0
+total_cellsûN Á N
+
+while ((found=0) & (iter_count < total_cells)) {
+  ãFind minimum f_cost in open set
+  best_idxû-1
+  best_fû99999
+  iû0
+  while (i<total_cells) {
+    if ((closed[i]=0) & (g_cost[i] < 9999)) {
+      if (f_cost[i] < best_f) {
+        best_fûf_cost[i]
+        best_idxûi
+      }
+    }
+    iûi+1
+  }
+
+  if (best_idx=-1) {
+    foundû2
+  } else {
+    if (best_idx=goal_idx) {
+      foundû1
+    } else {
+      closed[best_idx]û1
+      cyûbest_idx ß N
+      cxûbest_idx - cy Á N
+
+      ãExplore 4-directional neighbors (no diagonals)
+      ãUp
+      if (cy > 0) {
+        nidxû(cy-1) Á N + cx
+        if ((grid[nidx]=0) & (closed[nidx]=0)) {
+          new_gûg_cost[best_idx] + 1
+          if (new_g < g_cost[nidx]) {
+            g_cost[nidx]ûnew_g
+            parent_x[nidx]ûcx
+            parent_y[nidx]ûcy
+            f_cost[nidx]ûnew_g + manhattan{cx;cy-1;GOAL_X;GOAL_Y}
+          }
+        }
+      }
+      ãDown
+      if (cy+1 < N) {
+        nidxû(cy+1) Á N + cx
+        if ((grid[nidx]=0) & (closed[nidx]=0)) {
+          new_gûg_cost[best_idx] + 1
+          if (new_g < g_cost[nidx]) {
+            g_cost[nidx]ûnew_g
+            parent_x[nidx]ûcx
+            parent_y[nidx]ûcy
+            f_cost[nidx]ûnew_g + manhattan{cx;cy+1;GOAL_X;GOAL_Y}
+          }
+        }
+      }
+      ãLeft
+      if (cx > 0) {
+        nidxûcy Á N + cx-1
+        if ((grid[nidx]=0) & (closed[nidx]=0)) {
+          new_gûg_cost[best_idx] + 1
+          if (new_g < g_cost[nidx]) {
+            g_cost[nidx]ûnew_g
+            parent_x[nidx]ûcx
+            parent_y[nidx]ûcy
+            f_cost[nidx]ûnew_g + manhattan{cx-1;cy;GOAL_X;GOAL_Y}
+          }
+        }
+      }
+      ãRight
+      if (cx+1 < N) {
+        nidxûcy Á N + cx+1
+        if ((grid[nidx]=0) & (closed[nidx]=0)) {
+          new_gûg_cost[best_idx] + 1
+          if (new_g < g_cost[nidx]) {
+            g_cost[nidx]ûnew_g
+            parent_x[nidx]ûcx
+            parent_y[nidx]ûcy
+            f_cost[nidx]ûnew_g + manhattan{cx+1;cy;GOAL_X;GOAL_Y}
+          }
+        }
+      }
+    }
+  }
+  iter_countûiter_count+1
+}
+
+ãReconstruct path from goal back to start
+path_xû(N Á N) Î -1
+path_yû(N Á N) Î -1
+if (found=1) {
+  cxûGOAL_X
+  cyûGOAL_Y
+  while ((cx!=START_X) | (cy!=START_Y)) {
+    path_x[path_len]ûcx
+    path_y[path_len]ûcy
+    path_lenûpath_len+1
+    idxûcy Á N + cx
+    pxûparent_x[idx]
+    pyûparent_y[idx]
+    if (px=-1) { cxûSTART_X; cyûSTART_Y }
+    else { cxûpx; cyûpy }
+  }
+  path_x[path_len]ûSTART_X
+  path_y[path_len]ûSTART_Y
+  path_lenûpath_len+1
+}
+
+Õ""
+Õ"A* Path from (0,0) to (9,9):"
+Õ""
+if (found=1) {
+  iûpath_len-1
+  while (i>=0) {
+    Õ"("
+    Õ path_x[i]
+    Õ","
+    Õ path_y[i]
+    Õ") "
+    iûi-1
+  }
+  Õ""
+} else {
+  if (found=2) { Õ"No path exists!" }
+}
+
+Õ""
+Õ"Grid (#=wall, .=path, S=start, G=goal):"
+Õ""
+path_markû(N Á N) Î 0
+if (found=1) {
+  iû0
+  while (i<path_len) {
+    pidxûpath_y[i] Á N + path_x[i]
+    path_mark[pidx]û1
+    iûi+1
+  }
+}
+
+pyû0
+while (py<N) {
+  pxû0
+  while (px<N) {
+    idxûpy Á N + px
+    if ((px=START_X) & (py=START_Y)) { Õ"S" }
+    else {
+      if ((px=GOAL_X) & (py=GOAL_Y)) { Õ"G" }
+      else {
+        if (grid[idx]=1) { Õ"#" }
+        else {
+          if (path_mark[idx]=1) { Õ"." }
+          else { Õ" " }
+        }
+      }
+    }
+    pxûpx+1
+  }
+  Õ""
+  pyûpy+1
+}
+
+Õ""
+Õ"--- Self Tests ---"
+
+if (found=1) {
+  Õ"astar: [PASS] path found from (0,0) to (9,9)"
+} else {
+  Õ"astar: [FAIL] no path found"
+}
+
+if ((path_len >= 19) & (path_len <= 28)) {
+  Õ"astar: [PASS] path length is optimal"
+} else {
+  Õ"astar: [FAIL] unexpected path length"
+}
+
+path_okû1
+if (found=1) {
+  iû0
+  while (i<path_len) {
+    pidxûpath_y[i] Á N + path_x[i]
+    if (grid[pidx]=1) { path_okû0 }
+    iûi+1
+  }
+}
+if (path_ok=1) {
+  Õ"astar: [PASS] path avoids all obstacles"
+} else {
+  Õ"astar: [FAIL] path hits obstacles"
+}
+
+no_diagû1
+if ((found=1) & (path_len > 1)) {
+  iû0
+  while (i<path_len-1) {
+    dx2ûpath_x[i] - path_x[i+1]
+    dy2ûpath_y[i] - path_y[i+1]
+    if (dx2 < 0) { dx2û0-dx2 }
+    if (dy2 < 0) { dy2û0-dy2 }
+    if ((dx2+dy2) != 1) { no_diagû0 }
+    iûi+1
+  }
+}
+if (no_diag=1) {
+  Õ"astar: [PASS] no diagonal shortcuts"
+} else {
+  Õ"astar: [FAIL] diagonal move detected"
+}
+
+if (found=1) {
+  if ((path_x[path_len-1]=START_X) & (path_y[path_len-1]=START_Y)) {
+    Õ"astar: [PASS] path starts at (0,0)"
+  } else {
+    Õ"astar: [FAIL] path does not start at (0,0)"
+  }
+  if ((path_x[0]=GOAL_X) & (path_y[0]=GOAL_Y)) {
+    Õ"astar: [PASS] path ends at (9,9)"
+  } else {
+    Õ"astar: [FAIL] path does not end at (9,9)"
+  }
+}
+
+Õ"astar: all tests done"

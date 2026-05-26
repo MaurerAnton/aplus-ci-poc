@@ -1,0 +1,80 @@
+ãmandelbrot.a+ - ASCII Mandelbrot Set
+
+ã60x30 grid, x=[-2.0, 1.0], y=[-1.2, 1.2], 50 iterations
+
+Wû60
+Hû30
+MAX_ITERû50
+XMINû-2.0
+XMAXû1.0
+YMINû-1.2
+YMAXû1.2
+
+in_set_countû0
+tl_in_setû0
+
+Õ"Mandelbrot Set (60x30):"
+Õ""
+
+pyû0
+while (py<H) {
+  pxû0
+  while (px<W) {
+    x0ûXMIN + px Á 3.0 ß 59
+    y0ûYMAX - py Á 2.4 ß 29
+    xû0
+    yû0
+    iterû0
+    escapedû0
+    while ((iter<MAX_ITER) & (escaped=0)) {
+      if ((xÁx + yÁy) > 4.0) {
+        escapedû1
+      } else {
+        xtempûxÁx - yÁy + x0
+        yû2 Á x Á y + y0
+        xûxtemp
+        iterûiter+1
+      }
+    }
+    if (escaped=0) {
+      Õ"#"
+      in_set_countûin_set_count+1
+    } else {
+      if (iter>=41) { Õ"@" }
+      else {
+        if (iter>=31) { Õ"*" }
+        else {
+          if (iter>=21) { Õ"+" }
+          else {
+            if (iter>=11) { Õ"." }
+            else { Õ" " }
+          }
+        }
+      }
+    }
+    if ((py=0) & (px=0)) {
+      if (escaped=0) { tl_in_setû1 }
+      else { tl_in_setû0 }
+    }
+    pxûpx+1
+  }
+  Õ""
+  pyûpy+1
+}
+
+Õ""
+Õ"--- Self Tests ---"
+
+if (tl_in_set=1) {
+  Õ"mandelbrot: [PASS] top-left (-2.0, -1.2) in set"
+} else {
+  Õ"mandelbrot: [FAIL] top-left not in set"
+}
+
+if (in_set_count > 100) {
+  Õ"mandelbrot: [PASS] in-set count > 100"
+} else {
+  Õ"mandelbrot: [FAIL] in-set count <= 100"
+}
+
+Õ"mandelbrot: all tests done"
