@@ -1,0 +1,190 @@
+ã gc.a+ ßßß Mark-and-Sweep Garbage Collector in A+ ßßß
+ã
+ã Simulated heap: flat array with objects [size, marked, children...]
+ã Object start offsets track where each object begins in the heap.
+ã Pointer representation: negative numbers encode object references.
+ã   -1 references object 0, -2 references object 1, etc.
+ã
+ã Hardcoded object graph:
+ã   A (obj 0) -> B, C
+ã   B (obj 1) -> C
+ã   C (obj 2) -> (leaf)
+ã   D (obj 3) -> (leaf, UNREACHABLE)
+ã   Roots: [A]
+ã
+ã Expected after mark: A,B,C marked=1, D marked=0
+ã Expected after sweep: D collected, heap shrinks
+ã
+ã === Heap Initialization ===
+gc_heapû4 0 -2 -3 3 0 -3 2 0 2 0
+gc_obj_startû0 4 7 9
+gc_num_objû4
+gc_rootsû0
+gc_num_rootsû1
+
+ã === Mark Phase: Worklist-Based Traversal ===
+gc_mark_worklistû50Î0
+gc_mark_wpû0
+
+gc_mark_push{obj_idx}:
+{
+  gc_mark_worklist[gc_mark_wp]ûobj_idx
+  gc_mark_wpûgc_mark_wp+1
+}
+
+gc_mark_pop{}:
+{
+  if (gc_mark_wp>0) {
+    gc_mark_wpûgc_mark_wp-1
+    gc_mark_worklist[gc_mark_wp]
+  } else {
+    -999
+  }
+}
+
+ã Perform mark phase: seed roots, then traverse
+gc_mark_phase{}:
+{
+  ã Push all root objects onto worklist
+  riû0
+  while (ri<gc_num_roots) {
+    gc_mark_push{gc_roots[ri]}
+    riûri+1
+  }
+  ã Traverse: pop object, mark it, push unvisited children
+  while (gc_mark_wp>0) {
+    objûgc_mark_pop{}
+    startûgc_obj_start[obj]
+    if (gc_heap[start+1]=0) {
+      gc_heap[start+1]û1
+      szûgc_heap[start]
+      ciû2
+      while (ci<sz) {
+        child_refûgc_heap[start+ci]
+        if (child_ref<0) {
+          child_idxû((-child_ref)-1)
+          if (child_idx<gc_num_obj) {
+            gc_mark_push{child_idx}
+          }
+        }
+        ciûci+1
+      }
+    }
+  }
+}
+
+ã === Sweep Phase: Compact Marked Objects ===
+gc_sweep_phase{}:
+{
+  gc_new_heapû20Î0
+  gc_new_startû4Î0
+  gc_new_countû0
+  gc_new_posû0
+  oiû0
+  while (oi<gc_num_obj) {
+    startûgc_obj_start[oi]
+    markedûgc_heap[start+1]
+    szûgc_heap[start]
+    if (marked=1) {
+      gc_new_start[gc_new_count]ûgc_new_pos
+      ciû0
+      while (ci<sz) {
+        gc_new_heap[gc_new_pos+ci]ûgc_heap[start+ci]
+        ciûci+1
+      }
+      gc_new_posûgc_new_pos+sz
+      gc_new_countûgc_new_count+1
+    }
+    oiûoi+1
+  }
+  gc_heapûgc_new_heap
+  gc_obj_startûgc_new_start
+  gc_num_objûgc_new_count
+  gc_heap_sizeûgc_new_pos
+}
+
+ã Helper: read the marked flag for a given object index
+gc_get_marked{obj}:
+{
+  gc_heap[gc_obj_start[obj]+1]
+}
+
+ã =========================================
+ã Self-Tests
+ã =========================================
+Õ "=== GC Self-Tests ==="
+
+ã Run mark phase first
+gc_mark_phase{}
+
+ã Test 1: A (object 0) is marked (reachable via root)
+Õ "-- Test 1: A (object 0) is marked (reachable) --"
+gt1_markedûgc_get_marked{0}
+if (gt1_marked=1) {
+  Õ "[PASS] gc: A marked (reachable)"
+} else {
+  Õ "[FAIL] gc: A not marked"
+  Õ gt1_marked
+}
+
+ã Test 2: B (object 1) is marked (reachable via A)
+Õ "-- Test 2: B (object 1) is marked (reachable) --"
+gt2_markedûgc_get_marked{1}
+if (gt2_marked=1) {
+  Õ "[PASS] gc: B marked (reachable)"
+} else {
+  Õ "[FAIL] gc: B not marked"
+  Õ gt2_marked
+}
+
+ã Test 3: C (object 2) is marked (reachable via A,B)
+Õ "-- Test 3: C (object 2) is marked (reachable) --"
+gt3_markedûgc_get_marked{2}
+if (gt3_marked=1) {
+  Õ "[PASS] gc: C marked (reachable)"
+} else {
+  Õ "[FAIL] gc: C not marked"
+  Õ gt3_marked
+}
+
+ã Test 4: D (object 3) is NOT marked (unreachable)
+Õ "-- Test 4: D (object 3) is NOT marked (unreachable) --"
+gt4_markedûgc_get_marked{3}
+if (gt4_marked=0) {
+  Õ "[PASS] gc: D not marked (unreachable)"
+} else {
+  Õ "[FAIL] gc: D marked but unreachable"
+  Õ gt4_marked
+}
+
+ã Save pre-sweep count and run sweep
+gc_old_countûgc_num_obj
+gc_sweep_phase{}
+
+ã Test 5: After sweep, 3 objects remain (D collected)
+Õ "-- Test 5: After sweep, 3 objects remain (D collected) --"
+if (gc_num_obj=3) {
+  Õ "[PASS] gc: D collected, 3 objects survive"
+} else {
+  Õ "[FAIL] gc: expected 3 objects, got"
+  Õ gc_num_obj
+}
+
+ã Test 6: Heap size decreased after collection
+Õ "-- Test 6: Heap size decreased after collect --"
+if (gc_num_obj<gc_old_count) {
+  Õ "[PASS] gc: heap size decreased (D collected)"
+} else {
+  Õ "[FAIL] gc: heap size unchanged"
+}
+
+ã Test 7: A, B, C survive the collection
+Õ "-- Test 7: A, B, C survive collection --"
+if (gc_num_obj>=3) {
+  Õ "[PASS] gc: A, B, C survive collection"
+} else {
+  Õ "[FAIL] gc: survivors lost"
+  Õ gc_num_obj
+}
+
+Õ "=== GC tests complete ==="

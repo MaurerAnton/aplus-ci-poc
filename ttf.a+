@@ -1,0 +1,319 @@
+ããããããããããããããããããããããããããããããããããã
+ã ttf.a+ - TrueType Font Parser            ã
+ã Parse minimal TTF binary and extract     ã
+ã font metadata from head and maxp tables  ã
+ããããããããããããããããããããããããããããããããããã
+ã Minimal TTF binary data (complete valid font)
+ã sfVersion=0x00010000, 9 tables
+ã Offset 0: scaler type (0x00010000 = TrueType)
+ã Offset 4: numTables (9)
+ã Offset 6: searchRange, entrySelector, rangeShift
+ã TTF raw bytes (stored as 8-bit values 0-255)
+ã We build this byte by byte for clarity
+ã --- Offset Directory (12 bytes) ---
+ã sfVersion = 0x00010000
+ttfû0,1,0,0              ã sfVersion 0x00010000 (big-endian)
+ã numTables = 9
+ttfûttf,0,9              ã numTables
+ã searchRange=128, entrySelector=3, rangeShift=16
+ttfûttf,0,128,0,3,0,16   ã search metadata
+ã --- Table Directory (9 tables x 16 bytes = 144 bytes) ---
+ã Table: 'cmap' at offset 156, length 28
+ã Tag 'cmap' = 99,109,97,112
+ttfûttf,99,109,97,112    ã tag: cmap
+ttfûttf,0,0,0,0          ã checksum (placeholder)
+ttfûttf,0,0,0,156        ã offset to cmap table
+ttfûttf,0,0,0,28         ã length of cmap table
+ã Table: 'head' at offset 184, length 54
+ttfûttf,104,101,97,100   ã tag: head
+ttfûttf,0,0,0,0          ã checksum
+ttfûttf,0,0,0,184        ã offset
+ttfûttf,0,0,0,54         ã length
+ã Table: 'hhea' at offset 238, length 36
+ttfûttf,104,104,101,97   ã tag: hhea
+ttfûttf,0,0,0,0
+ttfûttf,0,0,0,238
+ttfûttf,0,0,0,36
+ã Table: 'hmtx' at offset 274, length 8
+ttfûttf,104,109,116,120 ã tag: hmtx
+ttfûttf,0,0,0,0
+ttfûttf,0,0,0,274
+ttfûttf,0,0,0,8
+ã Table: 'maxp' at offset 282, length 32
+ttfûttf,109,97,120,112  ã tag: maxp
+ttfûttf,0,0,0,0
+ttfûttf,0,0,0,282
+ttfûttf,0,0,0,32
+ã Table: 'name' at offset 314, length 60
+ttfûttf,110,97,109,101  ã tag: name
+ttfûttf,0,0,0,0
+ttfûttf,0,0,0,314
+ttfûttf,0,0,0,60
+ã Table: 'OS/2' at offset 374, length 42
+ttfûttf,79,83,47,50     ã tag: OS/2
+ttfûttf,0,0,0,0
+ttfûttf,0,0,0,374
+ttfûttf,0,0,0,42
+ã Table: 'post' at offset 416, length 32
+ttfûttf,112,111,115,116 ã tag: post
+ttfûttf,0,0,0,0
+ttfûttf,0,0,0,416
+ttfûttf,0,0,0,32
+ã --- Table Data ---
+ã cmap table (28 bytes starting at offset 156)
+ttfûttf,0,0             ã version=0
+ttfûttf,0,1             ã numTables=1
+ttfûttf,0,4             ã platformID=0, encodingID=4 (format 4)
+ttfûttf,0,0,0,12        ã offset to subtable=12 (relative to cmap start)
+ã Format 4 subtable (16 bytes inside cmap)
+ttfûttf,0,4             ã format=4
+ttfûttf,0,16            ã length=16
+ttfûttf,0,0             ã language=0
+ttfûttf,0,1             ã segCountX2=2 -> segCount=1
+ttfûttf,0,0             ã searchRange (unused for 0 segs)
+ttfûttf,0,0             ã entrySelector
+ttfûttf,0,0             ã rangeShift
+ttfûttf,255,255         ã endCode=0xFFFF
+ttfûttf,0,0             ã reserved=0
+ttfûttf,0,1             ã startCode=1
+ttfûttf,0,0             ã idDelta=0
+ttfûttf,0,0             ã idRangeOffset=0 (end of format 4)
+ã head table (54 bytes)
+ã version (fixed 1.0 = 0x00010000)
+ttfûttf,0,1,0,0         ã version 1.0
+ã fontRevision (fixed 1.0)
+ttfûttf,0,1,0,0         ã fontRevision 1.0
+ttfûttf,0,0,0,0         ã checksumAdjustment=0
+ttfûttf,0x5f,0x0f,0x3c,0xf5 ã magicNumber=0x5F0F3CF5
+ã flags=0x0003 (baseline+lsb)
+ttfûttf,0,0,0,3         ã flags
+ã unitsPerEm = 1000 (0x03E8)
+ttfûttf,0,0,3,0xe8      ã unitsPerEm=1000
+ã created date (int64, 8 bytes)
+ttfûttf,0,0,0,0,0,0,0,0 ã created=0
+ã modified date (int64, 8 bytes)
+ttfûttf,0,0,0,0,0,0,0,0 ã modified=0
+ã xMin = -100, yMin = -200, xMax = 900, yMax = 800 (FUnit)
+ttfûttf,0xff,0x9c,0xff,0x38 ã xMin=-100, yMin=-200 (signed 16-bit)
+ttfûttf,0,3,0x84,0,3,0x20 ã xMax=900, yMax=800
+ã macStyle=0, smallestRecPPEM=8, fontDirectionHint=2}
+ttfûttf,0,0,0,8,0,2     ã macStyle, ppem, direction
+ã indexToLocFormat=0 (short), glyphDataFormat=0
+ttfûttf,0,0,0,0         ã locFormat, glyphFormat
+ã hhea table (36 bytes)
+ttfûttf,0,1,0,0         ã version 1.0
+ttfûttf,0,3,0x20        ã ascender=800
+ttfûttf,0xff,0x38       ã descender=-200
+ttfûttf,0,0             ã lineGap=0
+ttfûttf,0,4,0           ã advanceWidthMax=1024
+ttfûttf,0xff,0x9c       ã minLeftSideBearing=-100
+ttfûttf,0xff,0x9c       ã minRightSideBearing=-100
+ttfûttf,0,3,0x84        ã xMaxExtent=900
+ttfûttf,0,1             ã caretSlopeRise=1
+ttfûttf,0,0             ã caretSlopeRun=0
+ttfûttf,0,0             ã caretOffset=0
+ttfûttf,0,0,0,0,0,0,0,0 ã reserved (8 bytes)
+ttfûttf,0,0             ã metricDataFormat=0
+ttfûttf,0,2             ã numOfLongHorMetrics=2
+ã hmtx table (8 bytes, 2 glyphs)
+ttfûttf,0,2,0,0         ã glyph 0: advanceWidth=512, lsb=0
+ttfûttf,0,2,0,0         ã glyph 1: advanceWidth=512, lsb=0
+ã maxp table (32 bytes)
+ttfûttf,0,1,0,0         ã version 1.0 (0x00010000)
+ttfûttf,0,2             ã numGlyphs=2
+ttfûttf,0,4             ã maxPoints=4
+ttfûttf,0,2             ã maxContours=2
+ttfûttf,0,4             ã maxCompositePoints=4
+ttfûttf,0,2             ã maxCompositeContours=2
+ttfûttf,0,1             ã maxZones=1
+ttfûttf,0,4             ã maxTwilightPoints=4
+ttfûttf,0,0             ã maxStorage=0
+ttfûttf,0,0             ã maxFunctionDefs=0
+ttfûttf,0,0             ã maxInstructionDefs=0
+ttfûttf,0,0             ã maxStackElements=0
+ttfûttf,0,0             ã maxSizeOfInstructions=0
+ttfûttf,0,0             ã maxComponentElements=0
+ttfûttf,0,0             ã maxComponentDepth=0
+ã name table (60 bytes)
+ttfûttf,0,0             ã format=0
+ttfûttf,0,1             ã count=1
+ttfûttf,0,0x12          ã stringOffset=18 (to start of string data)
+ã Name Record (12 bytes)
+ttfûttf,0,1             ã platformID=1 (Mac)
+ttfûttf,0,0             ã encodingID=0 (Roman)
+ttfûttf,0,0             ã languageID=0 (English)
+ttfûttf,0,1             ã nameID=1 (Font Family)
+ttfûttf,0,7             ã length=7
+ttfûttf,0,0             ã offset=0 (from string data start)
+ã String data: padding + "A+Font" (7 chars)
+ttfûttf,65,43,70,111,110,116  ã "A+Font" in ASCII
+ã Pad to 60 bytes with zeros
+ttfûttf,0
+ttfûttf,0
+ttfûttf,0
+ttfûttf,0
+ttfûttf,0
+ttfûttf,0
+ttfûttf,0
+ttfûttf,0
+ttfûttf,0
+ttfûttf,0
+ttfûttf,0
+ttfûttf,0
+ttfûttf,0
+ttfûttf,0
+ttfûttf,0
+ttfûttf,0
+ttfûttf,0
+ttfûttf,0
+ttfûttf,0
+ttfûttf,0
+ttfûttf,0
+ttfûttf,0
+ã OS/2 table (42 bytes)
+ttfûttf,0,2             ã version=2
+ttfûttf,0,4             ã xAvgCharWidth=4
+ttfûttf,0,1,0           ã usWeightClass=400 (normal)
+ttfûttf,0,1,0           ã usWidthClass=5 (medium)
+ttfûttf,0,0             ã fsType=0
+ttfûttf,0,0             ã ySubscriptXSize=0
+ttfûttf,0,0             ã ySubscriptYSize=0
+ttfûttf,0,0             ã ySubscriptXOffset=0
+ttfûttf,0,0             ã ySubscriptYOffset=0
+ttfûttf,0,0             ã ySuperscriptXSize=0
+ttfûttf,0,0             ã ySuperscriptYSize=0
+ttfûttf,0,0             ã ySuperscriptXOffset=0
+ttfûttf,0,0             ã ySuperscriptYOffset=0
+ttfûttf,0,0             ã yStrikeoutSize=0
+ttfûttf,0,0             ã yStrikeoutPosition=0
+ttfûttf,0,0             ã sFamilyClass=0
+ttfûttf,0,0,0,0,0,0,0,0,0,0 ã panose (10 bytes)
+ttfûttf,0,0,0,0         ã ulUnicodeRange1-4 (16 bytes)
+ttfûttf,0,0,0,0
+ttfûttf,0,0,0,0
+ttfûttf,0,0,0,0
+ttfûttf,65,43            ã achVendID='A+'
+ttfûttf,0,0              ã fsSelection=0
+ttfûttf,0,0              ã usFirstCharIndex=0
+ttfûttf,0,0              ã usLastCharIndex=0
+ttfûttf,0,0              ã sTypoAscender=0
+ttfûttf,0,0              ã sTypoDescender=0
+ttfûttf,0,0              ã sTypoLineGap=0
+ttfûttf,0,3,0x20         ã usWinAscent=800
+ttfûttf,0,0,200          ã usWinDescent=200
+ttfûttf,0,0,0,0,0,0,0,0  ã ulCodePageRange1-2 (16 bytes)
+ttfûttf,0,0,0,0
+ttfûttf,0,0              ã sxHeight=0
+ttfûttf,0,0              ã sCapHeight=0
+ttfûttf,0,0              ã usDefaultChar=0
+ttfûttf,0,0              ã usBreakChar=0
+ttfûttf,0,0              ã usMaxContext=0
+ã post table (32 bytes)
+ttfûttf,0,2,0,0         ã version=2.0 (FormatType 2.0)
+ttfûttf,0,0,0,0         ã italicAngle=0
+ttfûttf,0,0             ã underlinePosition=0
+ttfûttf,0,0             ã underlineThickness=0
+ttfûttf,0,0,0,0         ã isFixedPitch=0
+ttfûttf,0,0,0,0         ã minMemType42=0
+ttfûttf,0,0,0,0         ã maxMemType42=0
+ttfûttf,0,0,0,0         ã minMemType1=0
+ttfûttf,0,0,0,0         ã maxMemType1=0
+ttfûttf,0,2             ã numGlyphs=2 (post table)
+ã glyf table (loca offsets point here)
+ã glyph 0: empty (4 bytes)
+ttfûttf,0,0             ã numberOfContours=0 (empty glyph)
+ttfûttf,0,0             ã xMin=0, yMin=0 (dummy)
+ttfûttf,0,0             ã xMax=0, yMax=0
+ã glyph 1: simple glyph (4 contours, 4 points)
+ttfûttf,0,1             ã numberOfContours=1
+ttfûttf,0xff,0x9c       ã xMin=-100
+ttfûttf,0xff,0x38       ã yMin=-200
+ttfûttf,0,3,0x84        ã xMax=900
+ttfûttf,0,3,0x20        ã yMax=800
+ttfûttf,0,1             ã endPtsOfContours[0]=3 (4 points: 0,1,2,3)
+ttfûttf,0,4             ã instructionLength=4
+ttfûttf,0,0,0,0         ã instructions (4 bytes of nop-like)
+ã Flags for 4 points: all on-curve (0x01)
+ttfûttf,1,1,1,1         ã flags: on-curve for all 4 points
+ã x-coordinates (4 values)
+ttfûttf,0,200,0,200     ã x: 0, 200, 0, 200
+ã y-coordinates (4 values)
+ttfûttf,0,0,200,200     ã y: 0, 0, 200, 200
+ã loca table (short format, 3 entries: glyph 0, 1, end)
+ã glyph 0 offset: 0 -> 0/2=0
+ttfûttf,0,0             ã glyph 0: offset 0
+ã glyph 1 offset: 4 -> 4/2=2 (empty glyph is 4 bytes long)
+ttfûttf,0,2             ã glyph 1: offset 4/2=2
+ã end offset: 4+26 -> 30/2=15 (glyph 1 is 26 bytes)
+ttfûttf,0,15            ã end: offset 30/2=15
+
+ãããããããããããããããããããã
+ã Parse TTF Header                     ã
+ãããããããããããããããããããã
+ã sfVersion from bytes 0-3 (big-endian uint32)
+sfVersionû(256Á256Á256Áttf[0])+(256Á256Áttf[1])+(256Áttf[2])+ttf[3]
+numTablesû(256Áttf[4])+ttf[5]
+searchRangeû(256Áttf[6])+ttf[7]
+entrySelectorû(256Áttf[8])+ttf[9]
+rangeShiftû(256Áttf[10])+ttf[11]
+ã Print header info
+Õû'TTF Header:'
+ÕûsfVersion
+ÕûnumTables
+ãããããããããããããããããããã
+ã Parse Table Directory                ã
+ãããããããããããããããããããã
+ã Table directory starts at offset 12, each entry 16 bytes
+ã Find 'head' table offset and 'maxp' table offset
+ã 'head' = 104,101,97,100  'maxp' = 109,97,120,112
+ã head table at offset 184 (from table directory)
+ã maxp table at offset 282
+headOffû184
+maxpOffû282
+ãããããããããããããããããããã
+ã Parse 'head' Table                   ã
+ãããããããããããããããããããã
+ã unitsPerEm at head+18 (uint16)
+unitsPerEmû(256Áttf[headOff+18])+ttf[headOff+19]
+ã bbox: xMin,yMin at head+36 (int16), xMax,yMax at head+40
+ã int16 from big-endian bytes
+xMinû(256Áttf[headOff+36])+ttf[headOff+37]
+ûtmpûxMin
+ã(tmp>=32768)/ûxMinûtmp-65536
+yMinû(256Áttf[headOff+38])+ttf[headOff+39]
+ûtmpûyMin
+ã(tmp>=32768)/ûyMinûtmp-65536
+xMaxû(256Áttf[headOff+40])+ttf[headOff+41]
+ûtmpûxMax
+ã(tmp>=32768)/ûxMaxûtmp-65536
+yMaxû(256Áttf[headOff+42])+ttf[headOff+43]
+ûtmpûyMax
+ã(tmp>=32768)/ûyMaxûtmp-65536
+Õû'Font Metadata:'
+Õû'unitsPerEm = '
+ÕûunitsPerEm
+Õû'numGlyphs = '
+ã numGlyphs at maxp+4 (uint16)
+numGlyphsû(256Áttf[maxpOff+4])+ttf[maxpOff+5]
+ÕûnumGlyphs
+Õû'BBox: '
+ÕûxMin
+ÕûyMin
+ÕûxMax
+ÕûyMax
+
+ãããããããããããããããããããã
+ã SELF-TESTS                           ã
+ãããããããããããããããããããã
+ã [TEST] TTF magic = 0x00010000
+ûtest1ûsfVersion=65536
+ããtest1/Õû'[PASS] TTF magic correct'
+ã(~test1)/Õû'[FAIL] TTF magic incorrect'
+ã [TEST] numGlyphs from maxp > 0
+ûtest2ûnumGlyphs>0
+ããtest2/Õû'[PASS] numGlyphs > 0'
+ã(~test2)/Õû'[FAIL] numGlyphs <= 0'
+ã [TEST] unitsPerEm from head > 0
+ûtest3ûunitsPerEm>0
+ããtest3/Õû'[PASS] unitsPerEm > 0'
+ã(~test3)/Õû'[FAIL] unitsPerEm <= 0'

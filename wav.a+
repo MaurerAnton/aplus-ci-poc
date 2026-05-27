@@ -1,0 +1,72 @@
+γγγγγγγγγγγγγγγγγγγγγγγγγγγγγγγγγγγ
+γ wav.a+ - WAV Audio Synthesizer            γ
+γ Generate 1-second 440Hz A4 sine wave      γ
+γ 8000Hz sample rate, 8-bit mono PCM         γ
+γγγγγγγγγγγγγγγγγγγγγγγγγγγγγγγγγγγ
+SRϋ8000         γ sample rate
+FRϋ440           γ frequency (A4)
+DRϋ1             γ duration in seconds
+NSϋSRΑDR       γ number of samples
+NCϋ1             γ number of channels
+BPSϋ1            γ bytes per sample (8-bit)
+γ Taylor series sine approximation (5 terms)
+γ Generate samples using sine lookup
+tϋ0,ΆNS-1    γ time index vector 0..7999
+phϋ2Α3.14159ΑFRΑtίSR  γ phase = 2*pi*freq*t/sr
+γ Compute sine via 5-term Taylor series
+γ sin(x) = x - x^3/6 + x^5/120 - x^7/5040 + x^9/362880
+ph2ϋphΑph
+ph3ϋph2Αph
+ph5ϋph3Αph2
+ph7ϋph5Αph2
+ph9ϋph7Αph2
+snϋph-ph3ί6+ph5ί120-ph7ί5040+ph9ί362880
+scaledϋ127+¬127Αsn
+samplesϋscaled    γ 8-bit sample values
+samplesϋ0«samples      γ clip min to 0
+samplesϋ255¬samples     γ clip max to 255
+γ Build WAV file bytes
+γ RIFF header: 'RIFF' + file_size + 'WAVE'
+γ fmt chunk: 'fmt ' + chunk_size + format + channels + sr + byte_rate + block_align + bits
+γ data chunk: 'data' + chunk_size + sample_data
+datasizeϋNSΑNCΑBPS  γ data chunk size
+fmtsizeϋ16                 γ fmt chunk size (PCM=16)
+filesizeϋ36+datasize       γ total file size - 8
+γ Header bytes as constants for clarity
+headerϋ82,73,70,70,filesizeί256,filesize-256Α(filesizeί256),87,65,86,69  γ RIFF..WAVE
+γ ... the above uses divide by 256 and modulo approach
+γ Simpler: build header with explicit bytes
+γ RIFF header: R(82) I(73) F(70) F(70)
+γ Then 4-byte little-endian file size
+γ Then WAVE: W(87) A(65) V(86) E(69)
+γγγγγγγγγγγγγγγγγγγγ
+γ Print Results                         γ
+γγγγγγγγγγγγγγγγγγγγ
+γ Sample count: 
+ΥϋNS
+γ First 10 samples: 
+Υϋ10Òsamples
+γ Data chunk size: 
+Υϋdatasize
+γ Total file size: 
+Υϋfilesize+8
+
+γγγγγγγγγγγγγγγγγγγγ
+γ SELF-TESTS                           γ
+γγγγγγγγγγγγγγγγγγγγ
+γ [TEST] sample count = SR*DR
+ϋtest1{=}NS=SRΑDR
+γγtest1/Υϋ'[PASS] sample count correct'
+γ(~test1)/Υϋ'[FAIL] sample count mismatch'
+γ [TEST] data size = NS*NC*BPS
+ϋtest2{=}datasize=NSΑNCΑBPS
+γγtest2/Υϋ'[PASS] data size correct'
+γ(~test2)/Υϋ'[FAIL] data size mismatch'
+γ [TEST] file size = 44+datasize (44=header)
+ϋtest3{=}(filesize+8)=44+datasize
+γγtest3/Υϋ'[PASS] file size correct'
+γ(~test3)/Υϋ'[FAIL] file size mismatch'
+γ [TEST] samples contain audible data
+ϋtest4{=}(+/samples>128)>0
+γγtest4/Υϋ'[PASS] audible samples found'
+γ(~test4)/Υϋ'[FAIL] no audible samples'

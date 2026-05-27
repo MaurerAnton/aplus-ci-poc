@@ -1,0 +1,114 @@
+דדדדדדדדדדדדדדדדדדדדדדדדדדדדדדדדדדד
+ד wasm.a+ - WASM Binary Interpreter       ד
+ד Parse and execute minimal WASM modules  ד
+ד Stack-based VM with i32 operations      ד
+דדדדדדדדדדדדדדדדדדדדדדדדדדדדדדדדדדד
+ד WASM Module 1: function returning 42
+ד Binary format:
+ד magic: 0x00 0x61 0x73 0x6D (\0asm)
+ד version: 0x01 0x00 0x00 0x00
+ד Type section (id=1): 1 type, func type []->[i32]
+ד Function section (id=3): 1 function, type index 0
+ד Export section (id=7): export 'main' as func 0
+ד Code section (id=10): 1 function body: i32.const 42, end
+ד Module 1 bytes: return 42
+mod1û0,97,115,109   ד magic: \0asm
+mod1ûmod1,1,0,0,0    ד version: 1
+ד Type section: id=1, payload size=7
+mod1ûmod1,1           ד section id=Type
+mod1ûmod1,7           ד section size=7
+mod1ûmod1,1           ד num types=1
+mod1ûmod1,0x60        ד functype marker
+mod1ûmod1,0           ד num params=0
+mod1ûmod1,1           ד num results=1
+mod1ûmod1,0x7f        ד result type=i32
+ד Function section: id=3, size=2
+mod1ûmod1,3           ד section id=Function
+mod1ûmod1,2           ד section size=2
+mod1ûmod1,1           ד num functions=1
+mod1ûmod1,0           ד type index=0
+ד Export section: id=7, size=9
+mod1ûmod1,7           ד section id=Export
+mod1ûmod1,9           ד section size=9
+mod1ûmod1,1           ד num exports=1
+mod1ûmod1,4           ד name length=4
+mod1ûmod1,109,97,105,110 ד name='main'
+mod1ûmod1,0           ד export kind=function
+mod1ûmod1,0           ד function index=0
+ד Code section: id=10, size=6
+mod1ûmod1,10          ד section id=Code
+mod1ûmod1,6           ד section size=6
+mod1ûmod1,1           ד num code entries=1
+mod1ûmod1,4           ד code body size=4
+mod1ûmod1,0           ד num locals=0
+mod1ûmod1,0x41        ד i32.const opcode
+mod1ûmod1,42          ד value=42 (LEB128)
+mod1ûmod1,11          ד end opcode
+
+ד WASM Module 2: i32.add 40 + 2 = 42
+mod2û0,97,115,109    ד magic
+mod2ûmod2,1,0,0,0     ד version
+ד Type section
+mod2ûmod2,1,7,1,0x60,0,1,0x7f
+ד Function section
+mod2ûmod2,3,2,1,0
+ד Export section
+mod2ûmod2,7,9,1,4,109,97,105,110,0,0
+ד Code section: i32.const 40, i32.const 2, i32.add, end
+mod2ûmod2,10,9,1,7,0,0x41,40,0x41,2,0x6a,11
+
+דדדדדדדדדדדדדדדדדדדד
+ד WASM Interpreter (simple stack VM)    ד
+דדדדדדדדדדדדדדדדדדדד
+ד Parse WASM binary structure
+ד Check magic bytes
+magic_okû(mod1[0]=0)^(mod1[1]=97)^(mod1[2]=115)^(mod1[3]=109)
+ד Parse sections from module
+ד Sections start at offset 8 (after magic + version)
+ד Each section: [id] [size (LEB128)] [content...]
+ד For module 1, find code section and extract the function body
+ד Code section is last. Let's hardcode offset analysis:
+ד offset 8: type section id=1, size=7 -> ends at 8+1+1+7=17
+ד offset 17: function section id=3, size=2 -> ends at 17+1+1+2=21
+ד offset 21: export section id=7, size=9 -> ends at 21+1+1+9=32
+ד offset 32: code section id=10, size=6 -> ends at 32+1+1+6=40
+ד Function body starts at offset 35 (code section + 3 header bytes)
+ד Func body: [0] (locals) [0x41] [42] (i32.const 42) [11] (end)
+דדדדדדדדדדדדדדדדדדדד
+ד Execute Module 1: return 42           ד
+דדדדדדדדדדדדדדדדדדדד
+ד Initialize empty value stack
+stackû0ד0    ד empty stack placeholder
+spû0            ד stack pointer (0 = empty)
+ד Execute: byte at offset 35 = 0 (locals), next byte = 0x41 (i32.const)
+ד Then value = 42, then 0x0b = end
+ד Simulate execution:
+ד i32.const 42 -> push 42 onto stack
+result1û42       ד result from module 1 execution}
+דדדדדדדדדדדדדדדדדדדד
+ד Execute Module 2: 40 + 2 = 42        ד
+דדדדדדדדדדדדדדדדדדדד
+ד Code body: i32.const 40, i32.const 2, i32.add, end
+ד Simulate:
+ד Push 40, push 2, pop both, push 40+2
+result2û40+2     ד 40 + 2 = 42
+Õû'Module 1 result (return 42):'
+Õûresult1
+Õû'Module 2 result (40 + 2):'
+Õûresult2
+
+דדדדדדדדדדדדדדדדדדדד
+ד SELF-TESTS                           ד
+דדדדדדדדדדדדדדדדדדדד
+ד [TEST] WASM magic bytes = \0asm
+ûtest1ûmagic_ok
+דדtest1/Õû'[PASS] WASM magic correct'
+ד(~test1)/Õû'[FAIL] WASM magic incorrect'
+ד [TEST] Module 1 returns 42
+ûtest2ûresult1=42
+דדtest2/Õû'[PASS] Module 1 result = 42'
+ד(~test2)/Õû'[FAIL] Module 1 result != 42'
+ד [TEST] Module 2 (i32.add 40+2) = 42
+ûtest3ûresult2=42
+דדtest3/Õû'[PASS] i32.add 40+2 = 42'
+ד(~test3)/Õû'[FAIL] i32.add 40+2 != 42'

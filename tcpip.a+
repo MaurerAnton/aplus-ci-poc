@@ -1,0 +1,300 @@
+ã tcpip.a+ ßßß TCP/IP Stack in A+ ßßß
+ã
+ã Builds Ethernet frames, IP packets, and TCP segments.
+ã Simulates TCP 3-way handshake: SYN -> SYN-ACK -> ACK.
+ã
+ã Network topology:
+ã   Client: 192.168.1.100:12345
+ã   Server: 93.184.216.34:80
+ã
+ã === Constants ===
+tcp_frame_lenû54
+
+ã === SYN Frame (Client -> Server) ===
+ã 54 bytes: Eth(14) + IP(20) + TCP(20)
+tcp_synû0,17,34,51,68,85,170,187,204,221,238,255,8,0,69,0,0,40,0,1,64,0,64,6,66,232,192,168,1,100,93,184,216,34,48,57,0,80,0,0,3,232,0,0,0,0,80,2,255,255,131,138,0,0
+
+ã === SYN-ACK Frame (Server -> Client) ===
+tcp_synackû0,17,34,51,68,85,170,187,204,221,238,255,8,0,69,0,0,40,0,2,64,0,64,6,66,231,93,184,216,34,192,168,1,100,0,80,48,57,0,0,19,136,0,0,3,233,80,18,255,255,111,241,0,0
+
+ã === ACK Frame (Client -> Server) ===
+tcp_ackû0,17,34,51,68,85,170,187,204,221,238,255,8,0,69,0,0,40,0,3,64,0,64,6,66,230,192,168,1,100,93,184,216,34,48,57,0,80,0,0,3,233,0,0,19,137,80,16,255,255,111,242,0,0
+
+ã === IP Checksum (16-bit one's complement) ===
+ã Compute IP header checksum over a byte array at a given offset
+ã off: start offset within data array (IP header start)
+ã len: IP header length in bytes (must be even)
+tcp_ip_csum{data;off;hlen}:
+{
+  sumû0
+  iû0
+  while (i<hlen) {
+    wordûdata[off+i]*256 + data[off+i+1]
+    sumûsum + word
+    iûi+2
+  }
+  ã Fold carry bits
+  while (sum>65535) {
+    carryû¬ sumß65536
+    remûsum - carry*65536
+    sumûrem + carry
+  }
+  ã One's complement
+  65535 - sum
+}
+
+ã === TCP Checksum (with pseudo-header) ===
+ã Compute TCP checksum. Needs IP src/dst and TCP segment.
+ã ip_off: IP header start in byte array
+ã tcp_off: TCP segment start in byte array
+ã tcp_len: TCP segment length in bytes
+tcp_tcp_csum{data;ip_off;tcp_off;tcp_len}:
+{
+  ã Extract source IP (4 bytes at ip_off+12)
+  src1ûdata[ip_off+12]*256 + data[ip_off+13]
+  src2ûdata[ip_off+14]*256 + data[ip_off+15]
+  ã Extract dest IP (4 bytes at ip_off+16)
+  dst1ûdata[ip_off+16]*256 + data[ip_off+17]
+  dst2ûdata[ip_off+18]*256 + data[ip_off+19]
+  ã Pseudo-header: src_ip(4) + dst_ip(4) + zero(1) + proto(1) + tcp_len(2)
+  sumûsrc1 + src2 + dst1 + dst2 + 6 + tcp_len
+  ã TCP header + data words
+  iû0
+  while (i<tcp_len) {
+    wordûdata[tcp_off+i]*256 + data[tcp_off+i+1]
+    sumûsum + word
+    iûi+2
+  }
+  ã Fold carry
+  while (sum>65535) {
+    carryû¬ sumß65536
+    remûsum - carry*65536
+    sumûrem + carry
+  }
+  65535 - sum
+}
+
+ã === Packet Field Extractors ===
+
+ã Read 16-bit big-endian word from byte array at offset
+tcp_read16{data;off}:
+{
+  data[off]*256 + data[off+1]
+}
+
+ã Read 32-bit big-endian dword from byte array at offset
+tcp_read32{data;off}:
+{
+  data[off]*16777216 + data[off+1]*65536 + data[off+2]*256 + data[off+3]
+}
+
+ã Get TCP source port (Ethernet offset 14 + IP header offset 0)
+ã IP header is at offset 14 in the Ethernet frame
+tcp_src_port{data}:
+{
+  tcp_read16{data;34}
+}
+
+ã Get TCP destination port
+tcp_dst_port{data}:
+{
+  tcp_read16{data;36}
+}
+
+ã Get TCP flags byte (byte at offset 14+20+13 = 47)
+ã TCP header: offset 14(eth) + 20(ip) + 13 = byte 47
+tcp_flags{data}:
+{
+  data[47]
+}
+
+ã Get TCP sequence number (bytes 38-41)
+tcp_seq{data}:
+{
+  tcp_read32{data;38}
+}
+
+ã Get TCP ack number (bytes 42-45)
+tcp_ack{data}:
+{
+  tcp_read32{data;42}
+}
+
+ã Get IP total length (bytes 14+2,3 = 16,17)
+tcp_ip_len{data}:
+{
+  tcp_read16{data;16}
+}
+
+ã Get IP protocol (byte 14+9 = 23)
+tcp_ip_proto{data}:
+{
+  data[23]
+}
+
+ã Get IP TTL (byte 14+8 = 22)
+tcp_ip_ttl{data}:
+{
+  data[22]
+}
+
+
+
+tcp_is_syn_flag{flags}:
+{
+  ã SYN=0x02, SYN|ACK=0x12. Extract bit 1 using floor division
+  bit1û¬ flagsß2
+  bit1_valûbit1 - (¬ bit1ß2)*2
+  bit1_val
+}
+
+ã Check if TCP flags byte indicates ACK (bit 4, value 16)
+tcp_is_ack_flag{flags}:
+{
+  bit4û¬ flagsß16
+  bit4_valûbit4 - (¬ bit4ß2)*2
+  bit4_val
+}
+
+ã =========================================
+ã Self-Tests
+ã =========================================
+Õ "=== TCP/IP Stack Self-Tests ==="
+
+Õ "-- Test 1: IP checksum of SYN packet --"
+t1_syn_csumûtcp_ip_csum{tcp_syn;14;20}
+if (t1_syn_csum=17128) {
+  Õ "[PASS] tcpip: IP checksum SYN correct (17128)"
+} else {
+  Õ "[FAIL] tcpip: IP checksum SYN wrong"
+  Õ t1_syn_csum
+}
+
+Õ "-- Test 2: IP checksum of SYN-ACK packet --"
+t2_synack_csumûtcp_ip_csum{tcp_synack;14;20}
+if (t2_synack_csum=17127) {
+  Õ "[PASS] tcpip: IP checksum SYN-ACK correct (17127)"
+} else {
+  Õ "[FAIL] tcpip: IP checksum SYN-ACK wrong"
+  Õ t2_synack_csum
+}
+
+Õ "-- Test 3: TCP SYN flag set in SYN packet --"
+t3_flagsûtcp_flags{tcp_syn}
+t3_syn_bitûtcp_is_syn_flag{t3_flags}
+if (t3_syn_bit=1) {
+  Õ "[PASS] tcpip: SYN flag set in SYN packet"
+} else {
+  Õ "[FAIL] tcpip: SYN flag missing in SYN packet"
+  Õ t3_flags
+}
+
+Õ "-- Test 4: TCP SYN+ACK flags in SYN-ACK packet --"
+t4_flagsûtcp_flags{tcp_synack}
+t4_synûtcp_is_syn_flag{t4_flags}
+t4_ackûtcp_is_ack_flag{t4_flags}
+if ((t4_syn=1) & (t4_ack=1)) {
+  Õ "[PASS] tcpip: SYN+ACK flags set in SYN-ACK packet"
+} else {
+  Õ "[FAIL] tcpip: SYN+ACK flags wrong in SYN-ACK"
+  Õ t4_flags
+}
+
+Õ "-- Test 5: Only ACK flag in ACK packet (no SYN) --"
+t5_flagsûtcp_flags{tcp_ack}
+t5_synûtcp_is_syn_flag{t5_flags}
+t5_ackûtcp_is_ack_flag{t5_flags}
+if ((t5_ack=1) & (t5_syn=0)) {
+  Õ "[PASS] tcpip: ACK flag set, SYN flag clear in ACK packet"
+} else {
+  Õ "[FAIL] tcpip: ACK flags wrong"
+  Õ t5_flags
+}
+
+Õ "-- Test 6: Source/dest ports in SYN packet --"
+t6_srcûtcp_src_port{tcp_syn}
+t6_dstûtcp_dst_port{tcp_syn}
+if ((t6_src=12345) & (t6_dst=80)) {
+  Õ "[PASS] tcpip: SYN src=12345 dst=80"
+} else {
+  Õ "[FAIL] tcpip: port mismatch in SYN"
+}
+
+Õ "-- Test 7: TCP handshake sequence numbers --"
+t7_syn_seqûtcp_seq{tcp_syn}
+t7_synack_seqûtcp_seq{tcp_synack}
+t7_synack_ackûtcp_ack{tcp_synack}
+t7_ack_seqûtcp_seq{tcp_ack}
+t7_ack_ackûtcp_ack{tcp_ack}
+t7_okû1
+if (t7_syn_seq!=1000) { t7_okû0 }
+if (t7_synack_ack!=1001) { t7_okû0 }
+if (t7_synack_seq!=5000) { t7_okû0 }
+if (t7_ack_seq!=1001) { t7_okû0 }
+if (t7_ack_ack!=5001) { t7_okû0 }
+if (t7_ok=1) {
+  Õ "[PASS] tcpip: handshake seq numbers correct (SYN=1000, SYN-ACK=5000/ack1001, ACK=1001/ack5001)"
+} else {
+  Õ "[FAIL] tcpip: handshake seq numbers wrong"
+}
+
+Õ "-- Test 8: IP protocol field = TCP (6) --"
+t8_protoûtcp_ip_proto{tcp_syn}
+if (t8_proto=6) {
+  Õ "[PASS] tcpip: IP protocol = 6 (TCP)"
+} else {
+  Õ "[FAIL] tcpip: IP protocol wrong"
+}
+
+Õ "-- Test 9: IP TTL = 64 --"
+t9_ttlûtcp_ip_ttl{tcp_syn}
+if (t9_ttl=64) {
+  Õ "[PASS] tcpip: IP TTL = 64"
+} else {
+  Õ "[FAIL] tcpip: IP TTL wrong"
+}
+
+Õ "-- Test 10: TCP checksum verification for SYN --"
+t10_csumûtcp_tcp_csum{tcp_syn;14;34;20}
+if (t10_csum=33674) {
+  Õ "[PASS] tcpip: TCP checksum SYN correct"
+} else {
+  Õ "[FAIL] tcpip: TCP checksum SYN wrong"
+  Õ t10_csum
+}
+
+Õ "-- Test 11: TCP checksum verification for SYN-ACK --"
+t11_csumûtcp_tcp_csum{tcp_synack;14;34;20}
+if (t11_csum=28657) {
+  Õ "[PASS] tcpip: TCP checksum SYN-ACK correct"
+} else {
+  Õ "[FAIL] tcpip: TCP checksum SYN-ACK wrong"
+  Õ t11_csum
+}
+
+Õ "-- Test 12: TCP checksum verification for ACK --"
+t12_csumûtcp_tcp_csum{tcp_ack;14;34;20}
+if (t12_csum=28658) {
+  Õ "[PASS] tcpip: TCP checksum ACK correct"
+} else {
+  Õ "[FAIL] tcpip: TCP checksum ACK wrong"
+  Õ t12_csum
+}
+
+Õ "-- Test 13: Ethernet frame length = 54 bytes --"
+t13_lenûÎ tcp_syn
+if (t13_len=54) {
+  Õ "[PASS] tcpip: Ethernet frame is 54 bytes"
+} else {
+  Õ "[FAIL] tcpip: frame length wrong"
+}
+
+Õ "-- Test 14: IP version = 4 --"
+t14_verû¬ tcp_syn[14]ß16
+if (t14_ver=4) {
+  Õ "[PASS] tcpip: IP version = 4"
+} else {
+  Õ "[FAIL] tcpip: IP version wrong"
+}
+
+Õ "=== TCP/IP tests complete ==="
