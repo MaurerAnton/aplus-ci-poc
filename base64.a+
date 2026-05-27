@@ -1,0 +1,59 @@
+ã base64.a+ - Base64 encoder/decoder
+
+ã mul: a*b via addition
+mul{a;b}: { rû0; iû0; while (i<b) { rûr+a; iûi+1 }; r }
+
+ã idiv: integer division
+idiv{a;b}: { qû0; rûa; while ((b>r)=0) { rûr-b; qûq+1 }; q }
+
+ã mod: a mod b
+mod{a;b}: { rûa; while ((b>r)=0) { rûr-b }; r }
+
+ã Base64 alphabet (A-Z a-z 0-9 + /)
+b64û65 66 67 68 69 70 71 72 73 74 75 76 77 78 79 80 81 82 83 84 85 86 87 88 89 90 97 98 99 100 101 102 103 104 105 106 107 108 109 110 111 112 113 114 115 116 117 118 119 120 121 122 48 49 50 51 52 53 54 55 56 57 43 47
+
+ã SELF-TEST
+Õ"=== Base64 Self-Test ==="
+okû1
+
+ã 256*256 = 65536
+K65536ûmul{256;256}
+ã 64*64*64 = 262144
+K262144ûmul{mul{64;64};64}
+ã 64*64 = 4096
+K4096ûmul{64;64}
+
+ã "Man" = [77,97,110] -> 77*65536+97*256+110 = 5071214
+nûmul{77;K65536}+mul{97;256}+110
+if (n=5071214) { 0 } else { okû0; Õ"FAIL: n calc" }
+
+ã c0 = n/262144 = 19 (T)
+c0ûidiv{n;K262144}
+if (c0=19) { 0 } else { okû0; Õ"FAIL: c0" }
+ã c1 = (n/4096)%64 = (5071214/4096)%64 = 1238%64 = 22 (W)
+c1ûmod{idiv{n;K4096};64}
+if (c1=22) { 0 } else { okû0; Õ"FAIL: c1" }
+ã c2 = (n/64)%64 = 79237%64 = 5 (F)
+c2ûmod{idiv{n;64};64}
+if (c2=5) { 0 } else { okû0; Õ"FAIL: c2" }
+ã c3 = n%64 = 46 (u)
+c3ûmod{n;64}
+if (c3=46) { 0 } else { okû0; Õ"FAIL: c3" }
+
+ã Map to alphabet
+if (b64[c0]=84) { 0 } else { okû0; Õ"FAIL: T" }
+if (b64[c1]=87) { 0 } else { okû0; Õ"FAIL: W" }
+if (b64[c2]=70) { 0 } else { okû0; Õ"FAIL: F" }
+if (b64[c3]=117) { 0 } else { okû0; Õ"FAIL: u" }
+
+ã Decode roundtrip
+d_nûmul{c0;K262144}+mul{c1;K4096}+mul{c2;64}+c3
+if (d_n=n) { 0 } else { okû0; Õ"FAIL: decode n" }
+b0ûidiv{d_n;K65536}
+b1ûmod{idiv{d_n;256};256}
+b2ûmod{d_n;256}
+if (b0=77) { 0 } else { okû0; Õ"FAIL: decode M" }
+if (b1=97) { 0 } else { okû0 }
+if (b2=110) { 0 } else { okû0 }
+
+if (ok=1) { Õ"PASS: base64.a+" } else { Õ"FAIL: base64.a+" }

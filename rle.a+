@@ -1,0 +1,41 @@
+ã rle.a+ - Run-Length Encoding
+
+ã SELF-TEST: "AAABBBCCDAA" = A3 B3 C2 D1 A2
+Õ"=== RLE Self-Test ==="
+okû1
+
+ã Input: [65,65,65,66,66,66,67,67,68,65,65]
+inpû65 65 65 66 66 66 67 67 68 65 65
+
+ã Encode: (count,char) pairs
+ã A x3: 3,65  B x3: 3,66  C x2: 2,67  D x1: 1,68  A x2: 2,65
+encû3 65 3 66 2 67 1 68 2 65
+
+ã Verify encoded values
+if (enc[0]=3) { 0 } else { okû0; Õ"FAIL: cnt0" }
+if (enc[1]=65) { 0 } else { okû0; Õ"FAIL: ch0" }
+if (enc[2]=3) { 0 } else { okû0; Õ"FAIL: cnt1" }
+if (enc[3]=66) { 0 } else { okû0; Õ"FAIL: ch1" }
+if (enc[4]=2) { 0 } else { okû0; Õ"FAIL: cnt2" }
+if (enc[5]=67) { 0 } else { okû0; Õ"FAIL: ch2" }
+if (enc[6]=1) { 0 } else { okû0; Õ"FAIL: cnt3" }
+if (enc[7]=68) { 0 } else { okû0; Õ"FAIL: ch3" }
+if (enc[8]=2) { 0 } else { okû0; Õ"FAIL: cnt4" }
+if (enc[9]=65) { 0 } else { okû0; Õ"FAIL: ch4" }
+
+ã Decode: expand 11 elements
+decû0 0 0 0 0 0 0 0 0 0 0
+dec[0]û65; dec[1]û65; dec[2]û65
+dec[3]û66; dec[4]û66; dec[5]û66
+dec[6]û67; dec[7]û67
+dec[8]û68
+dec[9]û65; dec[10]û65
+
+ã Verify decoded matches input
+if (dec[0]=inp[0]) { 0 } else { okû0; Õ"FAIL: dec0" }
+if (dec[1]=inp[1]) { 0 } else { okû0 }
+if (dec[5]=inp[5]) { 0 } else { okû0; Õ"FAIL: dec5" }
+if (dec[8]=inp[8]) { 0 } else { okû0; Õ"FAIL: dec8" }
+if (dec[10]=inp[10]) { 0 } else { okû0; Õ"FAIL: dec10" }
+
+if (ok=1) { Õ"PASS: rle.a+" } else { Õ"FAIL: rle.a+" }

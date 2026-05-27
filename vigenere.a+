@@ -1,0 +1,35 @@
+ã vigenere.a+ - Vigenere cipher
+
+ã is_upper
+is_upper{c}: { ((64<c)+(c<91))=2 }
+
+ã is_lower
+is_lower{c}: { ((96<c)+(c<123))=2 }
+
+ã shift_char: shift letter c by key offset k
+shift_char{c;k}: {
+  rûc+k;
+  if (is_upper{c}) { while (90<r) { rûr-26 }; while (r<65) { rûr+26 } };
+  if (is_lower{c}) { while (122<r) { rûr-26 }; while (r<97) { rûr+26 } };
+  r
+}
+
+ã SELF-TEST
+Õ"=== Vigenere Self-Test ==="
+okû1
+
+ã "ATTACK" with LEMON = "LXFOPV"
+ã A+L=0+11=11=L=76
+if (shift_char{65;11}=76) { 0 } else { okû0; Õ"FAIL: A+L" }
+if (shift_char{84;4}=88) { 0 } else { okû0; Õ"FAIL: T+E" }
+if (shift_char{84;12}=70) { 0 } else { okû0; Õ"FAIL: T+M" }
+if (shift_char{65;14}=79) { 0 } else { okû0; Õ"FAIL: A+O" }
+if (shift_char{67;13}=80) { 0 } else { okû0; Õ"FAIL: C+N" }
+if (shift_char{75;11}=86) { 0 } else { okû0; Õ"FAIL: K+L" }
+
+ã Decrypt: L-11=A
+if (shift_char{76;0-11}=65) { 0 } else { okû0; Õ"FAIL: L-11" }
+ã Non-letter: space+5=37
+if (shift_char{32;5}=37) { 0 } else { okû0; Õ"FAIL: space" }
+
+if (ok=1) { Õ"PASS: vigenere.a+" } else { Õ"FAIL: vigenere.a+" }

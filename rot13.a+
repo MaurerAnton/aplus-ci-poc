@@ -1,0 +1,36 @@
+ã rot13.a+ - ROT13 cipher
+
+ã is_upper: true if uppercase A-Z
+is_upper{c}: { ((64<c)+(c<91))=2 }
+
+ã is_lower: true if lowercase a-z
+is_lower{c}: { ((96<c)+(c<123))=2 }
+
+ã rot13_char: rotate one ASCII letter by 13
+rot13_char{c}: {
+  rûc+13;
+  if (is_upper{c}) { while (90<r) { rûr-26 } };
+  if (is_lower{c}) { while (122<r) { rûr-26 } };
+  r
+}
+
+ã SELF-TEST
+Õ"=== ROT13 Self-Test ==="
+okû1
+
+if (is_upper{65}) { 0 } else { okû0; Õ"FAIL: is_upper A" }
+if (is_upper{90}) { 0 } else { okû0; Õ"FAIL: is_upper Z" }
+if (is_upper{97}) { okû0; Õ"FAIL: is_upper a" } else { 0 }
+if (is_lower{97}) { 0 } else { okû0; Õ"FAIL: is_lower a" }
+if (is_lower{65}) { okû0; Õ"FAIL: is_lower A" } else { 0 }
+
+if (rot13_char{65}=78) { 0 } else { okû0; Õ"FAIL: A->N" }
+if (rot13_char{78}=65) { 0 } else { okû0; Õ"FAIL: N->A" }
+if (rot13_char{90}=77) { 0 } else { okû0; Õ"FAIL: Z->M" }
+if (rot13_char{97}=110) { 0 } else { okû0; Õ"FAIL: a->n" }
+if (rot13_char{110}=97) { 0 } else { okû0; Õ"FAIL: n->a" }
+if (rot13_char{32}=45) { 0 } else { okû0; Õ"FAIL: space" }
+if (rot13_char{79}=66) { 0 } else { okû0; Õ"FAIL: O->B" }
+if (rot13_char{66}=79) { 0 } else { okû0; Õ"FAIL: B->O" }
+
+if (ok=1) { Õ"PASS: rot13.a+" } else { Õ"FAIL: rot13.a+" }
