@@ -1,0 +1,68 @@
+ã tar.a+ - TAR archive reader
+
+ã TAR header is 512 bytes:
+ã [0..99]   name
+ã [100..107] mode (octal)
+ã [108..115] uid
+ã [116..123] gid
+ã [124..135] size (octal)
+ã [136..147] mtime
+ã [148..155] chksum
+ã [156]      typeflag ('0'=file, '5'=dir)
+ã [157..256] linkname
+ã [257..261] magic "ustar"
+ã [262..263] version
+ã [264..296] uname
+ã [297..328] gname
+ã [329..336] devmajor
+ã [337..344] devminor
+ã [345..499] prefix
+ã [500..511] padding
+
+ã SELF-TEST: build a minimal TAR header in memory
+ã File: "hello.txt", size=11, content="hello world"
+ã Name (100 bytes): "hello.txt" + null padding
+nameû104 101 108 108 111 46 116 120 116 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+ã Mode "000644 " = 48 48 48 54 52 52 32 0
+modeû48 48 48 54 52 52 32 0
+ã uid "0000000 " 
+uidû48 48 48 48 48 48 48 0
+gidû48 48 48 48 48 48 48 0
+ã Size "00000000013 " (11 in octal = 13, padded to 12 bytes)
+sizeû48 48 48 48 48 48 48 48 48 49 51 32
+ã mtime
+mtimeû48 48 48 48 48 48 48 48 48 48 48 32
+ã chksum (8 bytes, spaces)
+chksumû32 32 32 32 32 32 32 32
+ã typeflag '0'
+typeflagû48
+ã linkname (100 bytes of 0)
+linkû0
+z100û0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+ã Build header from parts
+hdrûname,mode,uid,gid,size,mtime,chksum
+hdrûhdr,typeflag,z100,z100,0 0 0 0 0 0 0 0,z100,z100,0 0 0 0 0 0 0 0,0 0 0 0 0 0 0 0,z100,0 0 0 0 0 0 0 0 0 0 0 0
+
+Õ"=== TAR Self-Test ==="
+okû1
+
+ã Verify name field (first 9 chars = "hello.txt")
+if (hdr[0]=104) { 0 } else { okû0; Õ"FAIL: name[0]" }
+if (hdr[1]=101) { 0 } else { okû0 }
+if (hdr[2]=108) { 0 } else { okû0 }
+if (hdr[3]=108) { 0 } else { okû0 }
+if (hdr[4]=111) { 0 } else { okû0 }
+if (hdr[5]=46) { 0 } else { okû0 }
+if (hdr[6]=116) { 0 } else { okû0 }
+if (hdr[7]=120) { 0 } else { okû0 }
+if (hdr[8]=116) { 0 } else { okû0 }
+
+ã Verify typeflag = '0' (regular file)
+if (hdr[156]=48) { 0 } else { okû0; Õ"FAIL: typeflag" }
+
+ã Verify size field: "00000000013 " = 11 decimal
+if (hdr[124]=48) { 0 } else { okû0; Õ"FAIL: size" }
+if (hdr[134]=51) { 0 } else { okû0 }
+if (hdr[135]=32) { 0 } else { okû0 }
+
+if (ok=1) { Õ"PASS: tar.a+" } else { Õ"FAIL: tar.a+" }

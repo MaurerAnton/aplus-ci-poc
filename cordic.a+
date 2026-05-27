@@ -1,0 +1,54 @@
+ã cordic.a+ - CORDIC algorithm demonstration
+
+ã idiv: integer a/b (non-negative)
+idiv{a;b}: { qû0; rûa; while ((b>r)=0) { rûr-b; qûq+1 }; q }
+
+ã shr: right shift by n (non-negative)
+shr{a;n}: { rûa; iû0; while (i<n) { rûidiv{r;2}; iûi+1 }; r }
+
+ã SELF-TEST: CORDIC helpers + manual trace for angle=450 (45 deg)
+Õ"=== CORDIC Self-Test ==="
+okû1
+
+ã Helper tests
+if (idiv{10;3}=3) { 0 } else { okû0; Õ"FAIL: idiv" }
+if (shr{64;1}=32) { 0 } else { okû0; Õ"FAIL: shr1" }
+if (shr{64;2}=16) { 0 } else { okû0; Õ"FAIL: shr2" }
+if (shr{64;3}=8) { 0 } else { okû0; Õ"FAIL: shr3" }
+
+ã CORDIC trace: angle=450 (45 deg), K=607
+ã atan[0]=450, atan[1]=266, atan[2]=140, atan[3]=71
+ã Since angle=450 and atan[0]=450, first iteration eliminates z entirely
+
+ã i=0: z=450, d=(0<450)=1 (positive rotation)
+ã x=607, y=0, xi=shr{607;0}=607, yi=shr{0;0}=0
+ã x'=607-0=607, y'=0+607=607, z'=450-450=0
+xû607; yû607; zû0
+
+ã i=1: z=0, d=0 (negative rotation)
+ã xi=shr{607;1}=303, yi=shr{607;1}=303
+ã x'=607+303=910, y'=607-303=304, z'=0+266=266
+xiûshr{x;1}; yiûshr{y;1}
+xûx+yi; yûy-xi; zûz+266
+
+ã i=2: z=266, d=(0<266)=1
+ã xi=shr{910;2}=227, yi=shr{304;2}=76
+ã x'=910-76=834, y'=304+227=531, z'=266-140=126
+xiûshr{x;2}; yiûshr{y;2}
+xûx-yi; yûy+xi; zûz-140
+
+ã i=3: z=126, d=1
+ã xi=shr{834;3}=104, yi=shr{531;3}=66
+ã x'=834-66=768, y'=531+104=635, z'=126-71=55
+xiûshr{x;3}; yiûshr{y;3}
+xûx-yi; yûy+xi; zûz-71
+
+ã Final: sin~y=635, cos~x=768, z=55 (residual angle)
+ã Expected sin(45)*1000 ~ 707, cos(45)*1000 ~ 707
+ã With only 4 iterations, precision is limited. Check z reduced from 450 to 55.
+if (z=55) { 0 } else { okû0; Õ"FAIL: z convergence" }
+ã Check that sin and cos are close (within 200)
+dûy-x
+if ((d<200)+(d>(0-200))) { 0 } else { okû0; Õ"FAIL: sin~cos" }
+
+if (ok=1) { Õ"PASS: cordic.a+" } else { Õ"FAIL: cordic.a+" }

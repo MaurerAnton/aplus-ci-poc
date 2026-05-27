@@ -1,0 +1,46 @@
+ã midi.a+ - MIDI file parser
+
+ã shl8: multiply by 256 via 8 doublings
+shl8{a}: { bûa+a; bûb+b; bûb+b; bûb+b; bûb+b; bûb+b; bûb+b; bûb+b; b }
+
+ã be32: big-endian 32-bit
+be32{d;p}: { shl8{shl8{shl8{d[p]}}}+shl8{shl8{d[p+1]}}+shl8{d[p+2]}+d[p+3] }
+
+ã be16: big-endian 16-bit
+be16{d;p}: { shl8{d[p]}+d[p+1] }
+
+ã vlq: MIDI variable-length quantity
+vlq{d;p}: { vûd[p]; moreû(127<v); if (more) { vûv-128 }; cû1; while (more) { pûp+1; bûd[p]; vûshl8{v}+b; if (b<128) { moreû0 } else { vûv-128 }; cûc+1 }; v,c }
+
+ã SELF-TEST: minimal MIDI file
+ã Layout: MThd(4) len(4) fmt(2) ntrk(2) div(2) MTrk(4) trklen(4) data
+ã Indices: 0=M 1=T 2=h 3=d  4-7=len  8-9=fmt  10-11=ntrk  12-13=div
+ã 14=M 15=T 16=r 17=k  18-21=trklen  22=delta  23=noteon  24=note  25=vel
+smfû77 84 104 100 0 0 0 6 0 0 0 1 0 96 77 84 114 107 0 0 0 12 0 144 60 100 96 128 60 0 0 255 47 0
+
+Õ"=== MIDI Self-Test ==="
+okû1
+if (smf[0]=77) { 0 } else { okû0; Õ"FAIL: M" }
+if (smf[1]=84) { 0 } else { okû0 }
+if (smf[2]=104) { 0 } else { okû0 }
+if (smf[3]=100) { 0 } else { okû0 }
+if (smf[7]=6) { 0 } else { okû0; Õ"FAIL: len" }
+if (smf[8]=0) { 0 } else { okû0 }
+if (smf[9]=0) { 0 } else { okû0; Õ"FAIL: fmt" }
+if (smf[11]=1) { 0 } else { okû0; Õ"FAIL: ntrks" }
+if (smf[13]=96) { 0 } else { okû0; Õ"FAIL: div" }
+if (smf[14]=77) { 0 } else { okû0; Õ"FAIL: MTrk" }
+if (smf[21]=12) { 0 } else { okû0; Õ"FAIL: trklen" }
+if (smf[23]=144) { 0 } else { okû0; Õ"FAIL: noteon" }
+if (smf[24]=60) { 0 } else { okû0; Õ"FAIL: note" }
+if (smf[25]=100) { 0 } else { okû0; Õ"FAIL: vel" }
+
+ã Test be32 on track length field
+tlûbe32{smf;18}
+if (tl=12) { 0 } else { okû0; Õ"FAIL: be32" }
+
+ã Test vlq on track data (delta=0)
+vlûvlq{smf;22}
+if (vl[0]=0) { 0 } else { okû0; Õ"FAIL: vlq" }
+
+if (ok=1) { Õ"PASS: midi.a+" } else { Õ"FAIL: midi.a+" }

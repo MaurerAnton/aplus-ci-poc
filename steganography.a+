@@ -1,0 +1,68 @@
+ã steganography.a+ - LSB steganography in BMP images
+
+ã idiv: integer a/b
+idiv{a;b}: { qû0; rûa; while ((b>r)=0) { rûr-b; qûq+1 }; q }
+
+ã mod2: a mod 2
+mod2{a}: { a-(idiv{a;2}+idiv{a;2}) }
+
+ã getLSB: extract LSB of byte (0 or 1)
+getLSB{b}: { b-(idiv{b;2}+idiv{b;2}) }
+
+ã setLSB: set LSB of byte to bit (0 or 1)
+setLSB{b;bit}: { (b-getLSB{b})+bit }
+
+ã SELF-TEST
+Õ"=== LSB Steganography Self-Test ==="
+okû1
+
+ã Test mod2 on even/odd
+if (mod2{66}=0) { 0 } else { okû0; Õ"FAIL: mod2 even" }
+if (mod2{67}=1) { 0 } else { okû0; Õ"FAIL: mod2 odd" }
+
+ã Test getLSB
+if (getLSB{66}=0) { 0 } else { okû0; Õ"FAIL: getLSB 0" }
+if (getLSB{67}=1) { 0 } else { okû0; Õ"FAIL: getLSB 1" }
+if (getLSB{88}=0) { 0 } else { okû0; Õ"FAIL: getLSB 88" }
+
+ã Test setLSB
+aûsetLSB{66;1}
+if (a=67) { 0 } else { okû0; Õ"FAIL: setLSB 0->1" }
+bûsetLSB{67;0}
+if (b=66) { 0 } else { okû0; Õ"FAIL: setLSB 1->0" }
+
+ã Test roundtrip: hide 3 bits, extract
+px0û66; px1û77; px2û88
+ã Hide [1,0,1]
+h0ûsetLSB{px0;1}
+h1ûsetLSB{px1;0}
+h2ûsetLSB{px2;1}
+if (h0=67) { 0 } else { okû0; Õ"FAIL: hide bit0" }
+if (h1=76) { 0 } else { okû0; Õ"FAIL: hide bit1" }
+if (h2=89) { 0 } else { okû0; Õ"FAIL: hide bit2" }
+
+ã Extract
+e0ûgetLSB{h0}
+e1ûgetLSB{h1}
+e2ûgetLSB{h2}
+if (e0=1) { 0 } else { okû0; Õ"FAIL: extract bit0" }
+if (e1=0) { 0 } else { okû0; Õ"FAIL: extract bit1" }
+if (e2=1) { 0 } else { okû0; Õ"FAIL: extract bit2" }
+
+ã Hide a text string: "A+" = [65,43] = bits: 01000001 00101011
+ã Need 16 pixels (48 bytes) for 16 bits + header
+ã Simulate with 8 bytes: [66,77,88,99,110,121,132,143]
+txtûsetLSB{66;(idiv{65;128}>0)}  ã bit7 of 'A' = 0
+txtûtxt,setLSB{77;(getLSB{idiv{65;64}})}
+txtûtxt,setLSB{88;(getLSB{idiv{65;32}})}
+txtûtxt,setLSB{99;(getLSB{idiv{65;16}})}
+txtûtxt,setLSB{110;(getLSB{idiv{65;8}})}
+txtûtxt,setLSB{121;(getLSB{idiv{65;4}})}
+txtûtxt,setLSB{132;(getLSB{idiv{65;2}})}
+txtûtxt,setLSB{143;(getLSB{65})}  ã bit0
+
+ã Verify some extracted bits
+if (getLSB{txt[0]}=0) { 0 } else { okû0; Õ"FAIL: txt bit7" }
+if (getLSB{txt[7]}=1) { 0 } else { okû0; Õ"FAIL: txt bit0" }
+
+if (ok=1) { Õ"PASS: steganography.a+" } else { Õ"FAIL: steganography.a+" }

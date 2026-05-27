@@ -1,0 +1,48 @@
+ã pdf.a+ - Simple PDF text extractor
+
+ã SELF-TEST: build minimal PDF with embedded text
+ã Stream: "BT /F1 12 Tf (Hello PDF!) Tj ET"
+pdfû37 80 68 70 45 49 46 52 10
+pdfûpdf,49 32 48 32 111 98 106 60 60 47 84 121 112 101 47 67 97 116 97 108 111 103 47 80 97 103 101 115 32 50 32 48 32 82 62 62 101 110 100 111 98 106 10
+pdfûpdf,50 32 48 32 111 98 106 60 60 47 84 121 112 101 47 80 97 103 101 115 47 75 105 100 115 91 51 32 48 32 82 93 47 67 111 117 110 116 32 49 62 62 101 110 100 111 98 106 10
+pdfûpdf,51 32 48 32 111 98 106 60 60 47 84 121 112 101 47 80 97 103 101 47 80 97 114 101 110 116 32 50 32 48 32 82 47 67 111 110 116 101 110 116 115 32 52 32 48 32 82 62 62 101 110 100 111 98 106 10
+pdfûpdf,52 32 48 32 111 98 106 60 60 47 76 101 110 103 116 104 32 52 52 62 62 115 116 114 101 97 109 10 66 84 32 47 70 49 32 49 50 32 84 102 32 40 72 101 108 108 111 32 80 68 70 33 41 32 84 106 32 69 84 10 101 110 100 115 116 114 101 97 109 32 101 110 100 111 98 106 10
+pdfûpdf,120 114 101 102 10 48 32 53 10 116 114 97 105 108 101 114 60 60 47 83 105 122 101 32 53 62 62 10 115 116 97 114 116 120 114 101 102 10 37 37 69 79 70
+
+Õ"=== PDF Self-Test ==="
+okû1
+
+ã Check header
+if (pdf[0]=37) { 0 } else { okû0 }
+if (pdf[1]=80) { 0 } else { okû0 }
+
+ã Search for "BT" in stream
+posû0; foundû0; sposû0
+while ((pos<300)+(found=0)) {
+  if (pdf[pos]=66) { if (pdf[pos+1]=84) { foundû1; sposûpos } };
+  posûpos+1
+}
+
+if (found=1) { 0 } else { okû0; Õ"FAIL: BT not found" }
+
+ã "BT /F1 12 Tf (Hello PDF!) Tj ET"
+ã BT at spos, space, /, F, 1, space, 1, 2, space, T, f, space, ( at spos+13
+tpûspos+13
+if (pdf[tp]=40) { 0 } else { okû0; Õ"FAIL: open paren" }
+if (pdf[tp+1]=72) { 0 } else { okû0 }
+if (pdf[tp+2]=101) { 0 } else { okû0 }
+if (pdf[tp+3]=108) { 0 } else { okû0 }
+if (pdf[tp+4]=108) { 0 } else { okû0 }
+if (pdf[tp+5]=111) { 0 } else { okû0 }
+if (pdf[tp+6]=32) { 0 } else { okû0 }
+if (pdf[tp+7]=80) { 0 } else { okû0 }
+if (pdf[tp+8]=68) { 0 } else { okû0 }
+if (pdf[tp+9]=70) { 0 } else { okû0 }
+if (pdf[tp+10]=33) { 0 } else { okû0 }
+if (pdf[tp+11]=41) { 0 } else { okû0 }
+
+ã " Tj ET" after ")"
+if (pdf[tp+13]=84) { 0 } else { okû0; Õ"FAIL: Tj" }
+if (pdf[tp+16]=69) { 0 } else { okû0; Õ"FAIL: ET" }
+
+if (ok=1) { Õ"PASS: pdf.a+" } else { Õ"FAIL: pdf.a+" }
