@@ -1,0 +1,343 @@
+� bptree.a+ ��� B+ Tree (Order 3) in A+ ���
+�
+� B+ Tree order 3: internal nodes max 2 keys, 3 children
+� Leaf nodes: keys + data, linked via next pointer for range scans
+�
+� Node pool layout (9 slots per node, max 20 nodes):
+�   slot 0: is_leaf (1=leaf, 0=internal)
+�   slot 1: num_keys (0-2)
+�   slot 2: next (leaf pointer, for range scans)
+�   slots 3-4: key0, key1 (max 2 keys)
+�   slots 5-7: child0, child1, child2 (for internal nodes)
+�
+� Node pool: 9 slots * 20 nodes = 180
+bt_pool�180�0
+bt_node_count�0
+bt_root�0
+
+� Allocate a new leaf node, returns node_id
+bt_alloc_leaf{}: {
+  nid�bt_node_count
+  bt_node_count�bt_node_count + 1
+  base�nid * 9
+  bt_pool[base]�1     � is_leaf = 1
+  bt_pool[base+1]�0   � num_keys = 0
+  bt_pool[base+2]�0   � next = 0
+  nid
+}
+
+� Allocate an internal node, returns node_id
+bt_alloc_internal{}: {
+  nid�bt_node_count
+  bt_node_count�bt_node_count + 1
+  base�nid * 9
+  bt_pool[base]�0     � is_leaf = 0
+  bt_pool[base+1]�0   � num_keys = 0
+  bt_pool[base+2]�0
+  bt_pool[base+5]�0
+  bt_pool[base+6]�0
+  bt_pool[base+7]�0
+  nid
+}
+
+� Field accessors
+bt_base{nid}: { nid * 9 }
+bt_is_leaf{nid}: { bt_pool[bt_base{nid}] }
+bt_nkeys{nid}: { bt_pool[bt_base{nid} + 1] }
+bt_next{nid}: { bt_pool[bt_base{nid} + 2] }
+bt_key{nid;pos}: { bt_pool[bt_base{nid} + 3 + pos] }
+bt_child{nid;pos}: { bt_pool[bt_base{nid} + 5 + pos] }
+
+bt_set_nkeys{nid;nk}: { bt_pool[bt_base{nid} + 1]�nk }
+bt_set_next{nid;nxt}: { bt_pool[bt_base{nid} + 2]�nxt }
+bt_set_key{nid;pos;val}: { bt_pool[bt_base{nid} + 3 + pos]�val }
+bt_set_child{nid;pos;val}: { bt_pool[bt_base{nid} + 5 + pos]�val }
+
+� Insert key k into leaf node nid. Returns 0 ok, 1 split needed.
+bt_insert_leaf{nid;k}: {
+  nk�bt_nkeys{nid}
+  � Find insertion position
+  pos�0
+  while ((pos < nk) & (bt_key{nid;pos} < k)) {
+    pos�pos + 1
+  }
+  � Shift keys right
+  i�nk
+  while (i > pos) {
+    bt_set_key{nid;i;bt_key{nid;i-1}}
+    i�i - 1
+  }
+  bt_set_key{nid;pos;k}
+  bt_set_nkeys{nid;nk + 1}
+  � Check overflow (max 2 keys)
+  if (nk + 1 > 2) { 1 } else { 0 }
+}
+
+� Split leaf node nid (has 3 keys after overflow). Returns right node id.
+� Left keeps key[0], right gets keys[1],[2]. Copy-up: right's first key.
+bt_split_leaf{nid}: {
+  right�bt_alloc_leaf{}
+  bt_set_key{right;0;bt_key{nid;1}}
+  bt_set_key{right;1;bt_key{nid;2}}
+  bt_set_nkeys{right;2}
+  � Left leaf keeps key at index 0 only
+  bt_set_nkeys{nid;1}
+  � Link left -> right
+  old_next�bt_next{nid}
+  bt_set_next{right;old_next}
+  bt_set_next{nid;right}
+  right
+}
+
+� Split internal node nid (has 3 keys, 4 children). Returns [median, right].
+� Push-up: key[1] to parent. Left: key[0]+children[0,1]. Right: key[2]+children[2,3].
+bt_split_internal{nid}: {
+  right�bt_alloc_internal{}
+  median�bt_key{nid;1}
+  bt_set_key{right;0;bt_key{nid;2}}
+  bt_set_nkeys{right;1}
+  bt_set_child{right;0;bt_child{nid;2}}
+  bt_set_child{right;1;bt_child{nid;3}}
+  bt_set_nkeys{nid;1}
+  ret�median, right
+  ret
+}
+
+� Recursive insert. Returns -1 if no split, [0, median, right] if split.
+bt_insert_tree{nid;k}: {
+  if (bt_is_leaf{nid} = 1) {
+    overflow�bt_insert_leaf{nid;k}
+    if (overflow = 1) {
+      right�bt_split_leaf{nid}
+      rkey�bt_key{right;0}
+      result�0, rkey, right
+      result
+    } else {
+      -1
+    }
+  } else {
+    nk�bt_nkeys{nid}
+    pos�0
+    while ((pos < nk) & (bt_key{nid;pos} < k)) {
+      pos�pos + 1
+    }
+    child�bt_child{nid;pos}
+    child_res�bt_insert_tree{child;k}
+    if (child_res[0] >= 0) {
+      c_median�child_res[1]
+      c_right�child_res[2]
+      � Insert c_median and c_right at position pos
+      i�nk
+      while (i > pos) {
+        bt_set_key{nid;i;bt_key{nid;i-1}}
+        i�i - 1
+      }
+      bt_set_key{nid;pos;c_median}
+      j�nk + 1
+      while (j > pos + 1) {
+        bt_set_child{nid;j;bt_child{nid;j-1}}
+        j�j - 1
+      }
+      bt_set_child{nid;pos + 1;c_right}
+      bt_set_nkeys{nid;nk + 1}
+      if (nk + 1 > 2) {
+        sp�bt_split_internal{nid}
+        0, sp[0], sp[1]
+      } else {
+        -1
+      }
+    } else {
+      -1
+    }
+  }
+}
+
+� Top-level insert. Returns new root id.
+bt_insert{k}: {
+  if (bt_root = 0) {
+    r�bt_alloc_leaf{}
+    bt_set_key{r;0;k}
+    bt_set_nkeys{r;1}
+    bt_root�r
+  } else {
+    result�bt_insert_tree{bt_root;k}
+    if (result[0] >= 0) {
+      new_root�bt_alloc_internal{}
+      bt_set_key{new_root;0;result[1]}
+      bt_set_child{new_root;0;bt_root}
+      bt_set_child{new_root;1;result[2]}
+      bt_set_nkeys{new_root;1}
+      bt_root�new_root
+    }
+  }
+  bt_root
+}
+
+� Search for key k. Returns 1 if found, else 0.
+bt_search{k}: {
+  nid�bt_root
+  found�0
+  while ((nid > 0) & (found = 0)) {
+    is_leaf�bt_is_leaf{nid}
+    nk�bt_nkeys{nid}
+    pos�0
+    while ((pos < nk) & (bt_key{nid;pos} < k)) {
+      pos�pos + 1
+    }
+    if ((pos < nk) & (bt_key{nid;pos} = k)) {
+      found�1
+    } else {
+      if (is_leaf = 1) {
+        found�0
+        nid�0
+      } else {
+        nid�bt_child{nid;pos}
+      }
+    }
+  }
+  found
+}
+
+� Find leaf node that would contain key k.
+bt_find_leaf{k}: {
+  nid�bt_root
+  done�0
+  while (done = 0) {
+    if (bt_is_leaf{nid} = 1) {
+      done�1
+    } else {
+      nk�bt_nkeys{nid}
+      pos�0
+      while ((pos < nk) & (bt_key{nid;pos} < k)) {
+        pos�pos + 1
+      }
+      nid�bt_child{nid;pos}
+    }
+  }
+  nid
+}
+
+� Range scan: collect keys between lo and hi (inclusive).
+bt_range_vals�50�0
+bt_range_count�0
+
+bt_range_scan{lo;hi}: {
+  bt_range_count�0
+  leaf�bt_find_leaf{lo}
+  while (leaf > 0) {
+    nk�bt_nkeys{leaf}
+    ki�0
+    while (ki < nk) {
+      k�bt_key{leaf;ki}
+      if (k > hi) {
+        leaf�0
+        ki�nk
+      } else {
+        if (k >= lo) {
+          bt_range_vals[bt_range_count]�k
+          bt_range_count�bt_range_count + 1
+        }
+      }
+      ki�ki + 1
+    }
+    if (leaf > 0) {
+      leaf�bt_next{leaf}
+    }
+  }
+}
+
+� === Build Tree: Insert 10-100 by tens ===
+bt_root�0
+bt_insert{10}
+bt_insert{20}
+bt_insert{30}
+bt_insert{40}
+bt_insert{50}
+bt_insert{60}
+bt_insert{70}
+bt_insert{80}
+bt_insert{90}
+bt_insert{100}
+
+� === Display Tree Info ===
+� "=== B+ Tree Built ==="
+� "Root node id: " + bt_root
+� "Total nodes: " + bt_node_count
+� ""
+
+� === Self-Tests ===
+� "=== B+ Tree Self-Tests ==="
+
+� Test 1: Search for 50 -> found
+if (bt_search{50} = 1) {
+  � "[PASS] bptree: found key 50"
+} else {
+  � "[FAIL] bptree: key 50 not found"
+}
+
+� Test 2: Search for 55 -> NOT found
+if (bt_search{55} = 1) {
+  � "[FAIL] bptree: key 55 found but should not be"
+} else {
+  � "[PASS] bptree: key 55 correctly not found"
+}
+
+� Test 3: Range scan 30-70, expect 5 keys [30,40,50,60,70]
+bt_range_scan{30;70}
+if (bt_range_count = 5) {
+  � "[PASS] bptree: range scan 30-70 returned 5 keys"
+} else {
+  � "[FAIL] bptree: range scan expected 5 keys, got"
+  � bt_range_count
+}
+
+� Test 3b: Verify range keys are correct
+bt_rs_ok�1
+if (bt_range_vals[0] != 30) { bt_rs_ok�0 }
+if (bt_range_vals[1] != 40) { bt_rs_ok�0 }
+if (bt_range_vals[2] != 50) { bt_rs_ok�0 }
+if (bt_range_vals[3] != 60) { bt_rs_ok�0 }
+if (bt_range_vals[4] != 70) { bt_rs_ok�0 }
+if (bt_rs_ok = 1) {
+  � "[PASS] bptree: range scan keys match [30,40,50,60,70]"
+} else {
+  � "[FAIL] bptree: range scan keys do not match expected"
+}
+
+� Display range scan results
+� "Range scan results:"
+ri�0
+while (ri < bt_range_count) {
+  � "  " + bt_range_vals[ri]
+  ri�ri + 1
+}
+
+� Test 4: min key 10 found
+if (bt_search{10} = 1) {
+  � "[PASS] bptree: found min key 10"
+} else {
+  � "[FAIL] bptree: min key 10 not found"
+}
+
+� Test 5: max key 100 found
+if (bt_search{100} = 1) {
+  � "[PASS] bptree: found max key 100"
+} else {
+  � "[FAIL] bptree: max key 100 not found"
+}
+
+� Test 6: All 10 inserted values found
+bt_all_found�1
+bt_test_vals�10 20 30 40 50 60 70 80 90 100
+ti�0
+while (ti < 10) {
+  if (bt_search{bt_test_vals[ti]} = 1) { } else { bt_all_found�0 }
+  ti�ti + 1
+}
+if (bt_all_found = 1) {
+  � "[PASS] bptree: all 10 inserted values found"
+} else {
+  � "[FAIL] bptree: some inserted values missing"
+}
+
+� "=== B+ Tree tests complete ==="

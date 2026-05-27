@@ -1,0 +1,190 @@
+ã bmp.a+ ßßß BMP Decoder in A+ ßßß
+ã
+ã Parses BMP file header, DIB header, and pixel data.
+ã Supports uncompressed 24-bit BMP (bottom-up scanlines, BGR order).
+ã Hardcoded 4x4 24-bit test image.
+ã
+ã ====== Hardcoded 4x4 24-bit BMP bytes ======
+ã 4x4 pixel image with known colors:
+ã   Row 3 (top): Red(0,255), Green(255,0), Blue(0,0), White(255,255)
+ã   Row 2:       Black(0,0), Yellow(255,255), Cyan(0,255), Magenta(255,0)
+ã   Row 1:       Gray(128), DarkRed(64,0), DarkGreen(0,64), DarkBlue(0,0,64)
+ã   Row 0 (bottom): Orange(255,165), Purple(128,0), Teal(0,128), Pink(255,192)
+ã 4x4 24-bit BMP test image (102 bytes)
+bmp_dataû66,77,102,0,0,0,0,0,0,0,54,0,0,0,40,0,0,0,4,0,0,0,4,0,0,0,1,0,24,0,0,0,0,0,0,0,0,0,19,11,0,0,19,11,0,0,0,0,0,0,0,0,0,0,0,128,255,128,0,128,128,128,0,192,128,255,128,128,128,0,0,64,0,64,0,64,0,0,0,0,0,0,255,255,255,255,0,255,0,255,0,0,255,0,255,0,255,0,0,255,255,255
+bmp_lenûÎ bmp_data
+Õ "BMP data length: " + bmp_len
+
+ã ====== Parse BMP Header (14 bytes) ======
+ã Read 2-byte little-endian value from data at offset
+bmp_read16{data;off}: {
+  data[off] + data[off+1]Á256
+}
+
+ã Read 4-byte little-endian value from data at offset
+bmp_read32{data;off}: {
+  data[off] + data[off+1]Á256 + data[off+2]Á65536 + data[off+3]Á16777216
+}
+
+ã Parse BMP header and return: sig, filesize, pixel_offset
+bmp_header{data}: {
+  sigûbmp_read16{data;0}
+  fsûbmp_read32{data;2}
+  offûbmp_read32{data;10}
+  sig,fs,off
+}
+
+ã ====== Parse DIB Header (40 bytes starting at offset 14) ======
+bmp_dib{data}: {
+  widûbmp_read32{data;18}
+  hgtûbmp_read32{data;22}
+  bppûbmp_read16{data;28}
+  compûbmp_read32{data;30}
+  wid,hgt,bpp,comp
+}
+
+ã ====== Read Pixel Data (24-bit BGR, bottom-up) ======
+bmp_pixels{data;off;wid;hgt}: {
+  ã Each row is wid*3 bytes, padded to 4-byte boundary
+  rowbytesûwidÁ3
+  padû0
+  if ((rowbytes-((rowbytesß4)Á4))>0) { padû4-(rowbytes-((rowbytesß4)Á4)) }
+  if (pad=4) { padû0 }
+  rowstrideûrowbytes+pad
+  ã Read pixels bottom-up: row 0 = bottom of image
+  total_pixelsûwidÁhgtÁ3
+  pixelsûtotal_pixelsÎ0
+  piû0
+  rowûhgt-1
+  while (row>=0) {
+    row_offûoff + rowÁrowstride
+    ciû0
+    while (ci<rowbytes) {
+      pixels[pi]ûdata[row_off+ci]
+      piûpi+1
+      ciûci+1
+    }
+    rowûrow-1
+  }
+  pixels
+}
+
+ã ====== Parse hardcoded BMP ======
+hdrûbmp_header{bmp_data}
+bmp_sigûhdr[0]
+bmp_fsizeûhdr[1]
+bmp_poffûhdr[2]
+
+Õ "BMP Signature (19778 = 'BM' in LE16): " + bmp_sig
+Õ "BMP File size: " + bmp_fsize
+Õ "BMP Pixel offset: " + bmp_poff
+
+dibûbmp_dib{bmp_data}
+bmp_widûdib[0]
+bmp_hgtûdib[1]
+bmp_bppûdib[2]
+bmp_compûdib[3]
+
+Õ "BMP Width: " + bmp_wid
+Õ "BMP Height: " + bmp_hgt
+Õ "BMP Bits per pixel: " + bmp_bpp
+Õ "BMP Compression: " + bmp_comp
+
+pixelsûbmp_pixels{bmp_data;bmp_poff;bmp_wid;bmp_hgt}
+
+ã ====== Print pixel values as RGB triples ======
+Õ "BMP Pixel Data (RGB triples, top-down):"
+pyû0
+while (py<bmp_hgt) {
+  row_strû\"[\" + py + \"] \"
+  pxû0
+  while (px<bmp_wid) {
+    piû(pyÁbmp_wid + px)Á3
+    bûpixels[pi]
+    gûpixels[pi+1]
+    rûpixels[pi+2]
+    row_strûrow_str + \"R:\" + r + \" G:\" + g + \" B:\" + b
+    if (px<bmp_wid-1) { row_strûrow_str + \" | \" }
+    pxûpx+1
+  }
+  Õ row_str
+  pyûpy+1
+}
+
+ã ====== Self-Tests ======
+Õ ""
+Õ "=== BMP Self-Tests ==="
+
+Õ "-- Test 1: Verify BM signature --"
+if (bmp_sig=19778) {
+  Õ "[PASS] bmp: BM signature detected (19778)"
+} else {
+  Õ "[FAIL] bmp: expected BM signature 19778, got " + bmp_sig
+}
+
+Õ "-- Test 2: Verify width and height --"
+if (bmp_wid=4) {
+  Õ "[PASS] bmp: width is 4"
+} else {
+  Õ "[FAIL] bmp: expected width 4, got " + bmp_wid
+}
+if (bmp_hgt=4) {
+  Õ "[PASS] bmp: height is 4"
+} else {
+  Õ "[FAIL] bmp: expected height 4, got " + bmp_hgt
+}
+
+Õ "-- Test 3: Verify 24-bit color depth --"
+if (bmp_bpp=24) {
+  Õ "[PASS] bmp: 24 bits per pixel"
+} else {
+  Õ "[FAIL] bmp: expected 24 bpp, got " + bmp_bpp
+}
+
+Õ "-- Test 4: Verify uncompressed format --"
+if (bmp_comp=0) {
+  Õ "[PASS] bmp: uncompressed (BI_RGB)"
+} else {
+  Õ "[FAIL] bmp: expected compression 0, got " + bmp_comp
+}
+
+Õ "-- Test 5: Verify top-left pixel (should be Red: R=255,G=0,B=0) --"
+tl_rûpixels[2]
+tl_gûpixels[1]
+tl_bûpixels[0]
+if ((tl_r=255) & (tl_g=0) & (tl_b=0)) {
+  Õ "[PASS] bmp: top-left pixel is Red (255,0,0)"
+} else {
+  Õ "[FAIL] bmp: top-left pixel expected Red(255,0,0), got (" + tl_r + "," + tl_g + "," + tl_b + ")"
+}
+
+Õ "-- Test 6: Verify bottom-right pixel (should be Pink) --"
+br_offû((bmp_hgt-1)Ábmp_wid + (bmp_wid-1))Á3
+br_rûpixels[br_off+2]
+br_gûpixels[br_off+1]
+br_bûpixels[br_off]
+if ((br_r=255) & (br_g=128) & (br_b=192)) {
+  Õ "[PASS] bmp: bottom-right pixel is Pink (255,128,192)"
+} else {
+  Õ "[FAIL] bmp: bottom-right expected Pink, got (" + br_r + "," + br_g + "," + br_b + ")"
+}
+
+Õ "-- Test 7: Verify green pixel (row 0, col 1) --"
+gp_offû(0Ábmp_wid + 1)Á3
+gp_rûpixels[gp_off+2]
+gp_gûpixels[gp_off+1]
+gp_bûpixels[gp_off]
+if ((gp_r=0) & (gp_g=255) & (gp_b=0)) {
+  Õ "[PASS] bmp: green pixel correct (0,255,0)"
+} else {
+  Õ "[FAIL] bmp: green pixel expected (0,255,0)"
+}
+
+Õ "-- Test 8: Verify file size --"
+if (bmp_fsize=102) {
+  Õ "[PASS] bmp: file size is 102 bytes"
+} else {
+  Õ "[FAIL] bmp: expected file size 102, got " + bmp_fsize
+}
+
+Õ "=== BMP tests complete ==="

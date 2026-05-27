@@ -1,0 +1,334 @@
+ã aes.a+ ßßß AES-128 Encrypt/Decrypt in A+ ßßß
+ã
+ã Full AES-128 with S-Box, inverse S-Box, key expansion,
+ã AddRoundKey, SubBytes, ShiftRows, MixColumns.
+ã Encrypts/decrypts one 16-byte block with known test vector.
+ã
+ã ====== AES S-Box (256-byte lookup table) ======
+ã S-box as flat array
+sbox{A}99,124,119,123,242,107,111,197,48,1,103,43,254,215,171,118,202,130,201,125,250,89,71,240,173,212,162,175,156,164,114,192,183,253,147,38,54,63,247,204,52,165,229,241,113,216,49,21,4,199,35,195,24,150,5,154,7,18,128,226,235,39,178,117,9,131,44,26,27,110,90,160,82,59,214,179,41,227,47,132,83,209,0,237,32,252,177,91,106,203,190,57,74,76,88,207,208,239,170,251,67,77,51,133,69,249,2,127,80,60,159,168,81,163,64,143,146,157,56,245,188,182,218,33,16,255,243,210,205,12,19,236,95,151,68,23,196,167,126,61,100,93,25,115,96,129,79,220,34,42,144,136,70,238,184,20,222,94,11,219,224,50,58,10,73,6,36,92,194,211,172,98,145,149,228,121,231,200,55,109,141,213,78,169,108,86,244,234,101,122,174,8,186,120,37,46,28,166,180,198,232,221,116,31,75,189,139,138,112,62,181,102,72,3,246,14,97,53,87,185,134,193,29,158,225,248,152,17,105,217,142,148,155,30,135,233,206,85,40,223,140,161,137,13,191,230,66,104,65,153,45,15,176,84,187,22
+
+ã ====== AES Inverse S-Box (256-byte lookup table) ======
+isbox{A}82,9,106,213,48,54,165,56,191,64,163,158,129,243,215,251,124,227,57,130,155,47,255,135,52,142,67,68,196,222,233,203,84,123,148,50,166,194,35,61,238,76,149,11,66,250,195,78,8,46,161,102,40,217,36,178,118,91,162,73,109,139,209,37,114,248,246,100,134,104,152,22,212,164,92,204,93,101,182,146,108,112,72,80,253,237,185,218,94,21,70,87,167,141,157,132,144,216,171,0,140,188,211,10,247,228,88,5,184,179,69,6,208,44,30,143,202,63,15,2,193,175,189,3,1,19,138,107,58,145,17,65,79,103,220,234,151,242,207,206,240,180,230,115,150,172,116,34,231,173,53,133,226,249,55,232,28,117,223,110,71,241,26,113,29,41,197,137,111,183,98,14,170,24,190,27,252,86,62,75,198,210,121,32,154,219,192,254,120,205,90,244,31,221,168,51,136,7,199,49,177,18,16,89,39,128,236,95,96,81,127,169,25,181,74,13,45,229,122,159,147,201,156,239,160,224,59,77,174,42,245,176,200,235,187,60,131,83,153,97,23,43,4,126,186,119,214,38,225,105,20,99,85,33,12,125
+
+ã ====== Round Constants (Rcon[i] for i=1..10) ======
+rcon{A}1,2,4,8,16,32,64,128,27,54
+
+ã ====== xtime: multiply by 2 in GF(2^8) ======
+xtû0,2,4,6,8,10,12,14,16,18,20,22,24,26,28,30,32,34,36,38,40,42,44,46,48,50,52,54,56,58,60,62,64,66,68,70,72,74,76,78,80,82,84,86,88,90,92,94,96,98,100,102,104,106,108,110,112,114,116,118,120,122,124,126,128,130,132,134,136,138,140,142,144,146,148,150,152,154,156,158,160,162,164,166,168,170,172,174,176,178,180,182,184,186,188,190,192,194,196,198,200,202,204,206,208,210,212,214,216,218,220,222,224,226,228,230,232,234,236,238,240,242,244,246,248,250,252,254,27,25,31,29,19,17,23,21,11,9,15,13,3,1,7,5,59,57,63,61,51,49,55,53,43,41,47,45,35,33,39,37,91,89,95,93,83,81,87,85,75,73,79,77,67,65,71,69,123,121,127,125,115,113,119,117,107,105,111,109,99,97,103,101,155,153,159,157,147,145,151,149,139,137,143,141,131,129,135,133,187,185,191,189,179,177,183,181,171,169,175,173,163,161,167,165,219,217,223,221,211,209,215,213,203,201,207,205,195,193,199,197,251,249,255,253,243,241,247,245,235,233,239,237,227,225,231,229
+
+ã ====== GF(2^8) multiply for MixColumns ======
+C*x: 1*C, 2*C=xt[C], 3*C=xt[C]^C
+gmul2{b}: { xt[b] }
+gmul3{b}: { xt[b] ^ b }
+
+ã ====== Key Expansion: 128-bit key -> 176 bytes (11 round keys) ======
+keyexp{key}: {
+  ã key: 16-byte array (128 bits)
+  rkû176Î0
+  ã Copy original key as first round key
+  iû0
+  while (i<16) {
+    rk[i]ûkey[i]
+    iûi+1
+  }
+  ã Generate remaining 10 round keys
+  iû16
+  rc_idxû0
+  while (i<176) {
+    ã Previous 4 bytes (temp)
+    t0ûrk[i-4]
+    t1ûrk[i-3]
+    t2ûrk[i-2]
+    t3ûrk[i-1]
+    if ((i-16) = (i-16)ß16*16) {
+      ã Every 16 bytes: RotWord + SubWord + Rcon
+      ã RotWord: rotate left by 1 byte (a,b,c,d -> b,c,d,a)
+      tmpût0
+      t0ûsbox[t1] ^ rcon[rc_idx]
+      t1ûsbox[t2]
+      t2ûsbox[t3]
+      t3ûsbox[tmp]
+      rc_idxûrc_idx+1
+    } else {
+      ã For AES-128, no SubWord for non-4th words
+      ã t0-t3 stay as previous word
+    }
+    rk[i]ûrk[i-16] ^ t0
+    rk[i+1]ûrk[i-15] ^ t1
+    rk[i+2]ûrk[i-14] ^ t2
+    rk[i+3]ûrk[i-13] ^ t3
+    iûi+4
+  }
+  rk
+}
+
+ã ====== AddRoundKey: XOR state with round key ======
+addrk{state;rk;r}: {
+  ã state: 16 bytes, rk: expanded key, r: round (0-10)
+  ã XOR each byte of state with corresponding round key byte
+  offûrÁ16
+  iû0
+  while (i<16) {
+    state[i]ûstate[i] ^ rk[off+i]
+    iûi+1
+  }
+  state
+}
+
+ã ====== SubBytes: S-box substitution ======
+subb{state}: {
+  iû0
+  while (i<16) {
+    state[i]ûsbox[state[i]]
+    iûi+1
+  }
+  state
+}
+
+ã ====== InvSubBytes: Inverse S-box ======
+isubb{state}: {
+  iû0
+  while (i<16) {
+    state[i]ûisbox[state[i]]
+    iûi+1
+  }
+  state
+}
+
+ã ====== ShiftRows: rotate rows 0,1,2,3 by 0,1,2,3 ======
+shiftr{state}: {
+  ã Row 0 (bytes 0,4,8,12): no shift
+  ã Row 1 (bytes 1,5,9,13): shift left by 1
+  tûstate[1]
+  state[1]ûstate[5]
+  state[5]ûstate[9]
+  state[9]ûstate[13]
+  state[13]ût
+  ã Row 2 (bytes 2,6,10,14): shift left by 2 (swap pairs)
+  tûstate[2]
+  state[2]ûstate[10]
+  state[10]ût
+  tûstate[6]
+  state[6]ûstate[14]
+  state[14]ût
+  ã Row 3 (bytes 3,7,11,15): shift left by 3 (right by 1)
+  tûstate[15]
+  state[15]ûstate[11]
+  state[11]ûstate[7]
+  state[7]ûstate[3]
+  state[3]ût
+  state
+}
+
+ã ====== InvShiftRows: inverse rotation ======
+ishiftr{state}: {
+  ã Row 0: no shift
+  ã Row 1: shift right by 1 (left by 3)
+  tûstate[13]
+  state[13]ûstate[9]
+  state[9]ûstate[5]
+  state[5]ûstate[1]
+  state[1]ût
+  ã Row 2: shift right by 2 (same as left by 2)
+  tûstate[2]
+  state[2]ûstate[10]
+  state[10]ût
+  tûstate[6]
+  state[6]ûstate[14]
+  state[14]ût
+  ã Row 3: shift right by 3 (left by 1)
+  tûstate[3]
+  state[3]ûstate[7]
+  state[7]ûstate[11]
+  state[11]ûstate[15]
+  state[15]ût
+  state
+}
+
+ã ====== MixColumns: GF(2^8) matrix multiply each column ======
+ã Uses lookup for xtime (2*) and XOR for 3*
+mixcol{state}: {
+  colû0
+  while (col<4) {
+    c0ûstate[col*4]
+    c1ûstate[col*4+1]
+    c2ûstate[col*4+2]
+    c3ûstate[col*4+3]
+    ã 2*a0 + 3*a1 + 1*a2 + 1*a3
+    state[col*4]ûgmul2{c0} ^ gmul3{c1} ^ c2 ^ c3
+    ã 1*a0 + 2*a1 + 3*a2 + 1*a3
+    state[col*4+1]ûc0 ^ gmul2{c1} ^ gmul3{c2} ^ c3
+    ã 1*a0 + 1*a1 + 2*a2 + 3*a3
+    state[col*4+2]ûc0 ^ c1 ^ gmul2{c2} ^ gmul3{c3}
+    ã 3*a0 + 1*a1 + 1*a2 + 2*a3
+    state[col*4+3]ûgmul3{c0} ^ c1 ^ c2 ^ gmul2{c3}
+    colûcol+1
+  }
+  state
+}
+
+ã ====== InvMixColumns: inverse GF(2^8) matrix ======
+gmul9{b}: { xt[xt[xt[b]]] ^ b }
+gmul11{b}: { xt[xt[xt[b]]] ^ xt[b] ^ b }
+gmul13{b}: { xt[xt[xt[b]]] ^ xt[xt[b]] ^ b }
+gmul14{b}: { xt[xt[xt[b]]] ^ xt[xt[b]] ^ xt[b] }
+
+imixcol{state}: {
+  colû0
+  while (col<4) {
+    c0ûstate[col*4]
+    c1ûstate[col*4+1]
+    c2ûstate[col*4+2]
+    c3ûstate[col*4+3]
+    ã 14*a0 + 11*a1 + 13*a2 + 9*a3
+    state[col*4]ûgmul14{c0} ^ gmul11{c1} ^ gmul13{c2} ^ gmul9{c3}
+    ã 9*a0 + 14*a1 + 11*a2 + 13*a3
+    state[col*4+1]ûgmul9{c0} ^ gmul14{c1} ^ gmul11{c2} ^ gmul13{c3}
+    ã 13*a0 + 9*a1 + 14*a2 + 11*a3
+    state[col*4+2]ûgmul13{c0} ^ gmul9{c1} ^ gmul14{c2} ^ gmul11{c3}
+    ã 11*a0 + 13*a1 + 9*a2 + 14*a3
+    state[col*4+3]ûgmul11{c0} ^ gmul13{c1} ^ gmul9{c2} ^ gmul14{c3}
+    colûcol+1
+  }
+  state
+}
+
+ã ====== AES-128 Encrypt one block ======
+aes_enc{block;key}: {
+  ã block: 16-byte plaintext
+  ã key: 16-byte key
+  stateû16Î0
+  iû0
+  while (i<16) { state[i]ûblock[i]; iûi+1 }
+  rkûkeyexp{key}
+  ã Initial AddRoundKey (round 0)
+  stateûaddrk{state;rk;0}
+  ã 9 rounds
+  roundû1
+  while (round<10) {
+    stateûsubb{state}
+    stateûshiftr{state}
+    stateûmixcol{state}
+    stateûaddrk{state;rk;round}
+    roundûround+1
+  }
+  ã Final round (no MixColumns)
+  stateûsubb{state}
+  stateûshiftr{state}
+  stateûaddrk{state;rk;10}
+  state
+}
+
+ã ====== AES-128 Decrypt one block ======
+aes_dec{block;key}: {
+  stateû16Î0
+  iû0
+  while (i<16) { state[i]ûblock[i]; iûi+1 }
+  rkûkeyexp{key}
+  ã Initial AddRoundKey (round 10, reversed)
+  stateûaddrk{state;rk;10}
+  ã 9 rounds in reverse
+  roundû9
+  while (round>0) {
+    stateûishiftr{state}
+    stateûisubb{state}
+    stateûaddrk{state;rk;round}
+    stateûimixcol{state}
+    roundûround-1
+  }
+  ã Final round (no InvMixColumns)
+  stateûishiftr{state}
+  stateûisubb{state}
+  stateûaddrk{state;rk;0}
+  state
+}
+
+ã ====== Known Test Vector (FIPS 197 Appendix B) ======
+ã Key: 2b7e1516 28aed2a6 abf71588 09cf4f3c
+ã Plaintext: 6bc1bee2 2e409f96 e93d7e11 7393172a
+ã Expected ciphertext: 3ad77bb4 0d7a3660 a89ecaf3 2466ef97
+test_keyû43,126,21,22,40,174,210,166,171,247,21,136,9,207,79,60
+test_ptû107,193,190,226,46,64,159,150,233,61,126,17,115,147,23,42
+test_ct_expectedû58,215,123,180,13,122,54,96,168,158,202,243,36,102,239,151
+
+ã ====== Run encrypt test ======
+Õ "=== AES-128 Test Vector (FIPS 197 Appendix B) ==="
+Õ "Key:       " + test_key
+Õ "Plaintext: " + test_pt
+ctûaes_enc{test_pt;test_key}
+Õ "Ciphertext:" + ct
+Õ "Expected:  " + test_ct_expected
+
+matchû1
+iû0
+while (i<16) {
+  if (ct[i] != test_ct_expected[i]) { matchû0 }
+  iûi+1
+}
+if (match) {
+  Õ "[PASS] aes: encrypt matches known test vector"
+} else {
+  Õ "[FAIL] aes: encrypt does not match known test vector"
+}
+
+Õ ""
+Õ "=== AES-128 Decrypt Test ==="
+decûaes_dec{ct;test_key}
+Õ "Decrypted: " + dec
+Õ "Original:  " + test_pt
+
+dmatchû1
+iû0
+while (i<16) {
+  if (dec[i] != test_pt[i]) { dmatchû0 }
+  iûi+1
+}
+if (dmatch) {
+  Õ "[PASS] aes: decrypt restores original plaintext"
+} else {
+  Õ "[FAIL] aes: decrypt does not restore original plaintext"
+}
+
+Õ ""
+Õ "=== AES-128 Additional Self-Tests ==="
+
+Õ "-- Test: S-box + inverse S-box roundtrip --"
+sb_matchû1
+jû0
+while (j<256) {
+  if (isbox[sbox[j]] != j) { sb_matchû0 }
+  jûj+1
+}
+if (sb_match) {
+  Õ "[PASS] aes: S-box is bijective (round-trip works)"
+} else {
+  Õ "[FAIL] aes: S-box round-trip failed"
+}
+
+Õ "-- Test: key expansion produces 176 bytes --"
+exp_rkûkeyexp{test_key}
+rk_lenûÎ exp_rk
+Õ "Expanded key length: " + rk_len
+if (rk_len=176) {
+  Õ "[PASS] aes: key expansion produces 176 bytes"
+} else {
+  Õ "[FAIL] aes: key expansion wrong length"
+}
+
+Õ "-- Test: encrypt-then-decrypt roundtrip --"
+rt_ctûaes_enc{test_pt;test_key}
+rt_ptûaes_dec{rt_ct;test_key}
+rt_matchû1
+jû0
+while (j<16) {
+  if (rt_pt[j] != test_pt[j]) { rt_matchû0 }
+  jûj+1
+}
+if (rt_match) {
+  Õ "[PASS] aes: encrypt-then-decrypt = original"
+} else {
+  Õ "[FAIL] aes: encrypt-then-decrypt roundtrip failed"
+}
+
+Õ "=== AES-128 tests complete ==="
