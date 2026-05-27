@@ -1,0 +1,28 @@
+ãhttp.a+ - HTTP/1.0 client
+
+ãParse HTTP response from char code array
+
+
+parse_status{resp;pos}:
+{
+  (resp[pos+0]-48)*100 + (resp[pos+1]-48)*10 + (resp[pos+2]-48)
+}
+
+ãHardcoded HTTP response: "HTTP/1.0 200 OK\r\n..."
+
+ãChar codes for the full response
+
+test_respû72 84 84 80 47 49 46 48 32 50 48 48 32 79 75 13 10 67 111 110 116 101 110 116 45 84 121 112 101 58 32 116 101 120 116 47 104 116 109 108 13 10 67 111 110 116 101 110 116 45 76 101 110 103 116 104 58 32 49 51 13 10 13 10 72 101 108 108 111 44 32 87 111 114 108 100 33
+
+ãParse status code at position 9
+
+codeûparse_status{test_resp;9}
+if (code=200) { Õ"http: [PASS] status 200" } else { Õ"http: [FAIL]" }
+ãCheck Content-Length at position 56
+
+clû(test_resp[56]-48)*10 + (test_resp[57]-48)
+if (cl=13) { Õ"http: [PASS] Content-Length=13" } else { Õ"http: [FAIL]" }
+ãCheck body starts with H at position 62
+
+if (test_resp[62]=72) { Õ"http: [PASS] body starts with H" } else { Õ"http: [FAIL]" }
+Õ"http: all tests done"

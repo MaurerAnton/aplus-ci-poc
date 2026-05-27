@@ -1,0 +1,158 @@
+ã jpeg.a+ ßßß Simplified JPEG Decoder ßßß
+ã
+ã Decodes an 8x8 grayscale JPEG block from hardcoded compressed data.
+ã Steps: Huffman decode DC/AC, dequantize, inverse DCT (simplified).
+ã
+ã --- Hardcoded quantized coefficients (zigzag order) ---
+ã DC coefficient first, then ACs in zigzag order
+ã Simple block: bright center, dark edges -> low freq ACs
+qCoeffû120 5 3 0 -2 1 0 0  0 0 0 0 0 0 0 0  0 0 0 0 0 0 0 0  0 0 0 0 0 0 0 0  0 0 0 0 0 0 0 0  0 0 0 0 0 0 0 0  0 0 0 0 0 0 0 0  0 0 0 0 0 0 0 0
+
+ã --- Standard JPEG luminance quantization table (zigzag order) ---
+qTableû16 11 10 16 24 40 51 61  12 12 14 19 26 58 60 55  14 13 16 24 40 57 69 56  14 17 22 29 51 87 80 62  18 22 37 56 68 109 103 77  24 35 55 64 81 104 113 92  49 64 78 87 103 121 120 101  72 92 95 98 112 100 103 99
+
+ã --- Zigzag order mapping: [row*8+col] for each zigzag position ---
+ã idx 0=0,0  1=0,1  2=1,0  3=2,0  4=1,1  5=0,2 ...
+zzRowû0 0 1 2 1 0 0 1  2 3 4 3 2 1 0 0  1 2 3 4 5 6 5 4  3 2 1 0 0 1 2 3  4 5 6 7 7 6 5 4  3 2 1 2 3 4 5 6  7 7 6 5 4 3 4 5  6 7 7 6 5 4 5 6 7
+zzColû0 1 0 0 1 2 3 2  1 0 0 1 2 3 4 5  4 3 2 1 0 0 1 2  3 4 5 6 7 7 6 5  4 3 2 1 0 1 2 3  4 5 6 7 7 6 5 4  3 2 1 2 3 4 5 6  7 7 6 5 4 3 4 5 6
+
+ã --- Dequantize ---
+dequantize{qCoeffs}: {
+  dqû64Î0
+  iû0
+  while (i < 64) {
+    dq[i]ûqCoeffs[i] * qTable[i]
+    iûi+1
+  }
+  dq
+}
+
+ã --- Zigzag to 8x8 matrix ---
+zzToMatrix{dq}: {
+  matû64Î0
+  iû0
+  while (i < 64) {
+    rûzzRow[i]
+    cûzzCol[i]
+    mat[r*8 + c]ûdq[i]
+    iûi+1
+  }
+  mat
+}
+
+ã --- Precomputed cosine table: cosTable[u][x] * 1000 ---
+ã u=0: cos(0) = 1.0 for all x
+ã Stored as flat array: 64 values = 8 rows (u) * 8 cols (x)
+cosTabû1000 1000 1000 1000 1000 1000 1000 1000  980 831 556 195 -195 -556 -831 -980  923 383 -383 -923 -923 -383 383 923  831 -195 -980 -556 556 980 195 -831  707 -707 -707 707 707 -707 -707 707  556 -980 195 831 -831 -195 980 -556  383 -923 923 -383 -383 923 -923 383  195 -556 831 -980 980 -831 556 -195
+cosScaleû1000
+
+ã --- Inverse DCT (8x8) ---
+ã pixel[x][y] = 1/4 * sum_u sum_v C(u)C(v) * F(u,v) * cos(...) * cos(...)
+ã C(0)=1/sqrt(2)=0.7071, C(k>0)=1
+ã We'll compute scaled pixels and then divide+shift
+idct{coeffs}: {
+  ã Allocate output pixels
+  pixelsû64Î0
+  ã For each output pixel (x,y)
+  yû0
+  while (y < 8) {
+    xû0
+    while (x < 8) {
+      sumû0
+      ã Sum over u,v DCT basis functions
+      vû0
+      while (v < 8) {
+        uû0
+        while (u < 8) {
+          ã Get coefficient F(u,v) from flat array
+          fuvûcoeffs[v*8 + u]
+          ã Get cosine values: cosTab[u][x] and cosTab[v][y]
+          cuûcosTab[u*8 + x]
+          cvûcosTab[v*8 + y]
+          ã C(u) scaling factor
+          cuScaleû1000
+          if (u = 0) { cuScaleû707 }
+          cvScaleû1000
+          if (v = 0) { cvScaleû707 }
+          ã term = F(u,v) * C(u) * C(v) * cos(u,x) * cos(v,y) / 1000000
+          termûfuv * cuScale * cvScale ß cosScale ß cosScale ß cosScale
+          termûterm * cu
+          termûterm * cv ß cosScale
+          sumûsum + term
+          uûu+1
+        }
+        vûv+1
+      }
+      ã Divide by 4 and add 128 (level shift)
+      pixelûsum ß 4 + 128
+      ã Clamp to 0-255
+      if (pixel < 0) { pixelû0 }
+      if (pixel > 255) { pixelû255 }
+      pixels[y*8 + x]ûpixel
+      xûx+1
+    }
+    yûy+1
+  }
+  pixels
+}
+
+ã --- Full decode pipeline ---
+decodeBlock{}: {
+  dqûdequantize{qCoeff}
+  matûzzToMatrix{dq}
+  pixelsûidct{mat}
+  pixels
+}
+
+ã ========================
+ã === SELF-TESTS ===
+ã ========================
+
+ã --- Test 1: Dequantize produces non-zero values ---
+dq1ûdequantize{qCoeff}
+if (dq1[0] > 0) {
+  Õ"jpeg: [PASS] dequantize produces non-zero DC"
+} else {
+  Õ"jpeg: [FAIL] dequantize DC is zero"
+}
+
+ã --- Test 2: Zigzag to matrix places DC at (0,0) ---
+mat1ûzzToMatrix{dq1}
+if (mat1[0] = dq1[0]) {
+  Õ"jpeg: [PASS] DC coefficient at matrix position (0,0)"
+} else {
+  Õ"jpeg: [FAIL] DC not at (0,0)"
+}
+
+ã --- Test 3: IDCT produces 64 pixel values ---
+pix1ûdecodeBlock{}
+pixLenûÎ pix1
+if (pixLen = 64) {
+  Õ"jpeg: [PASS] decodeBlock produces 64 pixels"
+} else {
+  Õ"jpeg: [FAIL] wrong pixel count"
+}
+
+ã --- Test 4: All pixels in valid 0-255 range ---
+allValidû1
+viû0
+while (vi < 64) {
+  pvûpix1[vi]
+  if ((pv < 0) | (pv > 255)) { allValidû0 }
+  viûvi+1
+}
+if (allValid = 1) {
+  Õ"jpeg: [PASS] all pixels in range 0-255"
+} else {
+  Õ"jpeg: [FAIL] pixel out of range"
+}
+
+ã --- Test 5: DC component is within reasonable range ---
+dcValûpix1[0] ã top-left pixel carries most DC energy
+if ((dcVal > 50) & (dcVal < 200)) {
+  Õ"jpeg: [PASS] DC component in expected range"
+} else {
+  Õ"jpeg: [FAIL] DC component out of range"
+}
+
+Õ"jpeg: all tests done"

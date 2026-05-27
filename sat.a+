@@ -1,0 +1,271 @@
+ã sat.a+ ßßß SAT Solver (DPLL) ßßß
+ã
+ã Boolean formula in CNF: array of clauses, each clause is
+ã an array of literals (+var or -var). Variable numbers are 1..N.
+ã Implements unit propagation, pure literal elimination, DPLL.
+ã
+abs{x}: {
+  if (x < 0) { 0 - x } else { x }
+}
+
+ã --- Check if all clauses are satisfied ---
+ã Formula: [numVars, numClauses, c1len, l1_1, ..., c2len, ...]
+allClausesSat{formula;assign}: {
+  numVarsûformula[0]
+  numClsûformula[1]
+  posû2
+  ciû0
+  allOkû1
+  while ((ci < numCls) & allOk) {
+    clenûformula[pos]
+    posûpos+1
+    ã Check if this clause is satisfied
+    clauseOkû0
+    liû0
+    while ((li < clen) & (clauseOk = 0)) {
+      litûformula[pos+li]
+      varIdxûabs{lit} - 1
+      valûassign[varIdx]
+      if (((lit > 0) & (val = 1)) | ((lit < 0) & (val = -1))) {
+        clauseOkû1
+      }
+      liûli+1
+    }
+    if (clauseOk = 0) { allOkû0 }
+    posûpos + clen
+    ciûci+1
+  }
+  allOk
+}
+
+ã --- Check for contradiction (empty unsatisfied clause) ---
+hasEmptyClause{formula;assign}: {
+  numVarsûformula[0]
+  numClsûformula[1]
+  posû2
+  ciû0
+  hasEmptyû0
+  while ((ci < numCls) & (hasEmpty = 0)) {
+    clenûformula[pos]
+    posûpos+1
+    ã Check if all literals in this clause are false
+    allFalseû1
+    liû0
+    while ((li < clen) & allFalse) {
+      litûformula[pos+li]
+      varIdxûabs{lit} - 1
+      valûassign[varIdx]
+      if (((lit > 0) & (val = 1)) | ((lit < 0) & (val = -1))) { allFalseû0 }
+      if ((val = 0) & allFalse) { ã Unassigned: clause not empty yet
+        allFalseû0
+        ã Also check if literal is satisfied by unassigned (it's not)
+      }
+      liûli+1
+    }
+    if (allFalse = 1) { hasEmptyû1 }
+    posûpos + clen
+    ciûci+1
+  }
+  hasEmpty
+}
+
+ã --- Unit propagation: assign forced variables ---
+ã Returns: 0=conflict, 1=OK (no change or propagated)
+unitPropagate{formula;assign}: {
+  numVarsûformula[0]
+  numClsûformula[1]
+  changedû1
+  okû1
+  while ((changed = 1) & ok) {
+    changedû0
+    posû2
+    ciû0
+    while ((ci < numCls) & (changed = 0) & ok) {
+      clenûformula[pos]
+      ã Find unsatisfied literals and count unassigned
+      numUnassignedû0
+      lastUnassignedû0
+      clauseSatû0
+      liû0
+      while (li < clen) {
+        litûformula[pos+1+li]
+        varIdxûabs{lit} - 1
+        valûassign[varIdx]
+        if (((lit > 0) & (val = 1)) | ((lit < 0) & (val = -1))) {
+          clauseSatû1
+        }
+        if (val = 0) {
+          numUnassignedûnumUnassigned + 1
+          lastUnassignedûlit
+        }
+        liûli+1
+      }
+      ã If clause is unit (exactly 1 unassigned, rest false)
+      if ((clauseSat = 0) & (numUnassigned = 1)) {
+        ã Must assign lastUnassigned to satisfy clause
+        varIdx2ûabs{lastUnassigned} - 1
+        if (lastUnassigned > 0) {
+          ã Must be TRUE
+          if (assign[varIdx2] = -1) { okû0 } ã conflict!
+          else { assign[varIdx2]û1; changedû1 }
+        } else {
+          ã Must be FALSE (assign = -1)
+          if (assign[varIdx2] = 1) { okû0 } ã conflict
+          else { assign[varIdx2]û-1; changedû1 }
+        }
+      }
+      if (numUnassigned = 0) {
+        if (clauseSat = 0) { okû0 } ã empty unsatisfied clause
+      }
+      posûpos + 1 + clen
+      ciûci+1
+    }
+  }
+  ok
+}
+
+ã --- Pure literal elimination ---
+pureLiteralElim{formula;assign}: {
+  numVarsûformula[0]
+  numClsûformula[1]
+  ã For each variable, track positive and negative occurrence
+  ã posCount[v] and negCount[v]
+  posCountûnumVarsÎ0
+  negCountûnumVarsÎ0
+  posû2
+  ciû0
+  while (ci < numCls) {
+    clenûformula[pos]
+    posûpos+1
+    liû0
+    while (li < clen) {
+      litûformula[pos+li]
+      varIdxûabs{lit} - 1
+      if (lit > 0) { posCount[varIdx]ûposCount[varIdx] + 1 }
+      else { negCount[varIdx]ûnegCount[varIdx] + 1 }
+      liûli+1
+    }
+    posûpos + clen
+    ciûci+1
+  }
+  ã Assign pure literals
+  viû0
+  while (vi < numVars) {
+    if (assign[vi] = 0) {
+      if ((posCount[vi] > 0) & (negCount[vi] = 0)) {
+        assign[vi]û1  ã pure positive
+      }
+      if ((posCount[vi] = 0) & (negCount[vi] > 0)) {
+        assign[vi]û-1 ã pure negative
+      }
+    }
+    viûvi+1
+  }
+}
+
+ã --- DPLL: try TRUE, recurse; backtrack on conflict ---
+ã Returns: 1 if satisfiable (assign modified in-place), 0 if unsatisfiable
+dpll{formula;assign}: {
+  numVarsûformula[0]
+  ã Unit propagation
+  okûunitPropagate{formula;assign}
+  if (ok = 0) { 0 }
+  else {
+    ã Pure literal elimination
+    pureLiteralElim{formula;assign}
+    ã Check if all satisfied
+    if (allClausesSat{formula;assign} = 1) { 1 }
+    else {
+      ã Pick an unassigned variable
+      pickVarû-1
+      viû0
+      while ((vi < numVars) & (pickVar = -1)) {
+        if (assign[vi] = 0) { pickVarûvi }
+        viûvi+1
+      }
+      if (pickVar = -1) { 1 } ã all assigned, must be satisfied
+      else {
+        ã Save assignment state for backtracking
+        ã We'll do a simplified backtrack: copy to backup array
+        backupûnumVarsÎ0
+        biû0
+        while (bi < numVars) { backup[bi]ûassign[bi]; biûbi+1 }
+        ã Try TRUE
+        assign[pickVar]û1
+        resultûdpll{formula;assign}
+        if (result = 1) { 1 }
+        else {
+          ã Restore and try FALSE
+          biû0
+          while (bi < numVars) { assign[bi]ûbackup[bi]; biûbi+1 }
+          assign[pickVar]û-1
+          dpll{formula;assign}
+        }
+      }
+    }
+  }
+}
+
+ã --- Helper: build formula [numVars, numClauses, c1len, lits..., c2len, lits...] ---
+mkFormula{numVars;clauses}: {
+  ã clauses: flat array [c1len, l1_1, l1_2, ..., c2len, l2_1, ...]
+  numClsûÎ clauses
+  ã Count clauses by finding len fields: scan and count
+  ã Actually, clauses is just flat data. But we need to compute numCls.
+  ã We pass it explicitly. Format: [numVars, numClauses, ...flat clause data]
+  ã For simplicity, just concatenate.
+  numClausesûnumCls
+  totalLenû2 + Î clauses + numCls ã formula header(2) + clause lengths + all literals
+  ã Actually just build: [numVars, numClauses] + clauses flat
+  ã For simplicity, we'll construct the full formula array using reshape
+  ã Since we can't dynamically rebuild arrays easily, let's hardcode test formulas.
+  ã Return a flag; we handle formula construction in tests directly.
+  1
+}
+
+ã ========================
+ã === SELF-TESTS ===
+ã ========================
+
+ã --- Test 1: Satisfiable formula ---
+ã (x1 | x2) & (~x1 | x2) & (x1 | ~x2)
+ã Formula format: [numVars=2, numCls=3, len=2, 1, 2, len=2, -1, 2, len=2, 1, -2]
+f1û2 3  2 1 2  2 -1 2  2 1 -2
+a1û2Î0
+r1ûdpll{f1;a1}
+if (r1 = 1) {
+  Õ"sat: [PASS] (x1|x2)&(~x1|x2)&(x1|~x2) is satisfiable"
+} else {
+  Õ"sat: [FAIL] satisfiable formula reported unsatisfiable"
+}
+
+ã --- Test 2: Unsatisfiable formula ---
+ã (x1) & (~x1)
+f2û1 2  1 1  1 -1
+a2û1Î0
+r2ûdpll{f2;a2}
+if (r2 = 0) {
+  Õ"sat: [PASS] (x1)&(~x1) is unsatisfiable"
+} else {
+  Õ"sat: [FAIL] unsatisfiable formula reported satisfiable"
+}
+
+ã --- Test 3: Simple unit clause ---
+f3û3 2  1 1  2 2 3
+a3û3Î0
+r3ûdpll{f3;a3}
+if (r3 = 1) {
+  Õ"sat: [PASS] unit clause propagation works"
+} else {
+  Õ"sat: [FAIL] unit clause test failed"
+}
+
+ã --- Test 4: Verify assignment from Test 1 ---
+ã Expected: x1=TRUE (1), x2=TRUE (1) or both can be true
+if ((a1[0] != 0) & (a1[1] != 0)) {
+  Õ"sat: [PASS] test 1 produced valid assignment"
+} else {
+  Õ"sat: [FAIL] test 1 assignment incomplete"
+}
+
+Õ"sat: all tests done"

@@ -1,0 +1,410 @@
+ã deflate.a+ ßßß DEFLATE Decompressor (RFC 1951) ßßß
+ã
+ã RFC 1951 DEFLATE decompressor supporting fixed Huffman (BTYPE=01).
+ã Reads bitstream from byte array, LSB-first within bytes.
+ã Huffman codes are packed MSB-first per the RFC.
+ã Decodes literal bytes and LZ77 length/distance back-references.
+ã
+ã === Bit Reader ===  data=byte array,  bp=bit position (0-based) ===
+ã Read 1 bit from data at global bit position bp. Returns 0 or 1.
+br_read_bit{data;bp}: {
+  byte_idxûbpß8
+  bit_idxûbp - byte_idx*8
+  byte_valûdata[byte_idx]
+  (byte_valß(1Ábit_idx)) & 1
+}
+
+ã Read n bits (1-15) from data at position bp. Returns integer value.
+br_read_bits{data;bp;n}: {
+  valû0
+  iû0
+  while (i<n) {
+    bitûbr_read_bit{data;bp+i}
+    if (bit) { valûval + (1Ái) }
+    iûi+1
+  }
+  val
+}
+
+ã === Fixed Huffman Decode Table ===
+ã Literal/length: 512 entries for 9-bit max code length.
+ã Each entry: [code_length, symbol_value] stored in fht_len, fht_sym.
+ã Table indexed by bitstream-read value (LSB-read of MSB-packed code).
+fht_symû512Î0
+fht_lenû512Î0
+
+ã Build the table: for each symbol 0-287, compute its canonical code,
+ã reverse it (since we read LSB-first but codes are MSB-packed),
+ã and fill all suffix combinations for 9-bit lookup.
+iû0
+while (i<288) {
+  ã Determine code and length for symbol i
+  if (i<=143) {
+    codeû0x30 + i
+    cbitsû8
+  }
+  if ((i>=144) & (i<=255)) {
+    codeû0x190 + (i-144)
+    cbitsû9
+  }
+  if ((i>=256) & (i<=279)) {
+    codeûi-256
+    cbitsû7
+  }
+  if (i>=280) {
+    codeû0xC0 + (i-280)
+    cbitsû8
+  }
+  ã Reverse bits (code stored MSB, but we read LSB first)
+  revû0
+  jû0
+  while (j<cbits) {
+    if (code & (1Áj)) { revûrev + (1Á(cbits-1-j)) }
+    jûj+1
+  }
+  ã Fill all suffix combinations for 9-bit index
+  sfx_bitsû9 - cbits
+  sfx_maxû1
+  kû0
+  while (k<sfx_bits) { sfx_maxûsfx_max * 2; kûk+1 }
+  sfx_maxûsfx_max - 1
+  sû0
+  while (s<=sfx_max) {
+    idxûrev + (sÁcbits)
+    fht_len[idx]ûcbits
+    fht_sym[idx]ûi
+    sûs+1
+  }
+  iûi+1
+}
+
+ã Distance decode table: 32 entries (5-bit codes, all same length)
+fhd_symû32Î0
+fhd_lenû32Î0
+iû0
+while (i<30) {
+  fhd_sym[i]ûi
+  fhd_len[i]û5
+  iûi+1
+}
+
+ã === Length/Extra Bits Tables (RFC 1951 Section 3.2.5) ===
+ã len_base[code]: base length value
+ã len_extra[code]: number of extra bits
+len_baseû288Î0
+len_extraû288Î0
+len_base[257]û3
+len_extra[257]û0
+len_base[258]û4
+len_extra[258]û0
+len_base[259]û5
+len_extra[259]û0
+len_base[260]û6
+len_extra[260]û0
+len_base[261]û7
+len_extra[261]û0
+len_base[262]û8
+len_extra[262]û0
+len_base[263]û9
+len_extra[263]û0
+len_base[264]û10
+len_extra[264]û0
+len_base[265]û11
+len_extra[265]û1
+len_base[266]û13
+len_extra[266]û1
+len_base[267]û15
+len_extra[267]û1
+len_base[268]û17
+len_extra[268]û1
+len_base[269]û19
+len_extra[269]û2
+len_base[270]û23
+len_extra[270]û2
+len_base[271]û27
+len_extra[271]û2
+len_base[272]û31
+len_extra[272]û2
+len_base[273]û35
+len_extra[273]û3
+len_base[274]û43
+len_extra[274]û3
+len_base[275]û51
+len_extra[275]û3
+len_base[276]û59
+len_extra[276]û3
+len_base[277]û67
+len_extra[277]û4
+len_base[278]û83
+len_extra[278]û4
+len_base[279]û99
+len_extra[279]û4
+len_base[280]û115
+len_extra[280]û4
+len_base[281]û131
+len_extra[281]û5
+len_base[282]û163
+len_extra[282]û5
+len_base[283]û195
+len_extra[283]û5
+len_base[284]û227
+len_extra[284]û5
+len_base[285]û258
+len_extra[285]û0
+
+ã Distance base/extra tables
+dist_baseû30Î0
+dist_extraû30Î0
+dist_base[0]û1
+dist_extra[0]û0
+dist_base[1]û2
+dist_extra[1]û0
+dist_base[2]û3
+dist_extra[2]û0
+dist_base[3]û4
+dist_extra[3]û0
+dist_base[4]û5
+dist_extra[4]û1
+dist_base[5]û7
+dist_extra[5]û1
+dist_base[6]û9
+dist_extra[6]û2
+dist_base[7]û13
+dist_extra[7]û2
+dist_base[8]û17
+dist_extra[8]û3
+dist_base[9]û25
+dist_extra[9]û3
+dist_base[10]û33
+dist_extra[10]û4
+dist_base[11]û49
+dist_extra[11]û4
+dist_base[12]û65
+dist_extra[12]û5
+dist_base[13]û97
+dist_extra[13]û5
+dist_base[14]û129
+dist_extra[14]û6
+dist_base[15]û193
+dist_extra[15]û6
+dist_base[16]û257
+dist_extra[16]û7
+dist_base[17]û385
+dist_extra[17]û7
+dist_base[18]û513
+dist_extra[18]û8
+dist_base[19]û769
+dist_extra[19]û8
+dist_base[20]û1025
+dist_extra[20]û9
+dist_base[21]û1537
+dist_extra[21]û9
+dist_base[22]û2049
+dist_extra[22]û10
+dist_base[23]û3073
+dist_extra[23]û10
+dist_base[24]û4097
+dist_extra[24]û11
+dist_base[25]û6145
+dist_extra[25]û11
+dist_base[26]û8193
+dist_extra[26]û12
+dist_base[27]û12289
+dist_extra[27]û12
+dist_base[28]û16385
+dist_extra[28]û13
+dist_base[29]û24577
+dist_extra[29]û13
+
+ã === DEFLATE Decompressor ===
+ã Decompress a BTYPE=01 (fixed Huffman) DEFLATE block.
+ã Reads block header, decodes symbols, handles LZ77 back-refs.
+ã Returns decompressed output as byte array.
+deflate_decompress{data}: {
+  ã Allocate output buffer
+  outputû4096Î0
+  opû0
+  bpû0  ã bit position in stream
+  ã Read block header: BFINAL (1 bit), BTYPE (2 bits)
+  bfinalûbr_read_bit{data;bp}
+  bpûbp+1
+  btype0ûbr_read_bit{data;bp}
+  bpûbp+1
+  btype1ûbr_read_bit{data;bp}
+  bpûbp+1
+  btypeûbtype0 + btype1*2
+  doneû0
+  if (btype=1) {
+    while (done=0) {
+      ã Read up to 9 bits for literal/length lookup
+      bitsûbr_read_bits{data;bp;9}
+      symûfht_sym[bits]
+      clenûfht_len[bits]
+      bpûbp + clen
+      if (sym<256) {
+        ã Literal byte
+        output[op]ûsym
+        opûop+1
+      }
+      if (sym=256) {
+        doneû1
+      }
+      if ((sym>256) & (sym<286)) {
+        ã Length/distance pair
+        lengthûlen_base[sym]
+        lextraûlen_extra[sym]
+        if (lextra>0) {
+          lengthûlength + br_read_bits{data;bp;lextra}
+          bpûbp + lextra
+        }
+        ã Read distance code (5 bits)
+        dbitsûbr_read_bits{data;bp;5}
+        dcodeûfhd_sym[dbits]
+        bpûbp + 5
+        ã Compute actual distance
+        distûdist_base[dcode]
+        dextraûdist_extra[dcode]
+        if (dextra>0) {
+          distûdist + br_read_bits{data;bp;dextra}
+          bpûbp + dextra
+        }
+        ã LZ77 copy from already-decoded output
+        srcûop - dist
+        kû0
+        while (k<length) {
+          output[op]ûoutput[src+k]
+          opûop+1
+          kûk+1
+        }
+      }
+    }
+  }
+  output
+}
+
+ã Compare two arrays up to n elements. Returns 1 if equal, 0 otherwise.
+arr_eq{a;b;n}: {
+  okû1
+  iû0
+  while ((i<n) & ok) {
+    if (a[i] != b[i]) { okû0 }
+    iûi+1
+  }
+  ok
+}
+
+Õ "=== DEFLATE Self-Tests ==="
+
+Õ "-- Test 1: Decode single literal 'X' (88) --"
+t1_dataû139,0,0
+t1_outûdeflate_decompress{t1_data}
+if (t1_out[0]=88) {
+  Õ "[PASS] deflate: decoded single literal 'X' (88)"
+} else {
+  Õ "[FAIL] deflate: single literal expected 88"
+  Õ t1_out[0]
+}
+
+Õ "-- Test 2: Decode 'hello' --"
+t2_dataû203,72,205,201,201,7,0
+t2_outûdeflate_decompress{t2_data}
+t2_expectedû104 101 108 108 111
+t2_okûarr_eq{t2_out;t2_expected;5}
+if (t2_ok) {
+  Õ "[PASS] deflate: decoded 'hello' correctly"
+} else {
+  Õ "[FAIL] deflate: 'hello' decoded incorrectly"
+  Õ "  Expected: h(104) e(101) l(108) l(108) o(111)"
+  Õ "  Got:"
+  iû0
+  while (i<5) {
+    Õ t2_out[i]
+    iûi+1
+  }
+}
+
+Õ "-- Test 3: 'abcabcabc' with LZ77 back-refs --"
+t3_dataû75,76,74,6,34,32,2,0
+t3_outûdeflate_decompress{t3_data}
+t3_expectedû97 98 99 97 98 99 97 98 99
+t3_okûarr_eq{t3_out;t3_expected;9}
+if (t3_ok) {
+  Õ "[PASS] deflate: decoded 'abcabcabc' with LZ77 back-refs"
+} else {
+  Õ "[FAIL] deflate: 'abcabcabc' back-ref decode failed"
+  iû0
+  while (i<Î t3_out) {
+    if (t3_out[i] != 0) { Õ t3_out[i] }
+    iûi+1
+  }
+}
+
+Õ "-- Test 4: 'AAAAA' using length=4,dist=1 back-ref --"
+t4_dataû115,4,1,0
+t4_outûdeflate_decompress{t4_data}
+t4_expectedû65 65 65 65 65
+t4_okûarr_eq{t4_out;t4_expected;5}
+if (t4_ok) {
+  Õ "[PASS] deflate: decoded 'AAAAA' via back-reference"
+} else {
+  Õ "[FAIL] deflate: 'AAAAA' decode failed"
+  iû0
+  while (i<5) {
+    Õ t4_out[i]
+    iûi+1
+  }
+}
+
+Õ "-- Test 5: Verify block header (BFINAL, BTYPE) --"
+t5_dataû139,0,0
+t5_bfûbr_read_bit{t5_data;0}
+t5_bt0ûbr_read_bit{t5_data;1}
+t5_bt1ûbr_read_bit{t5_data;2}
+t5_btût5_bt0 + t5_bt1*2
+if ((t5_bf=1) & (t5_bt=1)) {
+  Õ "[PASS] deflate: block header BFINAL=1, BTYPE=01"
+} else {
+  Õ "[FAIL] deflate: block header wrong"
+  Õ "  BFINAL="
+  Õ t5_bf
+  Õ "  BTYPE="
+  Õ t5_bt
+}
+
+Õ "-- Test 6: Fixed Huffman literal/length table --"
+ã Verify code for 'h'(104): canonical=0x98, reversed=revbits(0x98,8)=0x19=25
+ã For 9-bit table, index 25 should give sym=104, len=8
+t6_symûfht_sym[25]
+t6_lenûfht_len[25]
+if ((t6_sym=104) & (t6_len=8)) {
+  Õ "[PASS] deflate: fixed Huffman table: index 25 -> 'h'(104) len=8"
+} else {
+  Õ "[FAIL] deflate: fixed Huffman table lookup for 'h' failed"
+  Õ "  sym="
+  Õ t6_sym
+  Õ "  len="
+  Õ t6_len
+}
+
+Õ "-- Test 7: Length and distance base tables --"
+ã Length code 257 -> length=3, extra bits=0
+if ((len_base[257]=3) & (len_extra[257]=0)) {
+  Õ "[PASS] deflate: length code 257 -> length=3, extra bits=0"
+} else {
+  Õ "[FAIL] deflate: length table wrong for code 257"
+}
+ã Length code 265 -> length=11, extra bits=1
+if ((len_base[265]=11) & (len_extra[265]=1)) {
+  Õ "[PASS] deflate: length code 265 -> length=11, extra bits=1"
+} else {
+  Õ "[FAIL] deflate: length table wrong for code 265"
+}
+ã Distance code 2 -> distance=3, extra bits=0
+if ((dist_base[2]=3) & (dist_extra[2]=0)) {
+  Õ "[PASS] deflate: distance code 2 -> distance=3, extra bits=0"
+} else {
+  Õ "[FAIL] deflate: distance table wrong for code 2"
+}
+
+Õ "=== DEFLATE tests complete ==="
+

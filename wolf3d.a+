@@ -1,0 +1,204 @@
+ã wolf3d.a+ ßßß Wolfenstein 3D Ray Caster ßßß
+ã
+ã 8x8 map grid (0=empty, 1=wall), DDA ray casting,
+ã 40-pixel wide 60-degree field of view.
+ã
+ã Wall chars from near to far: # @ % * + - . ' '
+
+ã --- Map: 1=wall, 0=empty ---
+mapû1 1 1 1 1 1 1 1 1 0 0 0 0 0 0 1 1 0 0 1 0 0 0 1 1 0 0 0 0 0 0 1 1 0 0 0 0 1 0 1 1 0 0 0 0 0 0 1 1 0 0 0 0 0 0 1 1 1 1 1 1 1 1 1
+mapWû8
+mapHû8
+
+ã --- Wall chars from near to far ---
+wallCharsû35 64 37 42 43 45 46 32   ã #@%*+-. 
+
+abs{x}: {
+  if (x < 0) { 0 - x } else { x }
+}
+
+mapGet{mx;my}: {
+  if ((mx < 0) | (mx >= mapW) | (my < 0) | (my >= mapH)) { 1 }
+  else { map[mx + my*mapW] }
+}
+
+ã --- DDA ray casting ---
+castRay{angle1000}: {
+  ã Starting position (fixed point * 1000)
+  px1000ûpx*1000
+  py1000ûpy*1000
+  ã Cos and sin via precomputed tables (angle in units of 1 degree)
+  ã angle1000 is in milliradians. Convert to degree-index: deg = angle1000 * 57 / 1000
+  degûangle1000 * 57
+  degûdeg ß 1000
+  while (deg < 0) { degûdeg + 360 }
+  while (deg >= 360) { degûdeg - 360 }
+  ã Use precomputed trig tables for 4-quadrant sin/cos (scaled by 1000)
+  ã For simplicity: sin60 ~= 0.866*1000=866, cos60 ~= 0.5*1000=500 etc.
+  ã Quadrant 0: 0-89
+  if (deg < 90) { sinVûsinTab[deg]; cosVûcosTab[deg] }
+  ã Quadrant 1: 90-179
+  if ((deg >= 90) & (deg < 180)) { sinVûsinTab[180-deg]; cosVû0 - cosTab[deg-90] }
+  ã Quadrant 2: 180-269
+  if ((deg >= 180) & (deg < 270)) { sinVû0 - sinTab[deg-180]; cosVû0 - cosTab[270-deg] }
+  ã Quadrant 3: 270-359
+  if (deg >= 270) { sinVû0 - sinTab[360-deg]; cosVûcosTab[deg-270] }
+  ã
+  ã DDA step through grid
+  mxûpx
+  myûpy
+  ã Ray step in x and y
+  if (cosV > 0) { stepXû1; sideDistXû((mx+1)*1000 - px1000) * 1000 ß cosV }
+  else { stepXû-1; sideDistXû(px1000 - mx*1000) * 1000 ß (0 - cosV) }
+  if (sinV > 0) { stepYû1; sideDistYû((my+1)*1000 - py1000) * 1000 ß sinV }
+  else { stepYû-1; sideDistYû(py1000 - my*1000) * 1000 ß (0 - sinV) }
+  ã
+  ã Delta distances (how far to move to cross one cell)
+  if (cosV = 0) { deltaDistXû1000000 }
+  else { deltaDistXû1000000 ß cosV }
+  if (sinV = 0) { deltaDistYû1000000 }
+  else { deltaDistYû1000000 ß sinV }
+  ã
+  ã March through grid
+  hitû0
+  sideû0
+  stepsû0
+  while ((hit = 0) & (steps < 64)) {
+    if (sideDistX < sideDistY) {
+      sideDistXûsideDistX + deltaDistX
+      mxûmx + stepX
+      sideû0
+    } else {
+      sideDistYûsideDistY + deltaDistY
+      myûmy + stepY
+      sideû1
+    }
+    if (mapGet{mx;my} = 1) { hitû1 }
+    stepsûsteps+1
+  }
+  ã
+  ã Compute perpendicular distance (avoid fisheye)
+  if (side = 0) { distûsideDistX - deltaDistX }
+  else { distûsideDistY - deltaDistY }
+  dist
+}
+
+ã --- Render a 40x20 ASCII frame ---
+renderFrame{}: {
+  ã Clear output buffer
+  frameû40*20Î32   ã spaces
+  ã
+  colû0
+  while (col < 40) {
+    ã Compute ray angle: center = facingAngle, spread 30 degrees each side
+    ã facingAngle is in degrees
+    rayDegûfacingAngle - 30 + col
+    while (rayDeg < 0) { rayDegûrayDeg + 360 }
+    while (rayDeg >= 360) { rayDegûrayDeg - 360 }
+    ã Convert degrees to milliradians for castRay
+    rayAngleûrayDeg * 1000 ß 57
+    ã
+    distûcastRay{rayAngle}
+    ã Convert distance to wall height on screen (max height = 20)
+    ã wallH = 20 * 1000 / dist (capped)
+    if (dist < 100) { distû100 }
+    wallHû20 * 1000 ß dist
+    if (wallH > 20) { wallHû20 }
+    if (wallH < 1) { wallHû1 }
+    ã
+    ã Compute wall char index from distance
+    ã Closer = lower index (darker char)
+    ciûdist ß 500       ã 0..7 range
+    if (ci > 7) { ciû7 }
+    wcûwallChars[ci]
+    ã
+    ã Draw wall column: centered vertically
+    startYû(20 - wallH) ß 2
+    rowû0
+    while (row < 20) {
+      idxûcol + row*40
+      if ((row >= startY) & (row < startY + wallH)) {
+        frame[idx]ûwc
+      }
+      rowûrow+1
+    }
+    colûcol+1
+  }
+  ã
+  ã Print frame row by row
+  rowû0
+  while (row < 20) {
+    ã Build row string: convert codes to chars manually
+    ã Just print row-by-row using consecutive print calls
+    ã Actually, let's build a simple string and print it
+    ã For A+, print each char one by one? No, print whole strings
+    rowûrow+1
+  }
+  frame
+}
+
+ã --- Precomputed sin/cos tables (0..90 degrees, scaled by 1000) ---
+sinTabû0 17 34 52 69 87 104 121 139 156 173 190 207 224 241 258 275 292 309 325 342 358 374 390 406 422 438 454 469 484 500 515 530 544 559 573 587 601 615 629 642 656 669 681 694 707 719 731 743 754 766 777 788 798 809 819 829 838 848 857 866 874 882 891 898 906 913 920 927 933 939 945 951 956 961 965 970 974 977 981 984 987 990 992 994 996 997 998 999 999 1000
+cosTabû1000 999 999 998 997 996 994 992 990 987 984 981 977 974 970 965 961 956 951 945 939 933 927 920 913 906 898 891 882 874 866 857 848 838 829 819 809 798 788 777 766 754 743 731 719 707 694 681 669 656 642 629 615 601 587 573 559 544 530 515 500 484 469 454 438 422 406 390 374 358 342 325 309 292 275 258 241 224 207 190 173 156 139 121 104 87 69 52 34 17 0
+
+ã --- Player state ---
+pxû1  ã Player x position (floating in cell)
+pyû1  ã Player y position
+facingAngleû45  ã Facing angle in degrees
+
+ã ========================
+ã === SELF-TESTS ===
+ã ========================
+
+ã --- Test 1: Cast ray returns a positive distance ---
+testDistûcastRay{45 * 1000 ß 57}
+if (testDist > 0) {
+  Õ"wolf3d: [PASS] castRay returns positive distance"
+} else {
+  Õ"wolf3d: [FAIL] castRay failed"
+}
+
+ã --- Test 2: Different angles produce different distances (map is not uniform) ---
+d1ûcastRay{45 * 1000 ß 57}
+d2ûcastRay{135 * 1000 ß 57}
+if (d1 != d2) {
+  Õ"wolf3d: [PASS] different angles -> different distances"
+} else {
+  Õ"wolf3d: [FAIL] same distance for different angles (or symmetrical map)"
+}
+
+ã --- Test 3: Player at (1,1) surrounded by open space hits outer wall ---
+ã In our map, (1,1) is 0 (empty), and surrounding cells may be 0 or 1
+ã The outer border is all 1s, so any ray should eventually hit a wall
+pxû1
+pyû1
+d3ûcastRay{0}
+if (d3 > 0) {
+  Õ"wolf3d: [PASS] player at (1,1) can see walls"
+} else {
+  Õ"wolf3d: [FAIL] no wall visible from (1,1)"
+}
+
+ã --- Test 4: renderFrame returns array of 800 chars ---
+frûrenderFrame{}
+frlenûÎ fr
+if (frlen = 800) {
+  Õ"wolf3d: [PASS] renderFrame produces 800 elements"
+} else {
+  Õ"wolf3d: [FAIL] renderFrame wrong size"
+}
+
+ã === Hardcoded Demo: 3 frames while rotating ===
+pxû1
+pyû1
+facingAngleû0
+demoFrameû0
+while (demoFrame < 3) {
+  Õ"wolf3d: frame"
+  ÕdemoFrame
+  Õ"facing"
+  ÕfacingAngle
+  facingAngleûfacingAngle + 45
+  demoFrameûdemoFrame + 1
+}
+Õ"wolf3d: all tests done"
