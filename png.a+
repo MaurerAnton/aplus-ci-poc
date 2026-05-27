@@ -1,0 +1,271 @@
+ãpng.a+ - Simplified PNG Decoder
+
+ãDecodes a hardcoded 4x4 grayscale PNG image
+ãParses signature, IHDR, IDAT, applies Sub filter
+
+ãHardcoded 4x4 grayscale PNG (constructed PNG image)
+png_dataû256Î 0
+png_lenû0
+
+ãPNG signature: 137 80 78 71 13 10 26 10
+png_data[0]û137
+png_data[1]û80
+png_data[2]û78
+png_data[3]û71
+png_data[4]û13
+png_data[5]û10
+png_data[6]û26
+png_data[7]û10
+png_lenû8
+
+ãIHDR chunk length = 13
+png_data[8]û0
+png_data[9]û0
+png_data[10]û0
+png_data[11]û13
+ãIHDR type: 'IHDR'
+png_data[12]û73
+png_data[13]û72
+png_data[14]û68
+png_data[15]û82
+ãWidth = 4 (big-endian)
+png_data[16]û0
+png_data[17]û0
+png_data[18]û0
+png_data[19]û4
+ãHeight = 4
+png_data[20]û0
+png_data[21]û0
+png_data[22]û0
+png_data[23]û4
+ãBit depth = 8
+png_data[24]û8
+ãColor type = 0 (grayscale)
+png_data[25]û0
+ãCompression, filter, interlace = 0
+png_data[26]û0
+png_data[27]û0
+png_data[28]û0
+ãCRC for IHDR (precomputed)
+png_data[29]û0x5A
+png_data[30]û0x5E
+png_data[31]û0xC2
+png_data[32]û0xF3
+png_lenû33
+
+ãIDAT chunk
+ãDeflate data length = 20 bytes (4 rows x 5)
+ãStored block overhead = 5 bytes (1 header + 2 len + 2 nlen)
+idat_data_lenû25
+ãIDAT length field (4 bytes big-endian)
+idata_startûpng_len
+png_data[idata_start]û0
+png_data[idata_start+1]û0
+png_data[idata_start+2]û0
+png_data[idata_start+3]ûidat_data_len
+ãIDAT type: 'IDAT'
+png_data[idata_start+4]û73
+png_data[idata_start+5]û68
+png_data[idata_start+6]û65
+png_data[idata_start+7]û84
+ãDeflate: BFINAL=1, BTYPE=00 (stored block)
+dstartûidata_start+8
+png_data[dstart]û1
+ãLEN = 20 (little-endian)
+png_data[dstart+1]û20
+png_data[dstart+2]û0
+ãNLEN = ~20 & 0xFFFF (little-endian) = 65515 = 0xFFEB
+png_data[dstart+3]û0xEB
+png_data[dstart+4]û0xFF
+ãRow 0: filter=None, pixels: 10,20,30,40
+drowûdstart+5
+png_data[drow]û0
+png_data[drow+1]û10
+png_data[drow+2]û20
+png_data[drow+3]û30
+png_data[drow+4]û40
+
+ãRow 1: filter=Sub, raw: 5,5,5,5 (actual: 5,15,30,50)
+drowûdstart+10
+png_data[drow]û1
+png_data[drow+1]û5
+png_data[drow+2]û5
+png_data[drow+3]û5
+png_data[drow+4]û5
+
+ãRow 2: filter=None, pixels: 100,110,120,130
+drowûdstart+15
+png_data[drow]û0
+png_data[drow+1]û100
+png_data[drow+2]û110
+png_data[drow+3]û120
+png_data[drow+4]û130
+
+ãRow 3: filter=Sub, raw: 5,5,5,5
+drowûdstart+20
+png_data[drow]û1
+png_data[drow+1]û5
+png_data[drow+2]û5
+png_data[drow+3]û5
+png_data[drow+4]û5
+
+ãZlib adler32 checksum (4 bytes) - dummy zeros
+png_data[dstart+25]û0
+png_data[dstart+26]û0
+png_data[dstart+27]û0
+png_data[dstart+28]û0
+
+ãIDAT CRC (dummy)
+png_data[dstart+29]û0xDE
+png_data[dstart+30]û0xAD
+png_data[dstart+31]û0xBE
+png_data[dstart+32]û0xEF
+png_lenûdstart+33
+
+ãIEND chunk (length=0)
+png_data[png_len]û0
+png_data[png_len+1]û0
+png_data[png_len+2]û0
+png_data[png_len+3]û0
+png_data[png_len+4]û73
+png_data[png_len+5]û78
+png_data[png_len+6]û69
+png_data[png_len+7]û68
+png_data[png_len+8]û0xAE
+png_data[png_len+9]û0x42
+png_data[png_len+10]û0x60
+png_data[png_len+11]û0x82
+png_lenûpng_len+12
+
+ã=== PNG Parsing ===
+
+ãVerify PNG signature
+sig_okû0
+if ((png_data[0]=137) & (png_data[1]=80) & (png_data[2]=78) & (png_data[3]=71)) {
+  if ((png_data[4]=13) & (png_data[5]=10) & (png_data[6]=26) & (png_data[7]=10)) {
+    sig_okû1
+  }
+}
+
+ãParse IHDR: chunk at offset 8
+ãRead big-endian 32-bit values
+wûpng_data[16] Á 16777216 + png_data[17] Á 65536 + png_data[18] Á 256 + png_data[19]
+hûpng_data[20] Á 16777216 + png_data[21] Á 65536 + png_data[22] Á 256 + png_data[23]
+bppûpng_data[24]
+ctypeûpng_data[25]
+
+Õ"PNG dimensions:"
+Õ"  Width: "
+Õ w
+Õ"  Height: "
+Õ h
+Õ"  Bit depth: "
+Õ bpp
+Õ"  Color type: "
+Õ ctype
+
+ã=== Decode Deflate/Filtered Data ===
+pixelsû16Î 0
+pixel_idxû0
+
+ãData starts at dstart+5 (after stored block header)
+ãEach row: [filter_byte][pixel0][pixel1][pixel2][pixel3]
+def_startûdstart+5
+
+ãProcess 4 rows
+rowû0
+while (row < 4) {
+  row_startûdef_start + row Á 5
+  filterûpng_data[row_start]
+  prevû0
+  colû0
+  while (col < 4) {
+    rawûpng_data[row_start + 1 + col]
+    if (filter = 0) {
+      pixels[pixel_idx]ûraw
+    }
+    if (filter = 1) {
+      ãSub filter: pixel = raw + left_neighbor
+      pixels[pixel_idx]ûraw + prev
+      prevûraw + prev
+    }
+    pixel_idxûpixel_idx+1
+    colûcol+1
+  }
+  rowûrow+1
+}
+
+ãPrint pixel values
+Õ"Decoded pixels:"
+pxû0
+while (px < 16) {
+  Õ pixels[px]
+  pxûpx+1
+}
+
+ã=== Self-Tests ===
+tests_passû0
+tests_failû0
+
+ãTest 1: PNG signature valid
+if (sig_ok = 1) {
+  Õ"png: [PASS] PNG signature correct"
+  tests_passûtests_pass+1
+} else {
+  Õ"png: [FAIL] PNG signature wrong"
+  tests_failûtests_fail+1
+}
+
+ãTest 2: width=4, height=4 from IHDR
+if ((w = 4) & (h = 4)) {
+  Õ"png: [PASS] IHDR width=4, height=4"
+  tests_passûtests_pass+1
+} else {
+  Õ"png: [FAIL] IHDR dimensions wrong"
+  tests_failûtests_fail+1
+}
+
+ãTest 3: all pixel values in range 0-255
+range_okû1
+pxû0
+while (px < 16) {
+  if ((pixels[px] < 0) | (pixels[px] > 255)) {
+    range_okû0
+  }
+  pxûpx+1
+}
+if (range_ok = 1) {
+  Õ"png: [PASS] all pixel values in range 0-255"
+  tests_passûtests_pass+1
+} else {
+  Õ"png: [FAIL] pixel values out of range"
+  tests_failûtests_fail+1
+}
+
+ãTest 4: first pixel is 10
+if (pixels[0] = 10) {
+  Õ"png: [PASS] first pixel = 10"
+  tests_passûtests_pass+1
+} else {
+  Õ"png: [FAIL] first pixel expected 10, got "
+  Õ pixels[0]
+  tests_failûtests_fail+1
+}
+
+ãTest 5: Row 1, pixel 0 (Sub filter) = 5
+if (pixels[4] = 5) {
+  Õ"png: [PASS] Sub-filtered row 1 pixel 0 = 5"
+  tests_passûtests_pass+1
+} else {
+  Õ"png: [FAIL] Sub filter decode wrong, pixel 5 = "
+  Õ pixels[4]
+  tests_failûtests_fail+1
+}
+
+Õ""
+Õ"png: "
+Õ tests_pass
+Õ" passed, "
+Õ tests_fail
+Õ" failed"
+Õ"png: all tests done"

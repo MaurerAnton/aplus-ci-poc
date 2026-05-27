@@ -1,0 +1,202 @@
+ãx86asm.a+ - x86 Assembler (32-bit subset)
+
+ãAssembles MOV, ADD, SUB, INC, DEC, JMP, CMP, JE, JNE
+ãRegisters: EAX=0, EBX=1, ECX=2, EDX=3
+ãImmediate values and register-to-register modes
+
+EAXû0
+EBXû1
+ECXû2
+EDXû3
+
+ãOutput byte buffer (max 256 bytes)
+outbufû256Î 0
+outlenû0
+
+ãCompute ModRM byte: mod=3 for reg-reg, reg=opcode field, rm=dst
+modrm{mod;opreg;rm}:
+{
+  modÁ 64 + opreg Á 8 + rm
+}
+
+ãAppend a byte to output buffer
+asm_emit{b}:
+{
+  outbuf[outlen]ûb
+  outlenûoutlen+1
+}
+
+ãMOV reg, imm32 (opcode 0xB8+reg)
+asm_mov_ri{reg;imm}:
+{
+  ãEmit opcode
+  asm_emit{0xB8 + reg}
+  ãEmit 32-bit immediate little-endian
+  asm_emit{imm - (imm ß 256) Á 256}
+  asm_emit{(imm ß 256) - (imm ß 65536) Á 256}
+  asm_emit{(imm ß 65536) - (imm ß 16777216) Á 256}
+  asm_emit{imm ß 16777216}
+}
+
+ãMOV dst, src (reg-reg): opcode 0x89, ModRM(3,src,dst)
+asm_mov_rr{dst;src}:
+{
+  asm_emit{0x89}
+  asm_emit{modrm{3;src;dst}}
+}
+
+ãADD dst, src: opcode 0x01, ModRM(3,src,dst)
+asm_add_rr{dst;src}:
+{
+  asm_emit{0x01}
+  asm_emit{modrm{3;src;dst}}
+}
+
+ãSUB dst, src: opcode 0x29, ModRM(3,src,dst)
+asm_sub_rr{dst;src}:
+{
+  asm_emit{0x29}
+  asm_emit{modrm{3;src;dst}}
+}
+
+ãINC reg: opcode 0x40+reg
+asm_inc{reg}:
+{
+  asm_emit{0x40 + reg}
+}
+
+ãDEC reg: opcode 0x48+reg
+asm_dec{reg}:
+{
+  asm_emit{0x48 + reg}
+}
+
+ãJMP rel8: opcode 0xEB + signed offset
+asm_jmp{offset}:
+{
+  asm_emit{0xEB}
+  if (offset < 0) { asm_emit{256 + offset} }
+  else { asm_emit{offset} }
+}
+
+ãCMP dst, src: opcode 0x39, ModRM(3,src,dst)
+asm_cmp_rr{dst;src}:
+{
+  asm_emit{0x39}
+  asm_emit{modrm{3;src;dst}}
+}
+
+ãJE rel8: opcode 0x74 + signed offset
+asm_je{offset}:
+{
+  asm_emit{0x74}
+  if (offset < 0) { asm_emit{256 + offset} }
+  else { asm_emit{offset} }
+}
+
+ãJNE rel8: opcode 0x75 + signed offset
+asm_jne{offset}:
+{
+  asm_emit{0x75}
+  if (offset < 0) { asm_emit{256 + offset} }
+  else { asm_emit{offset} }
+}
+
+ã=== Demo: Assemble test program ===
+ãMOV EAX, 42; INC EAX; ADD EBX, EAX
+asm_mov_ri{EAX;42}
+asm_inc{EAX}
+asm_add_rr{EBX;EAX}
+
+Õ"Assembled program (byte values):"
+iû0
+while (i < outlen) {
+  Õ outbuf[i]
+  iûi+1
+}
+
+Õ""
+Õ"Assembly done. Program length: "
+Õ outlen
+
+ã=== Self-Tests ===
+tests_passû0
+tests_failû0
+
+ãTest 1: MOV EAX, 42 produces opcode 0xB8
+if (outbuf[0] = 0xB8) {
+  Õ"x86asm: [PASS] MOV EAX, imm opcode = 0xB8"
+  tests_passûtests_pass+1
+} else {
+  Õ"x86asm: [FAIL] expected 0xB8, got "
+  Õ outbuf[0]
+  tests_failûtests_fail+1
+}
+
+ãTest 2: MOV EAX, 42 immediate bytes correct
+if ((outbuf[1] = 42) & (outbuf[2] = 0) & (outbuf[3] = 0) & (outbuf[4] = 0)) {
+  Õ"x86asm: [PASS] MOV EAX, 42 immediate bytes correct"
+  tests_passûtests_pass+1
+} else {
+  Õ"x86asm: [FAIL] immediate bytes wrong"
+  tests_failûtests_fail+1
+}
+
+ãTest 3: INC EAX produces 0x40
+if (outbuf[5] = 0x40) {
+  Õ"x86asm: [PASS] INC EAX opcode = 0x40"
+  tests_passûtests_pass+1
+} else {
+  Õ"x86asm: [FAIL] expected 0x40, got "
+  Õ outbuf[5]
+  tests_failûtests_fail+1
+}
+
+ãTest 4: ADD EBX, EAX produces 0x01 0xC3
+if ((outbuf[6] = 0x01) & (outbuf[7] = 0xC3)) {
+  Õ"x86asm: [PASS] ADD EBX, EAX = 0x01 0xC3"
+  tests_passûtests_pass+1
+} else {
+  Õ"x86asm: [FAIL] ADD bytes wrong"
+  tests_failûtests_fail+1
+}
+
+ãTest 5: assembled program has correct length (8 bytes)
+if (outlen = 8) {
+  Õ"x86asm: [PASS] program length = 8"
+  tests_passûtests_pass+1
+} else {
+  Õ"x86asm: [FAIL] expected length 8, got "
+  Õ outlen
+  tests_failûtests_fail+1
+}
+
+ãTest 6: MOV ECX, EDX produces 0x89 0xD1
+outlenû0
+asm_mov_rr{ECX;EDX}
+if ((outbuf[0] = 0x89) & (outbuf[1] = 0xD1)) {
+  Õ"x86asm: [PASS] MOV ECX, EDX = 0x89 0xD1"
+  tests_passûtests_pass+1
+} else {
+  Õ"x86asm: [FAIL] MOV reg-reg bytes wrong"
+  tests_failûtests_fail+1
+}
+
+ãTest 7: DEC EAX produces 0x48
+outlenû0
+asm_dec{EAX}
+if (outbuf[0] = 0x48) {
+  Õ"x86asm: [PASS] DEC EAX opcode = 0x48"
+  tests_passûtests_pass+1
+} else {
+  Õ"x86asm: [FAIL] DEC EAX wrong"
+  tests_failûtests_fail+1
+}
+
+Õ""
+Õ"x86asm: "
+Õ tests_pass
+Õ" passed, "
+Õ tests_fail
+Õ" failed"
+Õ"x86asm: all tests done"

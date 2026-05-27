@@ -1,0 +1,358 @@
+ãnes6502.a+ - NES 6502 CPU Emulator
+
+ã6502 CPU with A, X, Y, SP, PC, status flags (NV-BDIZC)
+ã64KB address space (demo: 256 bytes), core instruction set
+
+ã=== CPU Registers ===
+Aû0
+Xû0
+Yû0
+SPû0xFF
+PCû0
+ãStatus flags: N=bit7, V=bit6, B=bit4, D=bit3, I=bit2, Z=bit1, C=bit0
+STATUSû0x24
+
+ã256 bytes of memory (demo)
+memû256Î 0
+
+ãSet Zero flag based on value
+set_z{v}:
+{
+  if (v = 0) {
+    STATUSûSTATUS | 2
+  } else {
+    STATUSûSTATUS - (STATUS Á 2) Á 2
+  }
+}
+
+ãSet Negative flag based on value
+set_n{v}:
+{
+  if (v >= 128) {
+    STATUSûSTATUS | 128
+  } else {
+    STATUSûSTATUS - (STATUS Á 128) Á 128
+  }
+}
+
+ãUpdate Z and N flags together
+set_zn{v}:
+{
+  set_z{v}
+  set_n{v}
+}
+
+ãSet Carry flag
+set_c{v}:
+{
+  if (v = 0) { STATUSûSTATUS - (STATUS Á 1) Á 1 }
+  else { STATUSûSTATUS | 1 }
+}
+
+ãClear Carry flag
+clr_c{}:
+{
+  STATUSûSTATUS - (STATUS Á 1) Á 1
+}
+
+ãSet Carry flag (CLC/SEC helper)
+set_c1{}:
+{
+  STATUSûSTATUS | 1
+}
+
+ãGet Carry flag value (0 or 1)
+get_c{}:
+{
+  STATUS - (STATUS ß 2) Á 2
+}
+
+ãRead byte from memory
+read{addr}:
+{
+  mem[addr]
+}
+
+ãWrite byte to memory
+write{addr;val}:
+{
+  mem[addr]ûval
+}
+
+ãFetch next byte and advance PC
+fetch{}:
+{
+  bûmem[PC]
+  PCûPC+1
+  b
+}
+
+ã=== Execute One Instruction ===
+step{}:
+{
+  opûfetch{}
+
+  ãLDA immediate: A9
+  if (op = 0xA9) {
+    Aûfetch{}
+    set_zn{A}
+  }
+
+  ãLDA zero-page: A5
+  if (op = 0xA5) {
+    addrûfetch{}
+    Aûmem[addr]
+    set_zn{A}
+  }
+
+  ãLDA absolute: AD
+  if (op = 0xAD) {
+    loûfetch{}
+    hiûfetch{}
+    addrûhi Á 256 + lo
+    Aûmem[addr]
+    set_zn{A}
+  }
+
+  ãSTA zero-page: 85
+  if (op = 0x85) {
+    addrûfetch{}
+    mem[addr]ûA
+  }
+
+  ãSTA absolute: 8D
+  if (op = 0x8D) {
+    loûfetch{}
+    hiûfetch{}
+    addrûhi Á 256 + lo
+    mem[addr]ûA
+  }
+
+  ãLDX immediate: A2
+  if (op = 0xA2) {
+    Xûfetch{}
+    set_zn{X}
+  }
+
+  ãSTX zero-page: 86
+  if (op = 0x86) {
+    addrûfetch{}
+    mem[addr]ûX
+  }
+
+  ãINX: E8
+  if (op = 0xE8) {
+    XûX+1
+    if (X >= 256) { XûX-256 }
+    set_zn{X}
+  }
+
+  ãDEX: CA
+  if (op = 0xCA) {
+    XûX-1
+    if (X < 0) { XûX+256 }
+    set_zn{X}
+  }
+
+  ãJMP absolute: 4C
+  if (op = 0x4C) {
+    loûfetch{}
+    hiûfetch{}
+    PCûhi Á 256 + lo
+  }
+
+  ãBEQ: F0
+  if (op = 0xF0) {
+    offsetûfetch{}
+    if ((STATUS Á 2) > 0) {
+      if (offset >= 128) { PCûPC + offset - 256 }
+      else { PCûPC + offset }
+    }
+  }
+
+  ãBNE: D0
+  if (op = 0xD0) {
+    offsetûfetch{}
+    if ((STATUS Á 2) = 0) {
+      if (offset >= 128) { PCûPC + offset - 256 }
+      else { PCûPC + offset }
+    }
+  }
+
+  ãCLC: 18
+  if (op = 0x18) {
+    clr_c{}
+  }
+
+  ãSEC: 38
+  if (op = 0x38) {
+    set_c1{}
+  }
+
+  ãADC immediate: 69
+  if (op = 0x69) {
+    immûfetch{}
+    sumûA + imm + get_c{}
+    if (sum >= 256) { sumûsum-256; set_c1{} }
+    else { clr_c{} }
+    Aûsum
+    set_zn{A}
+  }
+
+  ãSBC immediate: E9
+  if (op = 0xE9) {
+    immûfetch{}
+    ãSBC = ADC with complement
+    inv_cû1 - get_c{}
+    negû255 - imm
+    sumûA + neg + inv_c
+    if (sum >= 256) { sumûsum-256; set_c1{} }
+    else { clr_c{} }
+    Aûsum
+    set_zn{A}
+  }
+
+  op
+}
+
+ã=== Load Test Program into Memory ===
+ãProgram: LDA #10; STA $00; LDX #5; loop: INX; DEX; JMP loop
+ã(loops 5 times via X counter)
+ãActually: LDA #10; STA $00; LDX #0; loop: INX; CPX #5; BNE loop
+ãWait, no CPX. Let's use a simpler program:
+ã LDA #10  (A9 0A)   - load 10 into A
+ã STA $00  (85 00)   - store A to zero-page $00
+ã LDX #5   (A2 05)   - load 5 into X
+ã SEC       (38)       - set carry
+ã ADC #1    (69 01)   - A = A + 1 + carry
+ã DEX       (CA)       - X = X - 1
+ã BNE -3    (D0 FB)   - branch back if X != 0 (loops 5 times)
+ã STA $01  (85 01)   - store final A
+ã
+ãExpected after execution:
+ã  Iter 1: A=10, Carry set -> ADC: A=10+1+1=12
+ã  Iter 2: A=12+1+1=14
+ã  Iter 3: A=16, Iter 4: A=18, Iter 5: A=20
+ã  Final: A=20, stored at $01; X=0
+PRG_STARTû0x20
+PCûPRG_START
+
+ãLDA #10: A9 0A
+mem[PRG_START]û0xA9
+mem[PRG_START+1]û10
+ãSTA $00: 85 00
+mem[PRG_START+2]û0x85
+mem[PRG_START+3]û0
+ãLDX #5: A2 05
+mem[PRG_START+4]û0xA2
+mem[PRG_START+5]û5
+ãSEC: 38
+mem[PRG_START+6]û0x38
+ãloop: ADC #1: 69 01
+mem[PRG_START+7]û0x69
+mem[PRG_START+8]û1
+ãDEX: CA
+mem[PRG_START+9]û0xCA
+ãBNE loop: D0 FC (branch -4 back to ADC)
+mem[PRG_START+10]û0xD0
+mem[PRG_START+11]û0xFC
+ãSTA $01: 85 01
+mem[PRG_START+12]û0x85
+mem[PRG_START+13]û1
+ãJMP * (halt loop): 4C 20 20
+mem[PRG_START+14]û0x4C
+mem[PRG_START+15]ûPRG_START
+mem[PRG_START+16]û0
+
+ã=== Execute Program ===
+cyclesû0
+MAX_CYCLESû50
+
+Õ"6502: Starting execution..."
+while (cycles < MAX_CYCLES) {
+  step{}
+  cyclesûcycles+1
+  ãCheck if we're at the halt JMP (PC pointing to JMP itself)
+  if (PC = PRG_START) {
+    ãReached halt
+    cyclesûMAX_CYCLES
+  }
+}
+
+ãPrint register values
+Õ"6502: Execution complete"
+Õ"  A = "
+Õ A
+Õ"  X = "
+Õ X
+Õ"  Y = "
+Õ Y
+Õ"  PC = "
+Õ PC
+Õ"  SP = "
+Õ SP
+Õ"  Status = "
+Õ STATUS
+Õ"  mem[0] = "
+Õ mem[0]
+Õ"  mem[1] = "
+Õ mem[1]
+
+ã=== Self-Tests ===
+tests_passû0
+tests_failû0
+
+ãTest 1: STA stored initial A (10) to mem[0]
+if (mem[0] = 10) {
+  Õ"nes6502: [PASS] STA stored A=10 to mem[0]"
+  tests_passûtests_pass+1
+} else {
+  Õ"nes6502: [FAIL] mem[0] expected 10, got "
+  Õ mem[0]
+  tests_failûtests_fail+1
+}
+
+ãTest 2: After ADC loop (5 iterations), A should be 20
+if (A = 20) {
+  Õ"nes6502: [PASS] ADC loop: A=20 after 5 iterations"
+  tests_passûtests_pass+1
+} else {
+  Õ"nes6502: [FAIL] A expected 20, got "
+  Õ A
+  tests_failûtests_fail+1
+}
+
+ãTest 3: STA stored final A to mem[1]
+if (mem[1] = A) {
+  Õ"nes6502: [PASS] STA stored final A to mem[1]"
+  tests_passûtests_pass+1
+} else {
+  Õ"nes6502: [FAIL] mem[1] should equal A"
+  tests_failûtests_fail+1
+}
+
+ãTest 4: X decremented to 0, Z flag should be set
+if ((X = 0) & ((STATUS Á 2) > 0)) {
+  Õ"nes6502: [PASS] DEX: X=0, Z flag set"
+  tests_passûtests_pass+1
+} else {
+  Õ"nes6502: [FAIL] X or Z flag wrong"
+  tests_failûtests_fail+1
+}
+
+ãTest 5: N flag not set (A=20 < 128)
+if ((STATUS Á 128) = 0) {
+  Õ"nes6502: [PASS] N flag clear (A < 128)"
+  tests_passûtests_pass+1
+} else {
+  Õ"nes6502: [FAIL] N flag should be clear"
+  tests_failûtests_fail+1
+}
+
+Õ""
+Õ"nes6502: "
+Õ tests_pass
+Õ" passed, "
+Õ tests_fail
+Õ" failed"
+Õ"nes6502: all tests done"

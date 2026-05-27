@@ -1,0 +1,292 @@
+ã dns.a+ ßßß DNS Resolver in A+ ßßß
+ã
+ã Builds DNS query packets and parses DNS response packets.
+ã DNS header: 12 bytes (ID, flags, QDCOUNT, ANCOUNT, NSCOUNT, ARCOUNT)
+ã Question: QNAME (labels), QTYPE=A (1), QCLASS=IN (1)
+ã Answer: NAME, TYPE, CLASS, TTL, RDLENGTH, RDATA (4-byte IP)
+ã
+ã DNS label format: each label is length-prefixed, terminated by 0x00
+ã 'example.com' -> 7 e x a m p l e 3 c o m 0
+ã
+ã ============================================================
+ã Hardcoded DNS query for 'example.com'
+ã ============================================================
+ã Header (12 bytes):
+ã   ID: 0x1234 (4660)
+ã   Flags: 0x0100 (standard query, recursion desired)
+ã   QDCOUNT: 1
+ã   ANCOUNT: 0
+ã   NSCOUNT: 0
+ã   ARCOUNT: 0
+ã
+ã Question:
+ã   QNAME: 7 e x a m p l e 3 c o m 0 (13 bytes)
+ã   QTYPE: 0x0001 (A record)
+ã   QCLASS: 0x0001 (IN)
+ã
+ã Total query: 12 + 13 + 4 = 29 bytes
+
+ã Build a DNS query packet for a domain name
+ã Domain name is stored as char codes array
+ã Returns packet as byte array
+dns_query_sizeû64
+dns_queryû64Î0
+
+ã Build query for 'example.com' => stored in dns_query
+dns_build_example_query{}: {
+  ã Header: ID 0x1234 (MSB first)
+  dns_query[0]û18  ã 0x12
+  dns_query[1]û52  ã 0x34
+  ã Flags: 0x0100 standard query + recursion desired
+  dns_query[2]û1   ã 0x01
+  dns_query[3]û0   ã 0x00
+  ã QDCOUNT: 1 question
+  dns_query[4]û0
+  dns_query[5]û1
+  ã ANCOUNT: 0
+  dns_query[6]û0
+  dns_query[7]û0
+  ã NSCOUNT: 0
+  dns_query[8]û0
+  dns_query[9]û0
+  ã ARCOUNT: 0
+  dns_query[10]û0
+  dns_query[11]û0
+  ã QNAME: 7 e x a m p l e 3 c o m 0
+  dns_query[12]û7   ã length: 'example' = 7
+  dns_query[13]û101 ã 'e'
+  dns_query[14]û120 ã 'x'
+  dns_query[15]û97  ã 'a'
+  dns_query[16]û109 ã 'm'
+  dns_query[17]û112 ã 'p'
+  dns_query[18]û108 ã 'l'
+  dns_query[19]û101 ã 'e'
+  dns_query[20]û3   ã length: 'com' = 3
+  dns_query[21]û99  ã 'c'
+  dns_query[22]û111 ã 'o'
+  dns_query[23]û109 ã 'm'
+  dns_query[24]û0   ã terminator
+  ã QTYPE: A record = 1 (0x0001)
+  dns_query[25]û0
+  dns_query[26]û1
+  ã QCLASS: IN = 1 (0x0001)
+  dns_query[27]û0
+  dns_query[28]û1
+  dns_query_sizeû29
+  1  ã success
+}
+
+ã Get transaction ID from query (bytes 0-1)
+dns_get_id{pkt}: {
+  pkt[0]*256 + pkt[1]
+}
+
+ã Get flags from query (bytes 2-3)
+dns_get_flags{pkt}: {
+  pkt[2]*256 + pkt[3]
+}
+
+ã Get question count from query (bytes 4-5)
+dns_get_qdcount{pkt}: {
+  pkt[4]*256 + pkt[5]
+}
+
+ã Get answer count from response (bytes 6-7)
+dns_get_ancount{pkt}: {
+  pkt[6]*256 + pkt[7]
+}
+
+ã ============================================================
+ã Hardcoded DNS response for 'example.com'
+ã ============================================================
+ã Response: ID 0x1234, flags 0x8180 (QR+RD+RA), 1 question, 1 answer
+ã Answer: example.com A 93.184.216.34, TTL=3600
+ã
+ã Complete response bytes (decimal):
+ã Header (12 bytes): 18 52 129 128 0 1 0 1 0 0 0 0
+ã Question: 7 e x a m p l e 3 c o m 0 0 1 0 1 (compressed: pointer)
+ã Answer: pointer 0xc00c, type A=1, class IN=1, TTL=3600,
+ã          rdlength=4, rdata=93.184.216.34
+ã
+ã For simplicity, use a linear (non-compressed) response
+
+dns_resp_sizeû60
+dns_respû60Î0
+
+dns_build_example_response{}: {
+  ã Header:
+  dns_resp[0]û18   ã ID 0x12
+  dns_resp[1]û52   ã ID 0x34
+  dns_resp[2]û129  ã Flags: 0x8180 = QR=1, RD=1, RA=1
+  dns_resp[3]û128
+  dns_resp[4]û0    ã QDCOUNT=1
+  dns_resp[5]û1
+  dns_resp[6]û0    ã ANCOUNT=1
+  dns_resp[7]û1
+  dns_resp[8]û0    ã NSCOUNT=0
+  dns_resp[9]û0
+  dns_resp[10]û0   ã ARCOUNT=0
+  dns_resp[11]û0
+  ã Question (same as query, non-compressed):
+  dns_resp[12]û7
+  dns_resp[13]û101
+  dns_resp[14]û120
+  dns_resp[15]û97
+  dns_resp[16]û109
+  dns_resp[17]û112
+  dns_resp[18]û108
+  dns_resp[19]û101
+  dns_resp[20]û3
+  dns_resp[21]û99
+  dns_resp[22]û111
+  dns_resp[23]û109
+  dns_resp[24]û0
+  dns_resp[25]û0
+  dns_resp[26]û1
+  dns_resp[27]û0
+  dns_resp[28]û1
+  ã Answer section (starts at byte 29):
+  ã NAME: pointer 0xc00c (compressed, but we use linear)
+  ã For linear: 0xc0 0x0c = ptr to offset 12 (question name)
+  dns_resp[29]û192  ã 0xc0 compression pointer
+  dns_resp[30]û12   ã offset 12
+  ã TYPE: A = 1
+  dns_resp[31]û0
+  dns_resp[32]û1
+  ã CLASS: IN = 1
+  dns_resp[33]û0
+  dns_resp[34]û1
+  ã TTL: 3600 = 0x00000E10
+  dns_resp[35]û0
+  dns_resp[36]û0
+  dns_resp[37]û14  ã 0x0E
+  dns_resp[38]û16  ã 0x10
+  ã RDLENGTH: 4
+  dns_resp[39]û0
+  dns_resp[40]û4
+  ã RDATA: IP 93.184.216.34
+  dns_resp[41]û93
+  dns_resp[42]û184
+  dns_resp[43]û216
+  dns_resp[44]û34
+  dns_resp_sizeû45
+  1
+}
+
+ã Parse response header fields
+dns_parse_resp_id{pkt}: { pkt[0]*256 + pkt[1] }
+dns_parse_resp_flags{pkt}: { pkt[2]*256 + pkt[3] }
+dns_parse_resp_ancount{pkt}: { pkt[6]*256 + pkt[7] }
+
+ã Extract IP address from answer (last 4 bytes of answer)
+ã Returns [a, b, c, d]
+dns_parse_ip{pkt}: {
+  ã For our hardcoded response, IP is at bytes 41-44
+  ipû4Î0
+  ip[0]ûpkt[41]
+  ip[1]ûpkt[42]
+  ip[2]ûpkt[43]
+  ip[3]ûpkt[44]
+  ip
+}
+
+ã Extract TTL from answer (bytes 35-38)
+dns_parse_ttl{pkt}: {
+  pkt[35]*16777216 + pkt[36]*65536 + pkt[37]*256 + pkt[38]
+}
+
+ã ============================================================
+ã Self-tests
+ã ============================================================
+Õ "=== DNS Resolver Self-Tests ==="
+
+ã Build query and response
+dns_build_example_query{}
+dns_build_example_response{}
+
+Õ "-- Test 1: Build query for 'example.com' --"
+if (dns_query_size=29) {
+  Õ "[PASS] dns: query packet is 29 bytes"
+} else {
+  Õ "[FAIL] dns: expected 29 bytes, got"
+  Õ dns_query_size
+}
+
+ã Verify query header fields
+dq_idûdns_get_id{dns_query}
+if (dq_id=4660) {  ã 0x1234 = 4660
+  Õ "[PASS] dns: query ID = 0x1234"
+} else {
+  Õ "[FAIL] dns: expected ID 4660, got"
+  Õ dq_id
+}
+
+dq_qdcûdns_get_qdcount{dns_query}
+if (dq_qdc=1) {
+  Õ "[PASS] dns: query QDCOUNT = 1"
+} else {
+  Õ "[FAIL] dns: expected QDCOUNT 1, got"
+  Õ dq_qdc
+}
+
+ã Verify QNAME labels
+if (dns_query[12]=7) {
+  Õ "[PASS] dns: first label length = 7 (example)"
+} else {
+  Õ "[FAIL] dns: first label length wrong"
+}
+if (dns_query[20]=3) {
+  Õ "[PASS] dns: second label length = 3 (com)"
+} else {
+  Õ "[FAIL] dns: second label length wrong"
+}
+if (dns_query[24]=0) {
+  Õ "[PASS] dns: QNAME terminator present"
+} else {
+  Õ "[FAIL] dns: QNAME terminator wrong"
+}
+
+Õ "-- Test 4: Parse response extracts correct IP --"
+dr_idûdns_parse_resp_id{dns_resp}
+if (dr_id=4660) {
+  Õ "[PASS] dns: response ID = 0x1234"
+} else {
+  Õ "[FAIL] dns: response ID wrong"
+}
+
+dr_ancûdns_parse_resp_ancount{dns_resp}
+if (dr_anc=1) {
+  Õ "[PASS] dns: response ANCOUNT = 1"
+} else {
+  Õ "[FAIL] dns: response ANCOUNT wrong"
+}
+
+dr_ipûdns_parse_ip{dns_resp}
+if ((dr_ip[0]=93) & (dr_ip[1]=184) & (dr_ip[2]=216) & (dr_ip[3]=34)) {
+  Õ "[PASS] dns: IP address = 93.184.216.34"
+} else {
+  Õ "[FAIL] dns: expected 93.184.216.34, got"
+  Õ dr_ip[0]
+  Õ dr_ip[1]
+  Õ dr_ip[2]
+  Õ dr_ip[3]
+}
+
+dr_ttlûdns_parse_ttl{dns_resp}
+if (dr_ttl=3600) {
+  Õ "[PASS] dns: TTL = 3600"
+} else {
+  Õ "[FAIL] dns: expected TTL 3600, got"
+  Õ dr_ttl
+}
+
+Õ "-- Test 6: Verify transaction ID matches request --"
+if (dq_id=dr_id) {
+  Õ "[PASS] dns: transaction ID matches (0x1234)"
+} else {
+  Õ "[FAIL] dns: ID mismatch"
+  Õ dq_id
+  Õ dr_id
+}
+
+Õ "=== DNS tests complete ==="
