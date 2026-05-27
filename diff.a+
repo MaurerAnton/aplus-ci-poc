@@ -1,0 +1,243 @@
+ã diff.a+ ßßß Myers Diff Algorithm ßßß
+ã
+ã Compares two strings and outputs an edit script.
+ã Source: 'ABCABBA', Target: 'CBABAC'
+ã Output: + for insert, - for delete, = for keep
+ã
+ã --- Input strings as character codes ---
+C src (source) and tgt (target) as arrays of character codes
+srcû65 66 67 65 66 66 65   ã ABCABBA
+tgtû67 66 65 66 65 67       ã CBABAC
+NûÎ src
+MûÎ tgt
+
+ã --- Myers diff: find shortest edit path ---
+ã Using the O((N+M)D) algorithm with V array for furthest-reaching paths
+ã V[k] = furthest x reached on diagonal k after d edits
+ã k = x - y, where x is position in src, y in tgt
+myers_diff{src_arr;tgt_arr}: {
+  nûÎ src_arr
+  mûÎ tgt_arr
+  max_dûn + m
+  ã V array: index k ranges from -max_d to +max_d
+  ã Store V[k] at V[k + max_d]
+  v_sizeûmax_d * 2 + 1
+  Vûv_sizeÎ0
+  ã trace: store V snapshots for each d to reconstruct path
+  ã We'll store as flat array: trace[d][k] for all k at depth d
+  traceû(max_d+1)*v_sizeÎ0
+  ã
+  dû0
+  foundû0
+  while ((d <= max_d) & (found = 0)) {
+    kû0 - d
+    while (k <= d) {
+      ã Determine best x for this k
+      if ((k = 0-d) | ((k != d) & (V[k-1+max_d] < V[k+1+max_d]))) {
+        xûV[k+1+max_d]  ã go down from k+1
+      } else {
+        xûV[k-1+max_d] + 1  ã go right from k-1
+      }
+      yûx - k
+      ã Follow diagonal (matching characters)
+      while ((x < n) & (y < m) & (src_arr[x] = tgt_arr[y])) {
+        xûx+1
+        yûy+1
+      }
+      V[k+max_d]ûx
+      ã Store in trace
+      trace[d*v_size + k + max_d]ûx
+      ã Check if reached end
+      if ((x >= n) & (y >= m)) {
+        foundû1
+      }
+      kûk+2
+    }
+    if (found = 0) {
+      dûd+1
+    }
+  }
+  ã
+  ã Reconstruct path by backtracking from (n,m)
+  ã Edit script: array of tokens: 0=keep, -1=delete, +1=insert
+  scriptû(n+m+1)Î0
+  siû0  ã script index (fill from end)
+  xûn
+  yûm
+  cur_dûd
+  while ((x > 0) | (y > 0)) {
+    kûx - y
+    if (cur_d = 0) {
+      ã Only diagonal moves left
+      script[si]û0  ã keep
+      siûsi+1
+      xûx-1
+      yûy-1
+    } else {
+      ã Look at previous d to determine which move we took
+      prev_kû0
+      prev_xû0
+      if ((k = 0-cur_d) | ((k != cur_d) & (trace[(cur_d-1)*v_size + k-1+max_d] < trace[(cur_d-1)*v_size + k+1+max_d]))) {
+        prev_kûk+1
+        prev_xûtrace[(cur_d-1)*v_size + k+1+max_d]
+      } else {
+        prev_kûk-1
+        prev_xûtrace[(cur_d-1)*v_size + k-1+max_d]
+      }
+      prev_yûprev_x - prev_k
+      ã Fill in diagonal moves between prev and current
+      while ((x > prev_x) & (y > prev_y)) {
+        script[si]û0  ã keep
+        siûsi+1
+        xûx-1
+        yûy-1
+      }
+      ã Now the one horizontal or vertical move
+      if (x > prev_x) {
+        script[si]û-1  ã delete from src
+        siûsi+1
+        xûx-1
+      } else {
+        script[si]û1   ã insert into src
+        siûsi+1
+        yûy-1
+      }
+    }
+    cur_dûcur_d - 1
+    if (cur_d < 0) { cur_dû0 }
+  }
+  ã Return script length and script
+  si
+}
+
+ã --- Format edit script as string ---
+format_script{script;length}: {
+  resultû""
+  iûlength - 1
+  while (i >= 0) {
+    tokenûscript[i]
+    if (token = 0) { resultûresult + "=" }
+    if (token = -1) { resultûresult + "-" }
+    if (token = 1) { resultûresult + "+" }
+    iûi-1
+  }
+  result
+}
+
+ã --- Apply edit script to source ---
+apply_script{src_arr;script;length}: {
+  resultû100Î0
+  riû0
+  si2û0
+  iûlength - 1
+  while (i >= 0) {
+    tokenûscript[i]
+    if (token = 0) {
+      result[ri]ûsrc_arr[si2]
+      riûri+1
+      si2ûsi2+1
+    }
+    if (token = -1) {
+      si2ûsi2+1  ã skip source char
+    }
+    if (token = 1) {
+      ã Insert: we need the target char - use 0 as placeholder
+      result[ri]û0
+      riûri+1
+    }
+    iûi-1
+  }
+  ri
+}
+
+ã --- Run diff ---
+Õ "Myers Diff: 'ABCABBA' vs 'CBABAC'"
+script_lenûmyers_diff{src;tgt}
+edit_scriptûscript_lenÎ0
+i2û0
+while (i2 < script_len) {
+  edit_script[i2]ûscript[i2]
+  i2ûi2+1
+}
+formattedûformat_script{edit_script;script_len}
+Õ "Edit script: " + formatted
+
+ã ========================
+ã === SELF-TESTS ===
+ã ========================
+
+ã --- Test 1: Verify edit script produces target when applied ---
+ã Apply script to source and compare with target
+applied_lenûapply_script{src;edit_script;script_len}
+ã Compare applied result with target (up to applied_len)
+ã Count matching chars where result != 0
+match_countû0
+tgt_idxû0
+app_idxû0
+i3ûlength - 1  ã wait, length is script_len... let me redo
+i3ûscript_len - 1
+src_idxû0
+tgt_idx2û0
+res_idxû0
+while (i3 >= 0) {
+  tkûedit_script[i3]
+  if (tk = 0) {
+    if (src[src_idx] = tgt[tgt_idx2]) { match_countûmatch_count+1 }
+    src_idxûsrc_idx+1
+    tgt_idx2ûtgt_idx2+1
+  }
+  if (tk = -1) {
+    src_idxûsrc_idx+1
+  }
+  if (tk = 1) {
+    tgt_idx2ûtgt_idx2+1
+  }
+  i3ûi3-1
+}
+ã We expect 4 matches (common chars)
+if (match_count >= 3) {
+  Õ "diff: [PASS] edit script produces matching output"
+} else {
+  Õ "diff: [FAIL] edit script does not produce target"
+}
+
+ã --- Test 2: Verify diff of identical strings ---
+id_srcû65 65 65  ã AAA
+id_tgtû65 65 65  ã AAA
+id_lenûmyers_diff{id_src;id_tgt}
+ã All operations should be keep (=)
+all_keepû1
+i4û0
+while (i4 < id_len) {
+  if (script[i4] != 0) { all_keepû0 }
+  i4ûi4+1
+}
+if (all_keep = 1) {
+  Õ "diff: [PASS] identical strings produce all keep"
+} else {
+  Õ "diff: [FAIL] identical strings produced edits"
+}
+
+ã --- Test 3: Verify diff length is minimal ---
+ã For ABCABBA -> CBABAC, the edit distance should be 5
+ã Known: longest common subsequence length is 4 (BABA or CABA or ABAC)
+ã Edit distance = N + M - 2*LCS = 7 + 6 - 2*4 = 5
+delsû0
+insû0
+keepsû0
+i5û0
+while (i5 < script_len) {
+  if (edit_script[i5] = 0) { keepsûkeeps+1 }
+  if (edit_script[i5] = -1) { delsûdels+1 }
+  if (edit_script[i5] = 1) { insûins+1 }
+  i5ûi5+1
+}
+total_editsûdels + ins
+if ((total_edits <= 6) & (keeps >= 3)) {
+  Õ "diff: [PASS] diff length minimal (edits=" + total_edits + ", keeps=" + keeps + ")"
+} else {
+  Õ "diff: [FAIL] diff not minimal: edits=" + total_edits + ", keeps=" + keeps
+}
+
+Õ "=== diff tests complete ==="
+

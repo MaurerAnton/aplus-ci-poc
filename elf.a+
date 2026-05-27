@@ -1,0 +1,274 @@
+ã elf.a+ ßßß ELF Binary Parser in A+ ßßß
+ã
+ã Parses 32-bit and 64-bit ELF (Executable and Linkable Format) binaries.
+ã Reads ELF header, program headers, and section headers.
+ã Hardcoded test ELF: 32-bit x86, 1 program header, 3 sections.
+ã
+ã ELF Header layout (32-bit):
+ã   offset 0x00: e_ident[16]  - magic + class + endianness
+ã   offset 0x10: e_type (2)   - 2=executable
+ã   offset 0x12: e_machine (2) - 3=EM_386
+ã   offset 0x14: e_version (4)
+ã   offset 0x18: e_entry (4)  - entry point address
+ã   offset 0x1C: e_phoff (4)  - program header offset
+ã   offset 0x20: e_shoff (4)  - section header offset
+ã   offset 0x24: e_flags (4)
+ã   offset 0x28: e_ehsize (2) - ELF header size
+ã   offset 0x2A: e_phentsize (2) - program header entry size
+ã   offset 0x2C: e_phnum (2)  - program header count
+ã   offset 0x2E: e_shentsize (2) - section header entry size
+ã   offset 0x30: e_shnum (2)  - section header count
+ã   offset 0x32: e_shstrndx (2) - section name string table index
+ã
+ã === Hardcoded 32-bit x86 ELF binary ===
+elf_dataû127,69,76,70,1,1,1,0,0,0,0,0,0,0,0,0,2,0,3,0,1,0,0,0,0,16,0,0,52,0,0,0,0,2,0,0,0,0,0,0,52,0,32,0,1,0,40,0,3,0,2,0,1,0,0,0,0,1,0,0,0,16,0,0,0,16,0,0,64,0,0,0,64,0,0,0,7,0,0,0,0,16,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,184,1,0,0,0,49,219,205,128,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,46,116,101,120,116,0,46,115,104,115,116,114,116,97,98,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,1,0,0,0,7,0,0,0,0,16,0,0,0,1,0,0,64,0,0,0,0,0,0,0,0,0,0,0,16,0,0,0,0,0,0,0,7,0,0,0,3,0,0,0,0,0,0,0,0,0,0,0,192,1,0,0,17,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0
+elf_szûÎ elf_data
+
+ã Read 2-byte LE from data at offset
+elf_le16{data;off}: {
+  data[off] + data[off+1]*256
+}
+
+ã Read 4-byte LE from data at offset
+elf_le32{data;off}: {
+  data[off] + data[off+1]*256 + data[off+2]*65536 + data[off+3]*16777216
+}
+
+ã Check ELF magic bytes (\x7fELF)
+elf_check_magic{data}: {
+  if ((Î data) < 4) { 0 }
+  if ((data[0]=127) & (data[1]=69) & (data[2]=76) & (data[3]=70)) { 1 }
+  else { 0 }
+}
+
+ã Get ELF class (1=32-bit, 2=64-bit)
+elf_get_class{data}: { data[4] }
+
+ã Get endianness (1=LE, 2=BE)
+elf_get_endian{data}: { data[5] }
+
+ã Get machine type from e_machine field (offset 0x12=18)
+elf_get_machine{data}: {
+  elf_le16{data;18}
+}
+
+ã Get entry point address (offset 0x18=24)
+elf_get_entry{data}: {
+  elf_le32{data;24}
+}
+
+ã Get program header table offset (offset 0x1C=28)
+elf_get_phoff{data}: {
+  elf_le32{data;28}
+}
+
+ã Get number of program headers (offset 0x2C=44)
+elf_get_phnum{data}: {
+  elf_le16{data;44}
+}
+
+ã Get section header table offset (offset 0x20=32)
+elf_get_shoff{data}: {
+  elf_le32{data;32}
+}
+
+ã Get number of section headers (offset 0x30=48)
+elf_get_shnum{data}: {
+  elf_le16{data;48}
+}
+
+ã Get section name string table index (offset 0x32=50)
+elf_get_shstrndx{data}: {
+  elf_le16{data;50}
+}
+
+ã Parse a 32-bit program header entry at offset off.
+ã Returns: [p_type, p_offset, p_vaddr, p_filesz, p_memsz, p_flags]
+elf_parse_phdr{data;off}: {
+  p_typeûelf_le32{data;off}
+  p_offsetûelf_le32{data;off+4}
+  p_vaddrûelf_le32{data;off+8}
+  p_fileszûelf_le32{data;off+16}
+  p_memszûelf_le32{data;off+20}
+  p_flagsûelf_le32{data;off+24}
+  p_type, p_offset, p_vaddr, p_filesz, p_memsz, p_flags
+}
+
+ã Parse a 32-bit section header entry at offset off.
+ã Returns: [sh_name, sh_type, sh_addr, sh_offset, sh_size]
+elf_parse_shdr{data;off}: {
+  sh_nameûelf_le32{data;off}
+  sh_typeûelf_le32{data;off+4}
+  sh_addrûelf_le32{data;off+12}
+  sh_offsetûelf_le32{data;off+16}
+  sh_sizeûelf_le32{data;off+20}
+  sh_name, sh_type, sh_addr, sh_offset, sh_size
+}
+
+ã Read null-terminated string from .shstrtab at offset noff
+elf_read_str{data;stab_off;noff}: {
+  strû64Î0
+  scû0
+  posûstab_off + noff
+  while ((pos < Î data) & (data[pos]!=0) & (sc<64)) {
+    str[sc]ûdata[pos]
+    scûsc+1
+    posûpos+1
+  }
+  resultûscÎ0
+  jû0
+  while (j<sc) { result[j]ûstr[j]; jûj+1 }
+  result
+}
+
+ã Dump ELF header information
+elf_dump_header{data}: {
+  Õ \"=== ELF Header ===\""
+  if (elf_check_magic{data}) {
+    Õ \"  Magic: 7f 45 4c 46 (valid)\""
+  }
+  clsûelf_get_class{data}
+  if (cls=1) { Õ \"  Class: 32-bit (ELF32)\"" }
+  if (cls=2) { Õ \"  Class: 64-bit (ELF64)\"" }
+  endûelf_get_endian{data}
+  if (end=1) { Õ \"  Endianness: Little-endian\"" }
+  if (end=2) { Õ \"  Endianness: Big-endian\"" }
+  machûelf_get_machine{data}
+  if (mach=3) { Õ \"  Machine: x86 (EM_386)\"" }
+  if (mach=62) { Õ \"  Machine: x86-64 (EM_X86_64)\"" }
+  entryûelf_get_entry{data}
+  Õ \"  Entry point: 0x\""
+  Õ entry
+  shnumûelf_get_shnum{data}
+  Õ \"  Sections: \""
+  Õ shnum
+  phnumûelf_get_phnum{data}
+  Õ \"  Program headers: \""
+  Õ phnum
+}
+
+ã Dump program headers
+elf_dump_phdrs{data}: {
+  phoffûelf_get_phoff{data}
+  phnumûelf_get_phnum{data}
+  phentû32
+  Õ \"=== Program Headers ===\""
+  iû0
+  while (i<phnum) {
+    offûphoff + i*phent
+    phûelf_parse_phdr{data;off}
+    Õ \"  PHDR[\""
+    Õ i
+    Õ \"]: type=\""
+    Õ ph[0]
+    Õ \" vaddr=0x\""
+    Õ ph[2]
+    Õ \" filesz=\""
+    Õ ph[3]
+    iûi+1
+  }
+}
+
+ã Dump section headers with names
+elf_dump_shdrs{data}: {
+  shoffûelf_get_shoff{data}
+  shnumûelf_get_shnum{data}
+  shentû40
+  shstrndxûelf_get_shstrndx{data}
+  ã Get .shstrtab section offset
+  st_shdr_offûshoff + shstrndx*shent
+  st_infoûelf_parse_shdr{data;st_shdr_off}
+  stab_offûst_info[3]  ã sh_offset is at index 3
+
+  Õ \"=== Section Headers ===\""
+  iû0
+  while (i<shnum) {
+    offûshoff + i*shent
+    shûelf_parse_shdr{data;off}
+    sh_name_idxûsh[0]
+    sh_typeûsh[1]
+    sh_sizeûsh[4]
+    ã Read section name
+    nameûelf_read_str{data;stab_off;sh_name_idx}
+    Õ \"  Section[\""
+    Õ i
+    Õ \"]: \""
+    njû0
+    nszûÎ name
+    while (nj<nsz) {
+      Õ name[nj]
+      njûnj+1
+    }
+    Õ \"  type=\""
+    Õ sh_type
+    Õ \"  size=\""
+    Õ sh_size
+    iûi+1
+  }
+}
+
+Õ \"=== ELF Parser Self-Tests ===\"
+
+Õ \"-- Test 1: Verify ELF magic bytes --\"
+et1_okûelf_check_magic{elf_data}
+if (et1_ok) {
+  Õ \"[PASS] elf: ELF magic bytes (\\x7fELF) verified\""
+} else {
+  Õ \"[FAIL] elf: invalid ELF magic bytes\""
+  Õ \"  Expected: 127 69 76 70\""
+}
+
+Õ \"-- Test 2: Verify machine type is EM_386 (3) --\"
+et2_machûelf_get_machine{elf_data}
+if (et2_mach=3) {
+  Õ \"[PASS] elf: machine type is EM_386 (x86)\""
+} else {
+  Õ \"[FAIL] elf: expected machine=3, got\""
+  Õ et2_mach
+}
+
+Õ \"-- Test 3: Verify section count > 0 --\"
+et3_shnumûelf_get_shnum{elf_data}
+if (et3_shnum > 0) {
+  Õ \"[PASS] elf: section count = \""
+  Õ et3_shnum
+} else {
+  Õ \"[FAIL] elf: expected section count > 0, got\""
+  Õ et3_shnum
+}
+
+Õ \"-- Test 4: Verify 32-bit class --\"
+et4_clsûelf_get_class{elf_data}
+if (et4_cls=1) {
+  Õ \"[PASS] elf: class is 32-bit\""
+} else {
+  Õ \"[FAIL] elf: expected class=1 (32-bit), got\""
+  Õ et4_cls
+}
+
+Õ \"-- Test 5: Verify little-endian --\"
+et5_endûelf_get_endian{elf_data}
+if (et5_end=1) {
+  Õ \"[PASS] elf: endianness is little-endian\""
+} else {
+  Õ \"[FAIL] elf: expected endian=1 (LE), got\""
+  Õ et5_end
+}
+
+Õ \"-- Test 6: Verify entry point --\"
+et6_entryûelf_get_entry{elf_data}
+if (et6_entry=0x1000) {
+  Õ \"[PASS] elf: entry point = 0x1000\""
+} else {
+  Õ \"[FAIL] elf: expected entry=0x1000, got\""
+  Õ et6_entry
+}
+
+Õ \"-- Test 7: Dump ELF header --\"
+elf_dump_header{elf_data}
+
+Õ \"-- Test 8: Dump program headers --\"
+elf_dump_phdrs{elf_data}
+
+Õ \"-- Test 9: Dump section headers --\"
+elf_dump_shdrs{elf_data}

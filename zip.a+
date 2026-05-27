@@ -1,0 +1,228 @@
+ã zip.a+ ßßß ZIP File Reader in A+ ßßß
+ã
+ã Reads ZIP archive format (stored / uncompressed entries only).
+ã Parses local file headers, central directory, extracts entries.
+ã Hardcoded test ZIP: hello.txt + data.bin
+ã
+ã ZIP Local File Header (30 bytes + filename + extra):
+ã   offset 0:  signature (4 bytes) = 0x04034b50 (PK\x03\x04)
+ã   offset 4:  version needed (2)
+ã   offset 6:  flags (2)
+ã   offset 8:  compression method (2)
+ã   offset 10: mod time (2)
+ã   offset 12: mod date (2)
+ã   offset 14: crc-32 (4)
+ã   offset 18: compressed size (4)
+ã   offset 22: uncompressed size (4)
+ã   offset 26: filename length (2)
+ã   offset 28: extra field length (2)
+ã   offset 30: filename (variable)
+ã   after filename+extra: file data
+ã
+ã === Hardcoded ZIP archive (2 entries, stored) ===
+zip_dataû80,75,3,4,20,0,0,0,0,0,0,0,0,0,53,37,177,14,16,0,0,0,16,0,0,0,9,0,0,0,104,101,108,108,111,46,116,120,116,72,101,108,108,111,44,32,65,43,32,87,111,114,108,100,33,80,75,3,4,20,0,0,0,0,0,0,0,0,0,28,182,220,104,8,0,0,0,8,0,0,0,8,0,0,0,100,97,116,97,46,98,105,110,65,66,67,68,69,70,71,72,80,75,1,2,20,0,20,0,0,0,0,0,0,0,0,0,53,37,177,14,16,0,0,0,16,0,0,0,9,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,104,101,108,108,111,46,116,120,116,80,75,1,2,20,0,20,0,0,0,0,0,0,0,0,0,28,182,220,104,8,0,0,0,8,0,0,0,8,0,0,0,0,0,0,0,0,0,0,0,0,0,55,0,0,0,100,97,116,97,46,98,105,110,80,75,5,6,0,0,0,0,2,0,2,0,109,0,0,0,101,0,0,0,0,0
+zip_szûÎ zip_data
+
+ã Read 2-byte LE value from data at offset
+zip_le16{data;off}: {
+  data[off] + data[off+1]*256
+}
+
+ã Read 4-byte LE value from data at offset
+zip_le32{data;off}: {
+  data[off] + data[off+1]*256 + data[off+2]*65536 + data[off+3]*16777216
+}
+
+ã Parse ZIP local file header at offset off.
+ã Returns: [signature_ok, comp_method, comp_size, uncomp_size, fname_len, extra_len, header_total, data_start]
+zip_parse_local{data;off}: {
+  sigûzip_le32{data;off}
+  sig_okûsg=0x04034b50
+  comp_methodûzip_le16{data;off+8}
+  comp_sizeûzip_le32{data;off+18}
+  uncomp_sizeûzip_le32{data;off+22}
+  fname_lenûzip_le16{data;off+26}
+  extra_lenûzip_le16{data;off+28}
+  hdr_totalû30 + fname_len + extra_len
+  data_startûoff + hdr_total
+  sig_ok, comp_method, comp_size, uncomp_size, fname_len, extra_len, hdr_total, data_start
+}
+
+ã Extract filename from local header at offset
+zip_get_fname{data;off;fname_len}: {
+  fnameûfname_lenÎ0
+  iû0
+  while (i<fname_len) {
+    fname[i]ûdata[off+30+i]
+    iûi+1
+  }
+  fname
+}
+
+ã Extract uncompressed content of a stored entry
+zip_extract_content{data;data_start;uncomp_size}: {
+  contentûuncomp_sizeÎ0
+  iû0
+  while (i<uncomp_size) {
+    content[i]ûdata[data_start+i]
+    iûi+1
+  }
+  content
+}
+
+ã Extract all entries from ZIP. Returns list of filenames and contents.
+zip_extract_all{data}: {
+  nûÎ data
+  offû0
+  entriesû10Î0  ã up to 10 entries
+  ecû0
+  while (off < n) {
+    sigûzip_le32{data;off}
+    ã Check for local file header signature
+    if (sig=0x04034b50) {
+      infoûzip_parse_local{data;off}
+      comp_methodûinfo[1]
+      comp_sizeûinfo[2]
+      uncomp_sizeûinfo[3]
+      fname_lenûinfo[4]
+      extra_lenûinfo[5]
+      hdr_totalûinfo[6]
+      data_startûinfo[7]
+      ã Get filename
+      fnameûzip_get_fname{data;off;fname_len}
+      ã Get content (only stored entries)
+      if (comp_method=0) {
+        contentûzip_extract_content{data;data_start;uncomp_size}
+      } else {
+        contentû0Î0
+      }
+      ã Store entry: [filename, content]
+      entries[ec]ûfname
+      ecûec+1
+      entries[ec]ûcontent
+      ecûec+1
+      ã Advance past this entry
+      offûoff + hdr_total + comp_size
+    } else {
+      ã Not a local header, stop scanning
+      offûn
+    }
+  }
+  entries
+}
+
+ã Find and parse End of Central Directory record
+zip_find_eocd{data}: {
+  nûÎ data
+  offûn - 22
+  while (off >= 0) {
+    sigûzip_le32{data;off}
+    if (sig=0x06054b50) {
+      total_entriesûzip_le16{data;off+10}
+      cd_sizeûzip_le32{data;off+12}
+      cd_offsetûzip_le32{data;off+16}
+      total_entries, cd_size, cd_offset
+    }
+    offûoff-1
+  }
+  0, 0, 0
+}
+
+ã Print all entries in a ZIP
+zip_print_entries{data}: {
+  entriesûzip_extract_all{data}
+  eocdûzip_find_eocd{data}
+  totalûeocd[0]
+  Õ \"ZIP archive entries:\""
+  iû0
+  ecû0
+  while (i<total) {
+    fnameûentries[ec]
+    ecûec+1
+    contentûentries[ec]
+    ecûec+1
+    Õ \"  File:\""
+    ã Print filename char by char
+    jû0
+    fn_szûÎ fname
+    while (j<fn_sz) {
+      Õ fname[j]
+      jûj+1
+    }
+    iûi+1
+  }
+}
+
+Õ \"=== ZIP Reader Self-Tests ===\"
+
+Õ \"-- Test 1: Verify ZIP signature at offset 0 --\"
+zt1_sigûzip_le32{zip_data;0}
+if (zt1_sig=0x04034b50) {
+  Õ \"[PASS] zip: ZIP signature found at offset 0\"
+} else {
+  Õ \"[FAIL] zip: expected PK\\x03\\x04 at offset 0\"
+  Õ zt1_sig
+}
+
+Õ \"-- Test 2: Verify 2 entries --\"
+zt2_eocdûzip_find_eocd{zip_data}
+zt2_totalûzt2_eocd[0]
+if (zt2_total=2) {
+  Õ \"[PASS] zip: 2 entries found\"
+} else {
+  Õ \"[FAIL] zip: expected 2 entries, got\""
+  Õ zt2_total
+}
+
+Õ \"-- Test 3: Verify first entry filename --\"
+zt3_infoûzip_parse_local{zip_data;0}
+zt3_fnlenûzt3_info[4]
+zt3_fnameûzip_get_fname{zip_data;0;zt3_fnlen}
+zt3_expectedû104 101 108 108 111 46 116 120 116  ã \"hello.txt\""
+zt3_okû1
+if (zt3_fnlen != 9) { zt3_okû0 }
+zt3_jû0
+while (zt3_j<zt3_fnlen) {
+  if (zt3_fname[zt3_j] != zt3_expected[zt3_j]) { zt3_okû0 }
+  zt3_jûzt3_j+1
+}
+if (zt3_ok) {
+  Õ \"[PASS] zip: first entry filename is hello.txt\""
+} else {
+  Õ \"[FAIL] zip: expected hello.txt, got:\""
+  kû0
+  while (k<zt3_fnlen) {
+    Õ zt3_fname[k]
+    kûk+1
+  }
+}
+
+Õ \"-- Test 4: Verify first entry content --\"
+zt4_infoûzip_parse_local{zip_data;0}
+zt4_uncompûzt4_info[3]
+zt4_hdr_totalûzt4_info[6]
+zt4_dstartûzt4_info[7]
+zt4_contentûzip_extract_content{zip_data;zt4_dstart;zt4_uncomp}
+zt4_expectedû72 101 108 108 111 44 32 65 43 32 87 111 114 108 100 33  ã \"Hello, A+ World!\""
+zt4_okû1
+if (zt4_uncomp != 16) { zt4_okû0 }
+zt4_jû0
+while (zt4_j<zt4_uncomp) {
+  if (zt4_content[zt4_j] != zt4_expected[zt4_j]) { zt4_okû0 }
+  zt4_jûzt4_j+1
+}
+if (zt4_ok) {
+  Õ \"[PASS] zip: first entry content matches Hello, A+ World!\""
+} else {
+  Õ \"[FAIL] zip: first entry content mismatch\""
+  Õ \"  Expected: Hello, A+ World!\""
+  Õ \"  Got char codes:\""
+  kû0
+  while (k<zt4_uncomp) {
+    Õ zt4_content[k]
+    kûk+1
+  }
+}
+
+Õ \"-- Test 5: Enumerate all entries --\"
+zip_print_entries{zip_data}
